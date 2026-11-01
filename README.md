@@ -1,6 +1,6 @@
 # Detronics ContentBench
 
-**Live: https://detronics-apps.github.io/content-bench/**
+**Live: https://detronics-apps.github.io/ContentBench/**
 
 Take content from a first thought to researched, planned, produced, published and evaluated -
 with your own process. Phase 1 of the Content Workshop spec
