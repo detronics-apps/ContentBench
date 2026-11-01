@@ -24,14 +24,14 @@ test('the example package has one folder per output and an index naming every fi
   const { root, files } = contentPackage(ws, c.id, T);
   assert.ok(root.includes(c.id), 'stable id in the folder name');
   const outputDirs = new Set(files.filter((f) => f.path.includes('Platform_Outputs/')).map((f) => f.path.split('/')[2]));
-  assert.equal(outputDirs.size, 2);
+  assert.equal(outputDirs.size, 3);
   const readme = files.find((f) => f.path.endsWith('README.md')).text;
   for (const f of files) if (!f.path.endsWith('README.md')) assert.ok(readme.includes(f.path.slice(root.length + 1)), f.path);
   for (const n of ['Master_Concept.md', 'Story_and_Structure.md', 'Script_or_Talking_Points.md', 'Research_and_References.md', 'Asset_Manifest.md', 'Production_Notes.md']) {
     assert.ok(files.some((f) => f.path === `${root}/${n}`), n);
   }
   const pkg = JSON.parse(files.find((f) => f.path.endsWith('package.json')).text);
-  assert.equal(pkg.outputs.length, 2);
+  assert.equal(pkg.outputs.length, 3);
   assert.ok(!files.some((f) => /undefined|\[object/.test(f.text)), 'no leaked internals');
   assert.ok(assistantBrief(ws, c.id).includes('Master concept'));
 });

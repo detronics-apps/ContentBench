@@ -1,10 +1,10 @@
 // Lists and detail pages for records, plus the overview modules (dashboard, production,
 // planner, performance). Content items and outputs have their own editor in content-view.js.
 
-import { el } from './dom.js';
+import { el, toast } from './dom.js';
 import * as M from '../model.js';
-import { plannerEntries, PLAN_KINDS, outputLabel } from '../content.js';
-import { progress } from '../workflow.js';
+import { plannerEntries, PLAN_KINDS, outputLabel, calendarItems, placeOnCalendar, agenda } from '../content.js';
+import { progress, startDate, instantiateWorkflow, instantiateStory, scheduleBackwards } from '../workflow.js';
 import { store, ws as currentWs, commitWs, saveUi, refresh } from './store.js';
 import { recordForm, linkEditor, button, card, emptyState, confirmDialog, badge, catDot, recordLink, href } from './forms.js';
 import { assistantPanel } from './assistant.js';
@@ -160,7 +160,11 @@ export function developIdea(ideaId) {
 export function createAndOpenContent(fields = {}) {
   let made;
   commitWs((w) => {
-    const r = M.createRecord(w, 'content', { status: w.config.statuses.content[0] || '', contentType: '', ...fields });
+    const prefs = w.config.preferences;
+    const wf = w.workflows.find((t) => t.id === prefs.defaultWorkflowId);
+    const story = w.stories.find((t) => t.id === prefs.defaultStoryId);
+    const r = M.createRecord(w, 'content', { status: w.config.statuses.content[0] || '', contentType: '',
+      workflow: wf ? scheduleBackwards(instantiateWorkflow(wf), fields.targetDate) : null, story: story ? instantiateStory(story) : null, ...fields });
     made = r.record;
     return r.ws;
   }, { render: false });
@@ -307,12 +311,135 @@ export function production() {
 
 /* --------------------------------------------------------------- planner */
 
-const planFilter = { kind: '' };
-export function planner() {
-  const ws = currentWs();
-  const today = M.nowIso().slice(0, 10);
-  const all = plannerEntries(ws, today);
-  const entries = all.filter((e) => !planFilter.kind || e.kind === planFilter.kind);
+const planFilter = { kind: '', view: 'calendar', month: '', show: '', picked: null };
+
+const DAY_MS = 86400000;
+const monthTitle = (ym) => new Date(`${ym}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+const longDate = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+function shiftMonth(ym, delta) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return d.toISOString().slice(0, 7);
+}
+
+/** Puts a chip on a day (or '' = back on the shelf) and says what that set in motion. */
+function place(item, date) {
+  planFilter.picked = null;
+  commitWs((w) => placeOnCalendar(w, item.type, item.id, date));
+  if (item.type !== 'content' || !date) return;
+  const c = M.getRecord(currentWs(), 'content', item.id);
+  toast(c?.workflow ? `Due ${longDate(date)}. Steps dated backwards - start by ${longDate(startDate(c.workflow))}.`
+    : `Due ${longDate(date)}. Choose a workflow under Production to get dated steps.`);
+}
+
+function calChip(item) {
+  const picked = planFilter.picked?.id === item.id;
+  return el('button', {
+    class: `calchip calchip--${item.type} ${item.done ? 'calchip--done' : ''}`, type: 'button', draggable: !item.done ? 'true' : null,
+    style: item.color ? { '--cat': item.color } : null, 'aria-pressed': String(picked), 'data-field': `cal.${item.id}`,
+    title: `${item.title} · ${item.label}${item.category ? ` · ${item.category}` : ''}${item.done ? ' · published' : ''}`,
+    on: {
+      dragstart: (e) => { e.dataTransfer.setData('text/plain', JSON.stringify({ type: item.type, id: item.id })); e.dataTransfer.effectAllowed = 'move'; },
+      click: (e) => { e.stopPropagation(); planFilter.picked = picked ? null : { type: item.type, id: item.id }; refresh(); },
+      dblclick: (e) => { e.stopPropagation(); go(href(item.type, item.id)); },
+    },
+  }, [el('span', { class: 'calchip__title', text: item.title }), el('span', { class: 'calchip__label', text: item.label })]);
+}
+
+/** Native drag and drop, plus click-a-chip-then-click-a-day for touch screens and keyboards. */
+function dropZone(node, date) {
+  node.addEventListener('dragover', (e) => { e.preventDefault(); node.classList.add('is-over'); });
+  node.addEventListener('dragleave', () => node.classList.remove('is-over'));
+  node.addEventListener('drop', (e) => {
+    e.preventDefault(); node.classList.remove('is-over');
+    try { place(JSON.parse(e.dataTransfer.getData('text/plain')), date); } catch { /* not one of our chips */ }
+  });
+  return node;
+}
+
+function calendarView(ws, today) {
+  const ym = planFilter.month || today.slice(0, 7);
+  const all = calendarItems(ws);
+  const show = planFilter.show;
+  const items = all.filter((i) => !show || (show === 'due' ? i.type === 'content' : i.platformId === show));
+  const byDate = new Map();
+  for (const i of items.filter((x) => x.date)) {
+    if (!byDate.has(i.date)) byDate.set(i.date, []);
+    byDate.get(i.date).push(i);
+  }
+  const shelf = items.filter((i) => !i.date && !i.done);
+  // Monday-first grid covering the whole month
+  const first = new Date(`${ym}-01T00:00:00Z`);
+  const lead = (first.getUTCDay() + 6) % 7;
+  const start = new Date(first.getTime() - lead * DAY_MS);
+  const days = [];
+  for (let d = start; days.length < 42; d = new Date(d.getTime() + DAY_MS)) {
+    const iso = d.toISOString().slice(0, 10);
+    if (days.length >= 35 && iso.slice(0, 7) !== ym) break;
+    days.push(iso);
+  }
+  const showChip = (k, label) => el('button', { class: 'chip', type: 'button', 'aria-pressed': String(show === k), text: label,
+    on: { click: () => { planFilter.show = k; refresh(); } } });
+  const usedPlatforms = ws.platforms.filter((p) => all.some((i) => i.platformId === p.id));
+  const picked = planFilter.picked;
+  const cell = (iso) => {
+    const node = el('div', { class: `calday ${iso.slice(0, 7) !== ym ? 'calday--out' : ''} ${iso === today ? 'calday--today' : ''} ${picked ? 'calday--target' : ''}`,
+      on: { click: () => picked && place(picked, iso) } }, [
+      el('button', { class: 'calday__n', type: 'button', text: String(Number(iso.slice(8))), 'aria-label': picked ? `Place on ${longDate(iso)}` : longDate(iso),
+        on: { click: (e) => { e.stopPropagation(); if (picked) place(picked, iso); } } }),
+      ...(byDate.get(iso) || []).map(calChip),
+    ]);
+    return dropZone(node, iso);
+  };
+  return el('div', { class: 'stack' }, [
+    card('', [
+      el('div', { class: 'row' }, [
+        button('‹', () => { planFilter.month = shiftMonth(ym, -1); refresh(); }, 'ghost', { 'aria-label': 'Previous month' }),
+        el('h2', { class: 'cal__title', text: monthTitle(ym) }),
+        button('›', () => { planFilter.month = shiftMonth(ym, 1); refresh(); }, 'ghost', { 'aria-label': 'Next month' }),
+        ym !== today.slice(0, 7) ? button('Today', () => { planFilter.month = ''; refresh(); }, 'small') : null,
+      ]),
+      el('div', { class: 'chipset' }, [showChip('', 'Everything'), showChip('due', 'Final due dates'), ...usedPlatforms.map((p) => showChip(p.id, p.name))]),
+      el('p', { class: 'small muted', text: picked
+        ? 'Now click a day to place it - or the shelf to unschedule it.'
+        : 'Drag a chip onto a day (or click it, then click a day). "Due" chips are the finished video: its workflow steps are dated backwards from there. Platform chips are release dates, each on its own schedule. Colours are categories. Double-click a chip to open it.' }),
+    ]),
+    el('div', { class: 'cal' }, [
+      el('div', { class: 'cal__grid' }, [
+        ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => el('div', { class: 'cal__dow', text: d })),
+        ...days.map(cell),
+      ]),
+      dropZone(el('div', { class: `cal__shelf ${picked ? 'calday--target' : ''}`, on: { click: () => picked && place(picked, '') } }, [
+        el('h3', { class: 'cal__shelfhead', text: 'Not scheduled yet' }),
+        shelf.length ? el('div', { class: 'cal__shelfitems' }, shelf.map(calChip)) : el('p', { class: 'small muted', text: 'Everything has a date. Drop a chip here to take its date off.' }),
+        ws.config.categories.length ? el('div', { class: 'cal__legend' }, ws.config.categories.map((c) => el('span', { class: 'cat' }, [el('span', { class: 'cat__dot', style: { background: c.color } }), c.name]))) : null,
+      ]), ''),
+    ]),
+  ]);
+}
+
+const planRow = (e, withDate = true) => el('div', { class: `plan plan--${e.kind} ${e.done ? 'plan--done' : ''}` }, [
+  withDate ? el('span', { class: 'plan__date', text: e.date.slice(5) }) : null,
+  el('a', { href: e.kind === 'step' ? `#/content/${e.id}/production` : href(e.type, e.id), text: e.title }),
+  el('span', { class: 'small muted', text: PLAN_KINDS[e.kind] }),
+  e.overdue ? badge('Overdue', 'warn') : null, e.done ? badge('Done', 'ok') : null,
+]);
+
+function agendaView(ws, today) {
+  const a = agenda(plannerEntries(ws, today), today);
+  const days = new Map();
+  for (const e of a.week) { if (!days.has(e.date)) days.set(e.date, []); days.get(e.date).push(e); }
+  return el('div', { class: 'stack' }, [
+    a.overdue.length ? card(`Overdue (${a.overdue.length})`, a.overdue.map((e) => planRow(e))) : null,
+    card(`Today · ${longDate(today)}`, a.today.length ? a.today.map((e) => planRow(e, false))
+      : [el('p', { class: 'muted', text: 'Nothing due today.' })]),
+    card('The week ahead', days.size ? [...days].map(([d, list]) => el('div', {}, [el('h3', { class: 'month__head', text: longDate(d) }), ...list.map((e) => planRow(e, false))]))
+      : [el('p', { class: 'muted', text: 'Nothing due in the next six days. Put a video on the calendar to date its steps.' })]),
+  ]);
+}
+
+function listView(ws, today) {
+  const entries = plannerEntries(ws, today).filter((e) => !planFilter.kind || e.kind === planFilter.kind);
   const months = new Map();
   for (const e of entries) {
     const m = e.date.slice(0, 7);
@@ -321,18 +448,23 @@ export function planner() {
   }
   const chip = (k, label) => el('button', { class: 'chip', type: 'button', 'aria-pressed': String(planFilter.kind === k), text: label,
     on: { click: () => { planFilter.kind = k; refresh(); } } });
-  return card('Content planner', [
-    el('p', { class: 'muted small', text: 'Project milestones, production dates and publishing dates are kept apart. Ideas never appear here - an idea is not a commitment, so it cannot be overdue.' }),
+  return card('Every date', [
+    el('p', { class: 'muted small', text: 'Project milestones, due dates, workflow steps and publishing dates are kept apart. Ideas never appear here - an idea is not a commitment, so it cannot be overdue.' }),
     el('div', { class: 'chipset' }, [chip('', 'Everything'), ...Object.entries(PLAN_KINDS).map(([k, l]) => chip(k, l))]),
     entries.length ? el('div', {}, [...months].map(([m, list]) => el('div', { class: 'month' }, [
-      el('h3', { class: 'month__head', text: new Date(`${m}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) }),
-      ...list.map((e) => el('div', { class: `plan plan--${e.kind} ${e.done ? 'plan--done' : ''}` }, [
-        el('span', { class: 'plan__date', text: e.date.slice(5) }),
-        el('a', { href: href(e.type, e.id), text: e.title }),
-        el('span', { class: 'small muted', text: PLAN_KINDS[e.kind] }),
-        e.overdue ? badge('Overdue', 'warn') : null, e.done ? badge('Done', 'ok') : null,
-      ])),
-    ]))) : emptyState('Nothing dated yet', 'Give a project a milestone, a content item a target date, or an output a scheduled date.'),
+      el('h3', { class: 'month__head', text: monthTitle(m) }), ...list.map((e) => planRow(e))])))
+      : emptyState('Nothing dated yet', 'Put a video on the calendar, give a project a milestone, or schedule an output.'),
+  ]);
+}
+
+export function planner() {
+  const ws = currentWs();
+  const today = M.nowIso().slice(0, 10);
+  const tab = (v, label) => el('button', { class: 'segmented__btn', type: 'button', 'aria-pressed': String(planFilter.view === v), text: label, 'data-field': `plan.view.${v}`,
+    on: { click: () => { planFilter.view = v; planFilter.picked = null; refresh(); } } });
+  return el('div', { class: 'stack' }, [
+    el('div', { class: 'segmented', role: 'group', 'aria-label': 'Planner view' }, [tab('calendar', 'Calendar'), tab('agenda', 'This week'), tab('list', 'All dates')]),
+    { calendar: calendarView, agenda: agendaView, list: listView }[planFilter.view](ws, today),
   ]);
 }
 

@@ -4,6 +4,7 @@
 import { el, clear, toast } from './dom.js';
 import { FIELDS, optionsFor, visibleFields } from '../schema.js';
 import { LINKS, TYPE_LABEL, titleOf, getRecord } from '../model.js';
+import { timeline, formatSeconds } from '../workflow.js';
 import { store } from './store.js';
 
 export const href = (type, id) => `#/${type}/${id}`;
@@ -164,6 +165,26 @@ export async function copyText(text, what = 'Copied') {
   try { await navigator.clipboard.writeText(text); toast(`${what} to the clipboard.`); } catch {
     infoDialog('Copy this text', [el('textarea', { class: 'input', rows: 14, value: text, readonly: true })]);
   }
+}
+
+/** The video laid out as a bar: each block's width is its share of the running time. */
+export function timelineBar(blocks, { label = '', against = null } = {}) {
+  const t = timeline(blocks);
+  const diff = against === null ? null : t.total - against;
+  return el('div', { class: 'tl' }, [
+    el('div', { class: 'tl__head' }, [
+      label ? el('strong', { text: label }) : null,
+      el('span', { class: 'muted', text: `${formatSeconds(t.total)} total` }),
+      diff ? badge(`${diff > 0 ? '+' : '−'}${formatSeconds(Math.abs(diff))} vs template`, diff > 0 ? 'warn' : 'ok') : null,
+      t.untimed.length ? el('span', { class: 'small muted', text: `· no time yet: ${t.untimed.join(', ')}` }) : null,
+    ]),
+    t.total ? el('div', { class: 'tl__bar', role: 'img', 'aria-label': `${label || 'Timeline'}: ${t.segments.map((s) => `${s.name} ${formatSeconds(s.seconds)}`).join(', ')}` },
+      t.segments.map((s, i) => el('div', { class: `tl__seg tl__seg--${i % 5}`, style: { flexGrow: String(s.seconds), flexBasis: '0' },
+        title: `${s.name}: ${formatSeconds(s.start)}–${formatSeconds(s.start + s.seconds)} (${formatSeconds(s.seconds)})` },
+      [el('span', { text: s.name }), el('span', { class: 'muted', text: formatSeconds(s.seconds) })])))
+      : el('p', { class: 'small muted', text: 'Give blocks a duration (e.g. 0:15) to see the timeline.' }),
+    t.total ? el('div', { class: 'tl__ruler' }, [el('span', { text: '0:00' }), el('span', { text: formatSeconds(t.total / 2) }), el('span', { text: formatSeconds(t.total) })]) : null,
+  ]);
 }
 
 /** Shared section card. */

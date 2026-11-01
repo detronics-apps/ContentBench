@@ -77,3 +77,30 @@ test('duplicateTemplate restarts at version 1 with a new id', () => {
   assert.notEqual(d.id, t.id);
   assert.match(d.name, /copy/);
 });
+
+test('back-scheduling: last step due on the date, each earlier one when the next must start; skipped take no time', () => {
+  let inst = W.instantiateWorkflow(W.makeWorkflowTemplate({ steps: [{ name: 'Research', days: 3 }, { name: 'Script', days: 2 }, { name: 'Extra', days: 5 }, { name: 'Record', days: 1 }] }));
+  inst = W.setStepStatus(inst, inst.steps[2].id, 'skipped');
+  inst = W.scheduleBackwards(inst, '2026-03-31');
+  assert.deepEqual(inst.steps.map((s) => s.due), ['2026-03-28', '2026-03-30', '', '2026-03-31']);
+  assert.equal(W.startDate(inst), '2026-03-25');
+  assert.equal(W.addDays('2026-03-29', 1), '2026-03-30', 'a DST weekend does not shift the day');
+  assert.equal(W.stepDays({ days: '' }), 1);
+  assert.equal(W.stepDays({ days: 0 }), 0);
+});
+
+test('timeline: durations parse, untimed blocks are listed not guessed', () => {
+  assert.equal(W.parseSeconds('0:15'), 15);
+  assert.equal(W.parseSeconds('1:30'), 90);
+  assert.equal(W.parseSeconds('45s'), 45);
+  assert.equal(W.parseSeconds('2m'), 120);
+  assert.equal(W.parseSeconds('1m30'), 90);
+  assert.equal(W.parseSeconds('12'), 12);
+  assert.equal(W.parseSeconds('a while'), null);
+  assert.equal(W.parseSeconds(''), null);
+  assert.equal(W.formatSeconds(75), '1:15');
+  const t = W.timeline([{ id: 'a', name: 'Hook', duration: '0:03' }, { id: 'b', name: 'Body', duration: '?' }, { id: 'c', name: 'CTA', duration: '5' }]);
+  assert.equal(t.total, 8);
+  assert.deepEqual(t.segments.map((s) => s.start), [0, 3]);
+  assert.deepEqual(t.untimed, ['Body']);
+});

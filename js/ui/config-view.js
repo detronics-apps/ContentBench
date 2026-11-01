@@ -7,7 +7,7 @@ import { makePlatform, makeFormat, verificationAge, outputLabel } from '../conte
 import { exampleWorkspace, exampleWorkflows, exampleStories, examplePlatforms } from '../seed.js';
 import { HOWTOS, FAQS, MENTAL_MODEL, FEATURES, guideMatches } from '../guide.js';
 import { store, ws as currentWs, commitWs, commitApp } from './store.js';
-import { button, card, emptyState, confirmDialog, textField, linesField, checkbox, badge, recordLink, infoDialog } from './forms.js';
+import { button, card, emptyState, confirmDialog, textField, linesField, checkbox, badge, recordLink, infoDialog, timelineBar } from './forms.js';
 import { go } from './records.js';
 
 const adv = () => store.ui.level !== 'simple';
@@ -16,6 +16,7 @@ const expert = () => store.ui.level === 'expert';
 /* -------------------------------------------------------------- templates */
 
 const tplList = (kind) => (kind === 'wf' ? 'workflows' : 'stories');
+const isDefault = (ws, kind, id) => ws.config.preferences[kind === 'wf' ? 'defaultWorkflowId' : 'defaultStoryId'] === id;
 
 function setTpl(kind, id, fn, render = true) {
   commitWs((w) => ({ ...w, modified: M.nowIso(), [tplList(kind)]: w[tplList(kind)].map((t) => (t.id === id ? fn(t) : t)) }), { render });
@@ -29,7 +30,9 @@ export function templatesModule() {
       : 'Reusable narrative structures. Blocks can be added, removed, reordered and repeated.' }),
     items.length ? el('div', { class: 'rows' }, items.map((t) => el('a', { class: 'rowcard', href: `#/templates/${kind}/${t.id}` }, [
       el('span', { class: 'rowcard__title', text: t.name }),
-      el('span', { class: 'rowcard__meta small muted', text: `v${t.version} · ${(t.steps || t.blocks).length} ${kind === 'wf' ? 'steps' : 'blocks'}` })])))
+      el('span', { class: 'rowcard__meta small muted' }, [`v${t.version} · ${(t.steps || t.blocks).length} ${kind === 'wf' ? 'steps' : 'blocks'}`,
+        kind === 'story' && W.timeline(t.blocks).total ? ` · ${W.formatSeconds(W.timeline(t.blocks).total)}` : '',
+        isDefault(ws, kind, t.id) ? ' ' : null, isDefault(ws, kind, t.id) ? badge('default', 'ok') : null])])))
       : el('p', { class: 'muted', text: 'None yet.' }),
     el('div', { class: 'row' }, [
       button('New', () => { const t = make(); commitWs((w) => ({ ...w, [tplList(kind)]: [...w[tplList(kind)], t] }), { render: false }); go(`#/templates/${kind}/${t.id}`); }, 'primary'),
@@ -54,6 +57,10 @@ function itemRow(kind, tpl, item, i, len) {
     el('div', { class: 'row' }, [
       el('span', { class: 'block__n', text: String(i + 1) }),
       el('input', { class: 'input block__name', value: item.name, 'aria-label': 'Name', 'data-field': `tpl.${item.id}.name`, on: { change: (e) => set({ name: e.target.value }) } }),
+      isWf ? el('label', { class: 'small muted' }, ['days ', el('input', { class: 'input input--inline input--dur', type: 'number', min: 0, value: W.stepDays(item), 'data-field': `tpl.${item.id}.days`,
+        title: 'How many days this step takes. Used to date steps backwards from a due date.', on: { change: (e) => set({ days: e.target.value === '' ? '' : Number(e.target.value) }, true) } })])
+        : el('input', { class: 'input input--inline input--dur', value: item.duration || '', placeholder: '0:15', 'aria-label': 'Duration (m:ss)', 'data-field': `tpl.${item.id}.duration`,
+          on: { change: (e) => set({ duration: e.target.value }, true) } }),
       button('↑', () => setTpl(kind, tpl.id, (t) => ops.move(t, item.id, -1)), 'ghost', { 'aria-label': 'Move up', disabled: i === 0 }),
       button('↓', () => setTpl(kind, tpl.id, (t) => ops.move(t, item.id, 1)), 'ghost', { 'aria-label': 'Move down', disabled: i === len - 1 }),
       button(isWf ? 'Duplicate' : 'Repeat', () => setTpl(kind, tpl.id, (t) => ops.dup(t, item.id)), 'ghost'),
@@ -66,7 +73,7 @@ function itemRow(kind, tpl, item, i, len) {
     isWf ? ta('instructions', 'Purpose / instructions') : ta('purpose', 'Purpose'),
     isWf && adv() ? linesField('Checklist', item.checklist, (v) => set({ checklist: v }), { key: `tpl.${item.id}.checklist`, rows: 2 }) : null,
     isWf && adv() ? el('div', { class: 'two' }, [ta('inputs', 'Input fields'), ta('expectedOutput', 'Expected output')]) : null,
-    !isWf && adv() ? el('div', { class: 'two' }, [ta('prompt', 'Prompt / instruction'), textField('Estimated duration', item.duration, (v) => set({ duration: v }), { key: `tpl.${item.id}.duration` })]) : null,
+    !isWf && adv() ? ta('prompt', 'Prompt / instruction') : null,
     isWf && expert() ? el('div', { class: 'two' }, [textField('Estimated effort', item.effort, (v) => set({ effort: v }), { key: `tpl.${item.id}.effort` }), ta('aiPrompt', 'AI prompt for this step')]) : null,
     isWf && expert() && i > 0 ? el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Depends on' }),
       el('select', { class: 'input', multiple: true, size: Math.min(4, i), 'data-field': `tpl.${item.id}.deps`,
@@ -89,11 +96,17 @@ export function templateEditor(kind, id) {
       textField('Name', tpl.name, (v) => setTpl(kind, id, (t) => W.editTemplate(t, { name: v }), false), { key: 'tpl.name' }),
       textField('Description', tpl.description, (v) => setTpl(kind, id, (t) => W.editTemplate(t, { description: v }), false), { key: 'tpl.desc', multiline: true }),
     ]),
+    kind === 'story' ? card('Timeline', [timelineBar(tpl.blocks, { label: tpl.name }),
+      el('p', { class: 'small muted', text: 'Widths are each block\'s share of the running time. To test a change (an extra re-hook, a shorter middle), duplicate this template and edit the copy - then compare them on a video\'s Story section.' })]) : null,
+    kind === 'wf' ? card('', [el('p', { class: 'small muted', text: `Total ${tpl.steps.reduce((n, s) => n + W.stepDays(s), 0)} days. When a video is put on the Planner calendar, its steps are dated backwards from the due date using these days.` })]) : null,
     card(kind === 'wf' ? 'Steps' : 'Blocks', [
       ...items.map((it, i) => itemRow(kind, tpl, it, i, items.length)),
       button(kind === 'wf' ? 'Add step' : 'Add block', () => setTpl(kind, id, (t) => (kind === 'wf' ? W.addStep(t, {}) : W.addBlock(t, {}))), 'primary'),
     ]),
     card('', [el('div', { class: 'row' }, [
+      isDefault(ws, kind, id) ? badge('Default for new content', 'ok')
+        : button('Make this the default', () => commitWs((w) => ({ ...w, config: { ...w.config, preferences: { ...w.config.preferences, [kind === 'wf' ? 'defaultWorkflowId' : 'defaultStoryId']: id } } })),
+          '', { title: 'New content items start with a copy of this.' }),
       button('Duplicate template', () => { const d = W.duplicateTemplate(tpl); commitWs((w) => ({ ...w, [tplList(kind)]: [...w[tplList(kind)], d] }), { render: false }); go(`#/templates/${kind}/${d.id}`); }),
       button('Delete…', async () => {
         const ok = await confirmDialog({ title: `Delete "${tpl.name}"?`, removes: 'this template', keeps: `the ${inUse} item(s) already using it - each has its own copy` });
@@ -276,7 +289,11 @@ export function settingsModule() {
       hint: 'Included in every prompt this workspace builds, and in every content package export.' })]),
     adv() ? card('Defaults', [el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Default workflow' }),
       el('select', { class: 'input', 'data-field': 'cfg.defaultWf', on: { change: (e) => setNested('preferences', { defaultWorkflowId: e.target.value }) } },
-        [el('option', { value: '', text: '—' }), ...ws.workflows.map((t) => el('option', { value: t.id, text: t.name, selected: t.id === c.preferences.defaultWorkflowId }))])])]) : null,
+        [el('option', { value: '', text: '—' }), ...ws.workflows.map((t) => el('option', { value: t.id, text: t.name, selected: t.id === c.preferences.defaultWorkflowId }))])]),
+      el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Default structure (video timeline)' }),
+        el('select', { class: 'input', 'data-field': 'cfg.defaultStory', on: { change: (e) => setNested('preferences', { defaultStoryId: e.target.value }) } },
+          [el('option', { value: '', text: '—' }), ...ws.stories.map((t) => el('option', { value: t.id, text: t.name, selected: t.id === c.preferences.defaultStoryId }))])]),
+      el('p', { class: 'small muted', text: 'New content items start with a copy of these.' })]) : null,
   ]);
 }
 

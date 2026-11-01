@@ -57,7 +57,7 @@ test('the edge cases the spec lists all hold in the example workspace', () => {
   assert.ok(ws.records.ideas.some((i) => i.status === 'Parked'), 'parked idea');
   assert.ok(ws.workflows.some((w) => w.steps.length <= 4) && ws.workflows.some((w) => w.steps.length >= 15), 'light and detailed');
   assert.equal(contentWith(1).length, 1, 'one output');
-  assert.equal(contentWith(2).length, 1, 'several outputs');
+  assert.equal(contentWith(3).length, 1, 'several outputs');
   for (const t of M.RECORD_TYPES) for (const rec of ws.records[t]) assert.equal(rec.sample, true, `${t} ${rec.id} labelled`);
   const clean = M.removeSamples(ws, T);
   for (const t of M.RECORD_TYPES) assert.equal(clean.records[t].length, 0, t);

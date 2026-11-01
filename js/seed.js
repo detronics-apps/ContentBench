@@ -2,7 +2,7 @@
 // nothing in the application reads these names. Sample records carry `sample: true`.
 
 import { blankWorkspace, createRecord, updateRecord, nowIso } from './model.js';
-import { makeWorkflowTemplate, makeStoryTemplate, instantiateWorkflow, instantiateStory, setStepStatus } from './workflow.js';
+import { makeWorkflowTemplate, makeStoryTemplate, instantiateWorkflow, instantiateStory, setStepStatus, scheduleBackwards } from './workflow.js';
 import { makePlatform, createOutput } from './content.js';
 
 const VERIFY = 'check the platform\'s current spec';
@@ -12,26 +12,26 @@ export function exampleWorkflows(now = nowIso()) {
     makeWorkflowTemplate({
       name: 'Creator workflow (detailed)', description: 'Example: idea to lessons learned. Edit, reorder or remove any step.',
       steps: [
-        { name: 'Capture the idea', instructions: 'Write it down as it came to you.' },
-        { name: 'Develop the concept and viewer value' },
-        { name: 'Research and challenge the idea', checklist: ['List claims', 'Find the best counterargument'] },
-        { name: 'Define the story and central message' },
-        { name: 'Script, outline or talking points' },
-        { name: 'Hook, re-hooks, ending and CTA' },
-        { name: 'Plan visuals and supporting assets', optional: true },
-        { name: 'Gather references and verify claims', skippable: false, checklist: ['Every claim has a reference', 'References marked verified'] },
-        { name: 'Record or create' },
-        { name: 'Edit and assemble' },
-        { name: 'Review factual, legal and quality requirements', skippable: false },
-        { name: 'Prepare platform outputs and publishing packages' },
-        { name: 'Publish' },
-        { name: 'Evaluate performance and feedback', optional: true },
-        { name: 'Record lessons and follow-up content', optional: true },
+        { name: 'Capture the idea', instructions: 'Write it down as it came to you.', days: 0 },
+        { name: 'Develop the concept and viewer value', days: 1 },
+        { name: 'Research and challenge the idea', checklist: ['List claims', 'Find the best counterargument'], days: 3 },
+        { name: 'Define the story and central message', days: 1 },
+        { name: 'Script, outline or talking points', days: 2 },
+        { name: 'Hook, re-hooks, ending and CTA', days: 1 },
+        { name: 'Plan visuals and supporting assets', optional: true, days: 1 },
+        { name: 'Gather references and verify claims', skippable: false, checklist: ['Every claim has a reference', 'References marked verified'], days: 1 },
+        { name: 'Record or create', days: 2 },
+        { name: 'Edit and assemble', days: 3 },
+        { name: 'Review factual, legal and quality requirements', skippable: false, days: 1 },
+        { name: 'Prepare platform outputs and publishing packages', days: 1 },
+        { name: 'Publish', days: 0 },
+        { name: 'Evaluate performance and feedback', optional: true, days: 0 },
+        { name: 'Record lessons and follow-up content', optional: true, days: 0 },
       ],
     }, now),
     makeWorkflowTemplate({
       name: 'Lightweight', description: 'Example: for quick pieces that need no ceremony.',
-      steps: ['Outline', 'Record', 'Edit', 'Publish'],
+      steps: [{ name: 'Outline', days: 1 }, { name: 'Record', days: 1 }, { name: 'Edit', days: 1 }, { name: 'Publish', days: 0 }],
     }, now),
   ];
 }
@@ -40,17 +40,17 @@ export function exampleStories(now = nowIso()) {
   return [
     makeStoryTemplate({ name: 'Short-form (example)', description: 'One possible short structure - not a rule for any platform.',
       blocks: [
-        { name: 'Hook', purpose: 'Stop the scroll in the first seconds.' },
-        { name: 'Re-hook', purpose: 'Give a reason to keep watching.' },
-        { name: 'Main point' },
-        { name: 'Re-hook or new development' },
-        { name: 'Explanation / payoff' },
-        { name: 'CTA' },
+        { name: 'Hook', purpose: 'Stop the scroll in the first seconds.', duration: '0:03' },
+        { name: 'Re-hook', purpose: 'Give a reason to keep watching.', duration: '0:05' },
+        { name: 'Main point', duration: '0:15' },
+        { name: 'Re-hook or new development', duration: '0:05' },
+        { name: 'Explanation / payoff', duration: '0:20' },
+        { name: 'CTA', duration: '0:05' },
       ] }, now),
     makeStoryTemplate({ name: 'Long-form (example)', description: 'One possible long structure - not a rule for any platform.',
-      blocks: ['Opening hook', 'Context and problem', 'Investigation or story setup', 'Main sections',
-        'Examples and demonstrations', 'Complications, limitations or counterarguments',
-        'Resolution and conclusion', 'Viewer takeaway', 'CTA'] }, now),
+      blocks: [['Opening hook', '0:30'], ['Context and problem', '1:00'], ['Investigation or story setup', '1:30'], ['Main sections', '4:00'],
+        ['Examples and demonstrations', '2:00'], ['Complications, limitations or counterarguments', '1:00'],
+        ['Resolution and conclusion', '0:45'], ['Viewer takeaway', '0:20'], ['CTA', '0:15']].map(([name, duration]) => ({ name, duration })) }, now),
   ];
 }
 
@@ -95,8 +95,10 @@ export function exampleWorkspace(now = nowIso()) {
     workflows: exampleWorkflows(now), stories: exampleStories(now), platforms: examplePlatforms() };
   const [detailed, light] = ws.workflows;
   const [short, long] = ws.stories;
+  ws.config.preferences = { ...ws.config.preferences, defaultWorkflowId: detailed.id, defaultStoryId: long.id };
   const yt = ws.platforms.find((p) => p.name === 'YouTube');
   const tt = ws.platforms.find((p) => p.name === 'TikTok');
+  const ig = ws.platforms.find((p) => p.name === 'Instagram');
   const S = { sample: true };
   const add = (type, fields) => { const r = createRecord(ws, type, { ...S, ...fields }, now); ws = r.ws; return r.record; };
 
@@ -119,12 +121,14 @@ export function exampleWorkspace(now = nowIso()) {
     centralMessage: 'Wind passing a cable sheds alternating swirls that push it side to side.',
     viewerPromise: 'You will know why a bridge can hum, and be able to make a string do it at home.',
     script: '- Open on the humming bridge\n- Fan + string demo\n- Swirls explained\n- Why engineers care',
-    workflow: setStepStatus(instantiateWorkflow(detailed, now), detailed.steps[0].id, 'done'), story: instantiateStory(long, now) });
+    workflow: scheduleBackwards(setStepStatus(instantiateWorkflow(detailed, now), detailed.steps[0].id, 'done'), addDays(today, 21)), story: instantiateStory(long, now) });
   let r = createOutput(ws, content.id, { platformId: yt.id, formatId: yt.formats[0].id, storyId: long.id }, now);
   ws = updateRecord(r.ws, 'outputs', r.record.id, { ...S, scheduledDate: addDays(today, 28), caption: 'Why some bridges sing in the wind.' }, now);
   r = createOutput(ws, content.id, { platformId: tt.id, formatId: tt.formats[0].id, storyId: short.id }, now);
   ws = updateRecord(r.ws, 'outputs', r.record.id, { ...S, title: 'This bridge is singing', angle: 'Just the demo, no theory',
     scheduledDate: addDays(today, 30), hashtags: '#physics #howitworks' }, now);
+  r = createOutput(ws, content.id, { platformId: ig.id, formatId: ig.formats[0].id, storyId: short.id }, now);
+  ws = updateRecord(r.ws, 'outputs', r.record.id, { ...S, title: 'Bridge sings (Reel)', scheduledDate: addDays(today, 33) }, now);
 
   const quick = add('content', { workingTitle: 'Five soldering mistakes', contentType: 'Short-form video', status: 'Concept',
     categoryId: 'cat_making', workflow: instantiateWorkflow(light, now), story: instantiateStory(short, now),

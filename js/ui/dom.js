@@ -39,7 +39,7 @@ function applyAttrs(node, attrs, isSvg = false) {
       continue;
     }
     if (key === 'style' && typeof value === 'object') {
-      Object.assign(node.style, value);
+      for (const [k, v] of Object.entries(value)) { if (k.startsWith('--')) node.style.setProperty(k, v); else node.style[k] = v; }
       continue;
     }
     if (!isSvg && key === 'value') { node.value = value; continue; }

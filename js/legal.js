@@ -23,5 +23,6 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
+  ['0.2.0', 'Deadline calendar: drag videos and platform releases onto days, workflow steps dated backwards, a This week view. Video timeline bar on structures, with template comparison, defaults and variants.'],
   ['0.1.0', 'Phase 1 foundation: workspaces, ideas, projects, content items, platform outputs, references and assets; workflow and storytelling templates; planner; content package export; assistant prompts with suggestions kept apart.'],
 ];

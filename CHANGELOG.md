@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+- Planner calendar: drag a video's Due chip onto a day; its workflow steps are dated backwards from it
+  (each step has a number of days). Click-then-click works on touch screens and keyboards.
+- Platform outputs are their own calendar chips, so TikTok, Reels and YouTube run on separate
+  schedules. Chips are coloured by content category; filter by platform.
+- Planner → This week: overdue, today and the next six days, workflow steps included.
+- Video timeline: storytelling blocks take a duration (0:15); a bar shows the running order and
+  length, compared against the template. Default workflow and structure for new content; save a
+  tweaked structure as a variant template.
+
 ## 0.1.0
 - Phase 1 foundation: workspaces (blank, example, import, export, reset data, reset configuration,
   delete), ideas, projects, content items, platform outputs, references, assets, tasks, publishing

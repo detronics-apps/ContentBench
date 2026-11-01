@@ -1,12 +1,12 @@
 // The content item editor (its twelve sections) and the platform output editor.
 
-import { el } from './dom.js';
+import { el, toast } from './dom.js';
 import * as M from '../model.js';
 import { CONTENT_SECTIONS } from '../schema.js';
 import * as W from '../workflow.js';
-import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS } from '../content.js';
+import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, scheduleContent } from '../content.js';
 import { store, ws as currentWs, commitWs } from './store.js';
-import { recordForm, linkEditor, button, card, emptyState, confirmDialog, badge, recordLink, href, checkbox } from './forms.js';
+import { recordForm, linkEditor, button, card, emptyState, confirmDialog, badge, recordLink, href, checkbox, timelineBar } from './forms.js';
 import { detailHeader, recordActions, backlinks, go, createAndOpen } from './records.js';
 import { assistantPanel } from './assistant.js';
 import { examplePlatforms, exampleStories, exampleWorkflows } from '../seed.js';
@@ -14,6 +14,7 @@ import { examplePlatforms, exampleStories, exampleWorkflows } from '../seed.js';
 const patch = (type, id) => (p, render) => commitWs((w) => M.updateRecord(w, type, id, p), { render });
 const link = (type, id) => (field, target, on) => commitWs((w) => M.setLink(w, type, id, field, target, on));
 // text edits pass render=false so the field being typed in is not rebuilt under the reader
+const titleOfRec = (r) => M.titleOf(r);
 const editRec = (type, id, fn, render = true) => commitWs((w) => M.updateRecord(w, type, id, fn(M.getRecord(w, type, id))), { render });
 
 /* ------------------------------------------------------------ story editor */
@@ -40,8 +41,20 @@ export function storyEditor(type, record, ws) {
       button('Templates', () => go('#/templates'))]);
   if (!story) return card('Story and structure', [el('p', { class: 'muted', text: 'Pick a structure to fill in. It is copied here, so editing the template later never changes this item.' }), chooser]);
   const adv = store.ui.level !== 'simple';
+  const tpl = ws.stories.find((s) => s.id === story.templateId);
+  const tplTotal = tpl ? W.timeline(tpl.blocks).total : null;
+  const starts = new Map(W.timeline(story.blocks).segments.map((s) => [s.id, s]));
+  const saveVariant = () => {
+    const name = `${story.templateName} - variant`;
+    const t = W.makeStoryTemplate({ name, description: `Made from "${titleOfRec(record)}" to test a different structure.`,
+      blocks: story.blocks.map(({ name: n, purpose, prompt, duration, transition }) => ({ name: n, purpose, prompt, duration, transition })) });
+    commitWs((w) => ({ ...w, stories: [...w.stories, t] }), { render: false });
+    toast(`Saved as template "${name}". Rename or edit it under Templates.`);
+  };
   return card('Story and structure', [
-    el('p', { class: 'small muted', text: `From "${story.templateName}" v${story.templateVersion}. These blocks are this item's own - add, remove, reorder or repeat them freely.` }),
+    el('p', { class: 'small muted', text: `From "${story.templateName}" v${story.templateVersion}. These blocks are this item's own - add, remove, reorder or repeat them freely; the template stays as it is.` }),
+    timelineBar(story.blocks, { label: 'This video', against: tplTotal || null }),
+    tpl ? timelineBar(tpl.blocks, { label: `Template "${tpl.name}" v${tpl.version}${ws.config.preferences.defaultStoryId === tpl.id ? ' (default)' : ''}` }) : null,
     ...story.blocks.map((b, i) => {
       const upd = (k) => (e) => setStory((s) => W.instanceBlocks.update(s, b.id, { [k]: e.target.value }), false);
       const ta = (k, label, rows = 3) => el('label', { class: 'field' }, [el('span', { class: 'field__label', text: label }),
@@ -50,7 +63,9 @@ export function storyEditor(type, record, ws) {
         el('div', { class: 'row' }, [
           el('span', { class: 'block__n', text: String(i + 1) }),
           el('input', { class: 'input block__name', value: b.name, 'aria-label': 'Block name', 'data-field': `${type}.blk.${b.id}.name`, on: { change: upd('name') } }),
-          el('input', { class: 'input input--inline', value: b.duration || '', placeholder: 'duration', 'aria-label': 'Duration', 'data-field': `${type}.blk.${b.id}.duration`, on: { change: upd('duration') } }),
+          el('input', { class: 'input input--inline input--dur', value: b.duration || '', placeholder: '0:15', 'aria-label': 'Duration (m:ss)', 'data-field': `${type}.blk.${b.id}.duration`,
+            on: { change: (e) => setStory((s) => W.instanceBlocks.update(s, b.id, { duration: e.target.value })) } }),
+          starts.has(b.id) ? el('span', { class: 'block__time', text: `${W.formatSeconds(starts.get(b.id).start)}–${W.formatSeconds(starts.get(b.id).start + starts.get(b.id).seconds)}` }) : null,
           button('↑', () => setStory((s) => W.instanceBlocks.move(s, b.id, -1)), 'ghost', { 'aria-label': 'Move up', disabled: i === 0 }),
           button('↓', () => setStory((s) => W.instanceBlocks.move(s, b.id, 1)), 'ghost', { 'aria-label': 'Move down', disabled: i === story.blocks.length - 1 }),
           button('Repeat', () => setStory((s) => W.instanceBlocks.repeat(s, b.id)), 'ghost'),
@@ -63,7 +78,8 @@ export function storyEditor(type, record, ws) {
         adv ? ta('notes', 'Recording / editing notes', 2) : null,
       ]);
     }),
-    el('div', { class: 'row' }, [button('Add block', () => setStory((s) => W.instanceBlocks.add(s, {})))]),
+    el('div', { class: 'row' }, [button('Add block', () => setStory((s) => W.instanceBlocks.add(s, {}))),
+      button('Save as a new template (variant)', saveVariant, '', { title: 'Keep this structure to test it on other videos. The original template is untouched.' })]),
     el('details', { class: 'more' }, [el('summary', { text: 'Use a different structure' }), chooser]),
   ]);
 }
@@ -82,8 +98,9 @@ function workflowPanel(type, record, ws) {
       const ok = await confirmDialog({ title: 'Start a different workflow?', removes: 'the progress recorded on the current one', keeps: 'tasks already made from it', confirm: 'Replace' });
       if (!ok) return;
     }
-    editRec(type, record.id, () => ({ workflow: W.instantiateWorkflow(tpl) }));
+    editRec(type, record.id, () => ({ workflow: W.scheduleBackwards(W.instantiateWorkflow(tpl), record.targetDate) }));
   };
+  const setDays = (stepId, days) => setWf((w) => W.scheduleBackwards({ ...w, steps: w.steps.map((s) => (s.id === stepId ? { ...s, days } : s)) }, record.targetDate));
   const chooser = ws.workflows.length ? el('div', { class: 'row' }, [pick, button(inst ? 'Switch workflow' : 'Start this workflow', start, inst ? '' : 'primary')])
     : emptyState('No workflow templates', 'Create one under Templates, or add the examples.', [
       button('Add example workflows', () => commitWs((w) => ({ ...w, workflows: [...w.workflows, ...exampleWorkflows()] })))]);
@@ -94,12 +111,19 @@ function workflowPanel(type, record, ws) {
   return card('Workflow', [
     el('p', { class: 'small muted', text: `"${inst.templateName}" v${inst.templateVersion} · ${p.done} done, ${p.skipped} skipped of ${p.total}${p.requiredLeft ? ` · ${p.requiredLeft} required left` : ''}` }),
     drift ? el('p', { class: 'small text-warn', text: `The template is now v${drift.to}. This item keeps v${drift.from} - switch workflow below if you want the new one.` }) : null,
+    type === 'content' ? el('p', { class: 'small' }, record.targetDate
+      ? [el('strong', { text: `Due ${record.targetDate}` }), ` · start by ${W.startDate(inst) || record.targetDate}. Steps are dated backwards from the due date - move it on the `, el('a', { href: '#/planner', text: 'Planner calendar' }), '.']
+      : ['No due date yet. Drag this item onto a day in the ', el('a', { href: '#/planner', text: 'Planner calendar' }), ' and every step gets a date.']) : null,
     el('ol', { class: 'steps' }, inst.steps.map((s) => el('li', { class: `step step--${s.status}` }, [
       el('div', { class: 'row' }, [
+        s.due && s.status !== 'skipped' ? el('span', { class: 'step__due', text: s.due.slice(5) }) : null,
         el('span', { class: 'step__name', text: s.name }),
         s.optional ? badge('optional') : null, !W.canSkip(s) ? badge('required') : null,
         blocked.has(s.id) ? badge('waiting on another step', 'warn') : null,
         el('span', { class: 'row__push' }),
+        type === 'content' && store.ui.level !== 'simple' ? el('label', { class: 'small muted' }, ['days ',
+          el('input', { class: 'input input--inline input--dur', type: 'number', min: 0, value: W.stepDays(s), 'data-field': `step.${s.id}.days`,
+            on: { change: (e) => setDays(s.id, e.target.value === '' ? '' : Number(e.target.value)) } })]) : null,
         s.status === 'todo' ? button('Done', () => setWf((w) => W.setStepStatus(w, s.id, 'done')), 'small', { 'data-field': `step.${s.id}.done` }) : button('Reopen', () => setWf((w) => W.setStepStatus(w, s.id, 'todo')), 'small'),
         s.status === 'todo' && W.canSkip(s) ? button('Skip', () => setWf((w) => W.setStepStatus(w, s.id, 'skipped')), 'small') : null,
         type === 'content' ? button('Make task', () => createAndOpen('tasks', { title: s.name, contentId: record.id, stepId: s.id }), 'small ghost') : null,
@@ -185,7 +209,8 @@ export function contentEditor(id, section = 'overview') {
   const c = M.getRecord(ws, 'content', id);
   if (!c) return emptyState('Not found', 'This content item no longer exists.', [button('Content library', () => go('#/library'))]);
   if (!CONTENT_SECTIONS.some(([s]) => s === section)) section = 'overview';
-  const p = patch('content', id);
+  const base = patch('content', id);
+  const p = (pt, render) => ('targetDate' in pt ? commitWs((w) => scheduleContent(w, id, pt.targetDate), { render }) : base(pt, render));
   const form = recordForm('content', c, ws, p, { section });
   const hasFields = form.querySelector('.field');
   const extra = {

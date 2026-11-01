@@ -163,6 +163,53 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .plan--done { opacity: 0.6; }
 .plan__date { font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); min-width: 44px; }
 
+/* --- calendar --------------------------------------------------------
+   A chip's colour is its content category (--cat, set inline - the creator's data). */
+.cal__title { margin: 0; font-size: 18px; min-width: 9em; text-align: center; }
+.cal { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: var(--space-3); align-items: start; }
+.cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.cal__dow { font-size: 11px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; padding: 2px 4px; }
+.calday { min-height: 92px; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); padding: 3px; display: flex; flex-direction: column; gap: 3px; }
+.calday--out { background: var(--panel-2); opacity: 0.6; }
+.calday--today { border-color: var(--accent-strong); box-shadow: inset 0 0 0 1px var(--accent-strong); }
+.calday--target { cursor: copy; }
+.calday.is-over, .cal__shelf.is-over { background: var(--accent-soft); border-color: var(--accent-strong); }
+.calday__n { align-self: flex-start; font: inherit; font-size: 12px; font-weight: 600; color: var(--text-dim); background: none; border: none; padding: 0 3px; cursor: pointer; border-radius: var(--radius-sm); }
+.calday--today .calday__n { background: var(--accent-strong); color: var(--accent-ink); }
+.calchip {
+  --cat: var(--border-strong);
+  font: inherit; text-align: left; display: flex; flex-direction: column; min-width: 0; width: 100%;
+  padding: 2px 5px; border: 1px solid var(--border); border-left: 4px solid var(--cat); border-radius: var(--radius-sm);
+  background: var(--panel-2); color: var(--text); cursor: grab; font-size: 11px; line-height: 1.25;
+}
+.calchip--content { font-weight: 700; background: color-mix(in srgb, var(--cat) 22%, var(--panel)); }
+.calchip--done { opacity: 0.55; cursor: default; }
+.calchip[aria-pressed="true"] { outline: 2px solid var(--accent-strong); outline-offset: 1px; }
+.calchip__title, .calchip__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calchip__label { font-weight: 400; color: var(--text-faint); font-size: 10px; }
+.cal__shelf { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: var(--space-3); background: var(--panel); display: flex; flex-direction: column; gap: var(--space-2); }
+.cal__shelfhead { margin: 0; font-size: 13px; }
+.cal__shelfitems { display: flex; flex-direction: column; gap: 4px; }
+.cal__legend { display: flex; flex-wrap: wrap; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-2); }
+.plan--step { border-left-color: var(--accent); }
+
+/* --- video timeline ---------------------------------------------------- */
+.tl { display: flex; flex-direction: column; gap: 4px; }
+.tl__head { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; font-size: 12px; }
+.tl__bar { display: flex; height: 38px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-strong); background: var(--panel-2); }
+.tl__seg { min-width: 3px; overflow: hidden; padding: 3px 5px; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--border-strong); color: var(--text); font-size: 11px; line-height: 1.2; }
+.tl__seg:last-child { border-right: none; }
+.tl__seg span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl__seg--0 { background: var(--accent-soft); }
+.tl__seg--1 { background: var(--ok-soft); }
+.tl__seg--2 { background: var(--warn-soft); }
+.tl__seg--3 { background: var(--panel-3); }
+.tl__seg--4 { background: var(--danger-soft); }
+.tl__ruler { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
+.block__time { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+.input--dur { width: 72px; }
+.step__due { font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); }
+
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-2); }
 .tile { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3); background: var(--panel-2); display: flex; flex-direction: column; gap: 2px; }
 .tile p { margin: 4px 0 0; }
@@ -199,7 +246,11 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .banner--warn { border-color: var(--warn); background: var(--warn-soft); }
 
 @media (max-width: 700px) {
-  .grid, .two, .compare { grid-template-columns: minmax(0, 1fr); }
+  .grid, .two, .compare, .cal { grid-template-columns: minmax(0, 1fr); }
+  .cal__shelf { order: -1; }
+  .calday { min-height: 64px; padding: 2px; }
+  .calchip { padding: 1px 3px; border-left-width: 3px; }
+  .calchip__label { display: none; }
   .links__row { grid-template-columns: minmax(0, 1fr); }
   .ws-chip { max-width: 120px; }
   .saved { display: none; }

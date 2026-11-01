@@ -16,10 +16,10 @@ once the page has loaded.
 | Content Library | List and board views, search and filters |
 | Create Content | Twelve sections per item: overview, concept, story, script, hooks, research, visuals, outputs, production, publishing, performance, history |
 | Production | Workflow progress per item, tasks |
-| Planner | Milestones, production dates and publishing dates kept apart; ideas never overdue |
+| Planner | Calendar: drag a video to its due day and its workflow steps are dated backwards; each platform release is its own chip, coloured by category. This week: today and the six days ahead. Ideas never overdue |
 | Platforms & Publishing | Platform profiles with separate formats, dated spec verification, outputs, publishing records |
 | Performance | Feedback and lessons per item or output |
-| Templates | Versioned workflow and storytelling templates; items keep the version they started with |
+| Templates | Versioned workflow (steps with days) and storytelling templates (blocks with durations, shown as a timeline bar); defaults for new content; items keep the version they started with |
 | Assets & References | Reusable reference and asset records, linked wherever used |
 | Settings | Identity, categories and colours, series, audiences, statuses, voice, AI instructions; create / load example / export / import / reset / delete workspace |
 | How to use | Searchable how-tos and FAQs in everyday words, process, feature tiles; first-run welcome |

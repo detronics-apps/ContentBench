@@ -10,7 +10,7 @@ export function makeStep(fields = {}) {
   return {
     id: newId('step'), name: 'New step', description: '', instructions: '',
     optional: false, skippable: true, inputs: '', expectedOutput: '', checklist: [],
-    dependsOn: [], effort: '', aiPrompt: '',
+    dependsOn: [], effort: '', aiPrompt: '', days: 1,
     ...fields,
   };
 }
@@ -84,6 +84,76 @@ export function progress(inst) {
 export function templateDrift(inst, tpl) {
   if (!inst || !tpl || inst.templateId !== tpl.id) return null;
   return tpl.version > inst.templateVersion ? { from: inst.templateVersion, to: tpl.version } : null;
+}
+
+/* ----------------------------------------------------- back-scheduling */
+
+/** ISO date plus n calendar days. Done in UTC so a DST change never shifts the day. */
+export function addDays(iso, n) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Days a step takes. Blank or nonsense counts as one day; 0 is allowed (same day as the next). */
+export function stepDays(step) {
+  const n = Number(step.days);
+  return step.days === '' || step.days == null || !Number.isFinite(n) || n < 0 ? 1 : Math.round(n);
+}
+
+/**
+ * Works backwards from the final due date: the last step is due on it, each earlier
+ * step is due when the next one has to start. Skipped steps take no time and get no date.
+ * ponytail: calendar days, no weekends or holidays skipped - add a working-days flag if asked.
+ */
+export function scheduleBackwards(inst, due) {
+  if (!inst || !due) return inst;
+  let cursor = due;
+  const dated = [...inst.steps].reverse().map((s) => {
+    if (s.status === 'skipped') return { ...s, due: '' };
+    const out = { ...s, due: cursor };
+    cursor = addDays(cursor, -stepDays(s));
+    return out;
+  }).reverse();
+  return { ...inst, steps: dated, dueDate: due };
+}
+
+/** The day work has to start to make the date, or '' with no workflow. */
+export function startDate(inst) {
+  const first = inst?.steps.find((s) => s.status !== 'skipped' && s.due);
+  return first ? addDays(first.due, -stepDays(first)) : '';
+}
+
+/* --------------------------------------------------------------- timeline */
+
+/** "15", "15s", "0:15", "1:30", "1m30", "2m" -> seconds. Anything else -> null (untimed). */
+export function parseSeconds(text) {
+  const t = String(text ?? '').trim().toLowerCase();
+  if (!t) return null;
+  let m = t.match(/^(\d+):([0-5]?\d)$/);
+  if (m) return +m[1] * 60 + +m[2];
+  m = t.match(/^(?:(\d+(?:\.\d+)?)\s*m(?:in)?)?\s*(?:(\d+(?:\.\d+)?)\s*s?(?:ec)?)?$/);
+  if (m && (m[1] || m[2])) return Math.round((+(m[1] || 0)) * 60 + +(m[2] || 0));
+  return null;
+}
+
+export function formatSeconds(n) {
+  const s = Math.max(0, Math.round(n));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Blocks laid end to end. Untimed blocks are listed, never guessed. */
+export function timeline(blocks = []) {
+  let start = 0;
+  const segments = [];
+  const untimed = [];
+  for (const b of blocks) {
+    const seconds = parseSeconds(b.duration);
+    if (seconds === null) { untimed.push(b.name); continue; }
+    segments.push({ id: b.id, name: b.name, start, seconds });
+    start += seconds;
+  }
+  return { segments, total: start, untimed };
 }
 
 /* --------------------------------------------------------------- stories */

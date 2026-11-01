@@ -15,7 +15,7 @@ import { contentEditor, outputEditor } from './ui/content-view.js';
 import { templatesModule, templateEditor, platformsModule, platformEditor, settingsModule, guideModule } from './ui/config-view.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '0.2.0';
 
 /** The modules, in the order the work runs. `match` is every route that lights the tab. */
 const TABS = [

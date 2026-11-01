@@ -10,7 +10,8 @@ export const SEARCH_ALIASES = {
   workspace: ['profile', 'channel', 'account', 'brand', 'start over', 'reset', 'backup'],
   export: ['download', 'zip', 'package', 'share', 'send', 'backup', 'claude', 'assistant'],
   archive: ['hide', 'remove', 'delete', 'restore', 'bin'],
-  planner: ['calendar', 'schedule', 'dates', 'deadline', 'timeline'],
+  planner: ['calendar', 'schedule', 'dates', 'deadline', 'due', 'drag', 'week', 'today', 'release'],
+  structure: ['timeline', 'running time', 'length', 'seconds', 'intro', 'rework', 're-hook', 'variant', 'a/b'],
   assistant: ['ai', 'claude', 'chatgpt', 'prompt', 'suggestion'],
   reference: ['source', 'citation', 'link', 'evidence', 'fact check'],
 };
@@ -30,6 +31,20 @@ export function guideMatches(text, q) {
 }
 
 export const HOWTOS = [
+  { id: 'deadline', category: 'Planner', title: 'Set a due date and get the steps dated for you', steps: [
+    'Open Planner → Calendar. Videos without a date wait in "Not scheduled yet".',
+    'Drag the "Due" chip onto the day the finished video should be ready (on a phone: tap the chip, then tap the day).',
+    'Every step of its workflow is dated backwards from there, using each step\'s days. The toast says when you have to start.',
+    'Planner → This week lists what is due today and over the next six days. Drag the chip again to move everything at once.'] },
+  { id: 'release-dates', category: 'Planner', title: 'Plan TikTok, Reels and YouTube on their own schedules', steps: [
+    'Each platform output (a TikTok, a Reel, a long-form upload) is its own chip on the calendar.',
+    'Drag each one to its release day. Filter the calendar by platform with the chips above it.',
+    'Chip colours are the content\'s category - set the colours in Settings.'] },
+  { id: 'timeline', category: 'Story', title: 'Lay out the video as a timeline and test a variant', steps: [
+    'Give each block of a storytelling template a duration, like 0:15. The bar shows each block\'s share of the running time.',
+    'Make it the default (Templates → the template → Make this the default) and new videos start with a copy.',
+    'On a video\'s Story section, repeat a block (an extra re-hook) or change a duration. The bar compares it with the template.',
+    'Liked it? "Save as a new template (variant)" keeps it to use on other videos; the default is untouched.'] },
   { id: 'capture', category: 'Ideas', title: 'Capture an idea quickly', steps: [
     'Type it into Quick capture in the sidebar (or the box on the Dashboard) and press Add.',
     'That is all - it lands in the Ideas inbox with your words kept exactly as typed.',
@@ -73,6 +88,8 @@ export const HOWTOS = [
 ];
 
 export const FAQS = [
+  { q: 'How are the step dates worked out?', a: 'Backwards from the due date. The last step is due on it; each earlier step is due when the next one has to start, using each step\'s days. Skipped steps take no time. Weekends are counted as normal days.' },
+  { q: 'Why does a block show "no time yet"?', a: 'Its duration is blank or not a time. Use 15, 0:15, 1:30, 45s or 2m. The app never guesses a length.' },
   { q: 'Where is my data?', a: 'Only in this browser, on this device (localStorage). Nothing is uploaded. Export a workspace regularly as a backup.' },
   { q: 'Does the assistant run inside the app?', a: 'No. The app builds the prompt and keeps the reply as a suggestion; you run the assistant yourself. No integration is faked.' },
   { q: 'I edited a workflow template - why did my content item not change?', a: 'An item keeps the version it started with, on purpose. Its Production tab says when the template has moved on.' },
@@ -91,6 +108,11 @@ export const MENTAL_MODEL = [
 ];
 
 export const FEATURES = [
+  ['Deadline calendar', 'Planner → Calendar', 'Drag a video to its due day; its workflow steps are dated backwards.'],
+  ['This week', 'Planner → This week', 'Overdue, today and the next six days, steps included.'],
+  ['Release chips per platform', 'Planner → Calendar', 'Each TikTok, Reel and YouTube upload has its own date and category colour.'],
+  ['Video timeline', 'Content → Story', 'The structure as a timed bar, compared with its template.'],
+  ['Variant templates', 'Content → Story', 'Save a tweaked structure as a new template to test it.'],
   ['Quick capture', 'Sidebar → Quick capture', 'Jot an idea from any screen without leaving it.'],
   ['Related records', 'Sidebar → Related', 'Jump between an idea, its content and its outputs in both directions.'],
   ['Master drift', 'Output → notice', 'Shows which master fields changed since an output copied them.'],
@@ -119,7 +141,7 @@ export const EXPLAIN = {
   content: ['Work on the master first', 'Brief, message and promise come before any platform. Outputs copy the master when created and never change silently afterwards.'],
   outputs: ['An adaptation that remembers its source', 'This output copied its master when it was made. When the master changes, you are told which fields, and you choose per field.'],
   production: ['Steps from a copied workflow', 'Each item follows its own copy of a workflow template. Required steps cannot be skipped; optional ones can. Tasks are separate actionable items made from steps.'],
-  planner: ['Three kinds of date, kept apart', 'Project milestones, production dates and publishing dates are separate. Only committed work has dates, so an idea can never be overdue.'],
+  planner: ['Pick the date, the steps follow', 'Put a video\'s Due chip on a day and its workflow is dated backwards from it. Platform releases are their own chips with their own dates. Ideas never get dates, so an idea can never be overdue.'],
   platforms: ['A platform holds formats', 'YouTube is a platform; long-form and Shorts are its formats, each with its own specs. Specs are editable and dated, because platforms change them.'],
   performance: ['Look back, then capture forward', 'Record what happened and what you learned. Follow-up ideas go back into Ideas.'],
   templates: ['Templates are copied, never linked', 'Editing a template bumps its version. Items already using it keep the version they started with.'],

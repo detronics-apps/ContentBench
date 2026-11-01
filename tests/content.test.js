@@ -81,3 +81,24 @@ test('verificationAge is null until verified', () => {
   assert.equal(C.verificationAge(C.makePlatform()), null);
   assert.equal(C.verificationAge(C.makePlatform({ verifiedOn: '2026-01-01' }), '2026-01-31'), 30);
 });
+
+test('calendar: dropping content dates its workflow; outputs keep their own release dates', async () => {
+  const { exampleWorkspace } = await import('../js/seed.js');
+  const C = await import('../js/content.js');
+  let ws = exampleWorkspace('2026-01-01T00:00:00.000Z');
+  const c = ws.records.content.find((x) => x.workingTitle === 'Why bridges hum');
+  ws = C.placeOnCalendar(ws, 'content', c.id, '2026-02-20');
+  const after = ws.records.content.find((x) => x.id === c.id);
+  assert.equal(after.targetDate, '2026-02-20');
+  assert.equal(after.workflow.steps.at(-1).due, '2026-02-20');
+  const out = ws.records.outputs.find((o) => o.contentId === c.id);
+  ws = C.placeOnCalendar(ws, 'outputs', out.id, '2026-02-25');
+  const items = C.calendarItems(ws);
+  assert.equal(items.find((i) => i.id === out.id).date, '2026-02-25');
+  assert.ok(items.find((i) => i.id === c.id).color, 'category colour carried');
+  const entries = C.plannerEntries(ws, '2026-02-18');
+  assert.ok(entries.some((e) => e.kind === 'step'));
+  const a = C.agenda(entries, '2026-02-18');
+  assert.ok(a.week.some((e) => e.date === '2026-02-20'));
+  assert.ok(a.overdue.every((e) => e.date < '2026-02-18' && !e.done));
+});
