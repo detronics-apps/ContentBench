@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "content-bench",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8853"],
+      "port": 8853
+    }
+  ]
+}

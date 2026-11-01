@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#1f2d3d"/>
+  <!-- an idea card fanning out into three platform cards -->
+  <rect x="10" y="14" width="22" height="16" rx="3" fill="#f2c437"/>
+  <path d="M32 22 L38 22 M38 22 L38 16 M38 22 L38 28 M38 22 L38 40" stroke="#d7e5f2" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M38 16 L42 16 M38 28 L42 28 M38 40 L42 40" stroke="#d7e5f2" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <rect x="42" y="11" width="13" height="10" rx="2" fill="#7fabc7"/>
+  <rect x="42" y="23" width="13" height="10" rx="2" fill="#7fabc7"/>
+  <rect x="42" y="35" width="13" height="10" rx="2" fill="#7fabc7"/>
+  <rect x="10" y="36" width="22" height="4" rx="2" fill="#7fabc7" opacity="0.6"/>
+  <rect x="10" y="44" width="16" height="4" rx="2" fill="#7fabc7" opacity="0.6"/>
+</svg>

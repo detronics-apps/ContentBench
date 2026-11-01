@@ -1,0 +1,11 @@
+{
+  "name": "content-bench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Take content from idea to researched, planned, produced, published and evaluated.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "serve": "python -m http.server 8080"
+  }
+}

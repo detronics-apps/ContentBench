@@ -1,0 +1,7 @@
+/* The printable sheet. */
+@media print {
+  .app-header, .modebar, .sidebar, .tabs, .app-footer, .btn, .notices-host { display: none !important; }
+  .app-main { display: block; }
+  .card { box-shadow: none; break-inside: avoid; }
+  body { background: #fff; color: #000; }
+}
