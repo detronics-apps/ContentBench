@@ -1,2 +1,9 @@
 node_modules/
 .DS_Store
+
+# Private data never belongs in this public repo
+contentbench-data.json
+*.contentbench.json
+*.bak
+*.tmp
+private/

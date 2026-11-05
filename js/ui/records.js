@@ -1,10 +1,14 @@
 // Lists and detail pages for records, plus the overview modules (dashboard, production,
 // planner, performance). Content items and outputs have their own editor in content-view.js.
 
-import { el, toast } from './dom.js';
+import { el } from './dom.js';
 import * as M from '../model.js';
-import { plannerEntries, PLAN_KINDS, outputLabel, calendarItems, placeOnCalendar, agenda } from '../content.js';
-import { progress, startDate, instantiateWorkflow, instantiateStory, scheduleBackwards } from '../workflow.js';
+import { plannerEntries, PLAN_KINDS, outputLabel, agenda } from '../content.js';
+import { progress, forecast, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
+import { projectForecast } from '../process.js';
+import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS } from '../releases.js';
+import { captureProgress } from '../capture.js';
+import { thoughtCapture, nextTaskCard } from './planning.js';
 import { store, ws as currentWs, commitWs, saveUi, refresh } from './store.js';
 import { recordForm, linkEditor, button, card, emptyState, confirmDialog, badge, catDot, recordLink, href } from './forms.js';
 import { assistantPanel } from './assistant.js';
@@ -131,7 +135,7 @@ export function recordDetail(type, id, { crumbs, extras = [], top = [] } = {}) {
   const ws = currentWs();
   const r = M.getRecord(ws, type, id);
   if (!r) return emptyState('Not found', 'This record no longer exists - it may have been deleted.', [button('Dashboard', () => go('#/dashboard'))]);
-  const list = { ideas: 'ideas', projects: 'projects', references: 'assets', assets: 'assets', tasks: 'production', feedback: 'performance', publications: 'platforms' }[type];
+  const list = { thoughts: 'thoughts', ideas: 'ideas', projects: 'projects', references: 'assets', assets: 'assets', tasks: 'production', feedback: 'performance', publications: 'platforms' }[type];
   const links = linkEditor(type, r, ws, linker(type, id));
   return el('div', { class: 'detail' }, [
     detailHeader(type, r, crumbs || [el('a', { href: `#/${list}`, text: M.TYPE_LABEL[type][1] })]),
@@ -145,17 +149,7 @@ export function recordDetail(type, id, { crumbs, extras = [], top = [] } = {}) {
   ]);
 }
 
-/* ------------------------------------------------------------------ ideas */
-
-export function developIdea(ideaId) {
-  const ws = currentWs();
-  const idea = M.getRecord(ws, 'ideas', ideaId);
-  createAndOpenContent({
-    workingTitle: idea.title || M.titleOf(idea), ideaIds: [idea.id], brief: idea.cleanedSummary || '',
-    centralMessage: idea.angle || '', categoryId: idea.categoryId || '', series: idea.series || '',
-    audience: idea.audience || '', tags: idea.tags || [],
-  });
-}
+/* ------------------------------------------------------------- new content */
 
 export function createAndOpenContent(fields = {}) {
   let made;
@@ -164,89 +158,46 @@ export function createAndOpenContent(fields = {}) {
     const wf = w.workflows.find((t) => t.id === prefs.defaultWorkflowId);
     const story = w.stories.find((t) => t.id === prefs.defaultStoryId);
     const r = M.createRecord(w, 'content', { status: w.config.statuses.content[0] || '', contentType: '',
-      workflow: wf ? scheduleBackwards(instantiateWorkflow(wf), fields.targetDate) : null, story: story ? instantiateStory(story) : null, ...fields });
+      workflow: wf ? instantiateWorkflow(wf) : null, story: story ? instantiateStory(story) : null, captures: [], ...fields });
     made = r.record;
     return r.ws;
   }, { render: false });
   go(`#/content/${made.id}/overview`);
 }
 
-export function ideaDetail(id) {
-  const ws = currentWs();
-  const made = M.related(ws, 'ideas', id).incoming.filter((x) => x.type === 'content');
-  return recordDetail('ideas', id, { top: [card('', [
-    el('div', { class: 'row' }, [button('Develop into content', () => developIdea(id), 'primary', { 'data-field': 'idea.develop' }),
-      el('span', { class: 'muted small', text: made.length ? `Already developed into ${made.length} content item${made.length === 1 ? '' : 's'} - one idea can feed several.` : 'Creates a content item linked back to this idea.' })]),
-  ])] });
-}
-
-/* --------------------------------------------------------------- projects */
-
-export function projectDetail(id) {
-  const ws = currentWs();
-  const p = M.getRecord(ws, 'projects', id);
-  if (!p) return recordDetail('projects', id);
-  const ms = p.milestones || [];
-  const setMs = (list, render = true) => commitWs((w) => M.updateRecord(w, 'projects', id, { milestones: list }), { render });
-  const msRows = ms.map((m) => el('div', { class: 'row row--item' }, [
-    el('input', { type: 'checkbox', checked: !!m.done, 'aria-label': 'Done', 'data-field': `ms.${m.id}.done`, on: { change: (e) => setMs(M.patchItem(ms, m.id, { done: e.target.checked })) } }),
-    el('input', { class: 'input', value: m.name, 'data-field': `ms.${m.id}.name`, on: { change: (e) => setMs(M.patchItem(ms, m.id, { name: e.target.value }), false) } }),
-    el('input', { class: 'input input--inline', type: 'date', value: m.date || '', 'data-field': `ms.${m.id}.date`, on: { change: (e) => setMs(M.patchItem(ms, m.id, { date: e.target.value })) } }),
-    button('×', () => setMs(M.removeItem(ms, m.id)), 'ghost', { 'aria-label': 'Remove milestone' }),
-  ]));
-  const content = M.related(ws, 'projects', id).incoming.filter((x) => x.type === 'content');
-  return recordDetail('projects', id, { extras: [
-    card('Milestones', [...msRows, button('Add milestone', () => setMs([...ms, { id: M.newId('ms'), name: 'Milestone', date: '', done: false }]))]),
-    card('Content in this project', [
-      content.length ? el('ul', { class: 'plain' }, content.map((x) => el('li', {}, [recordLink('content', x.record)])))
-        : el('p', { class: 'muted', text: 'None - a project without content is perfectly valid.' }),
-      button('New content in this project', () => createAndOpenContent({ workingTitle: `${p.title} - new piece`, projectIds: [id] })),
-    ]),
-  ] });
-}
-
 /* -------------------------------------------------------------- dashboard */
 
-export function quickCapture(idSuffix = 'main') {
-  const input = el('input', { class: 'input', placeholder: 'An idea, in a few words…', 'data-field': `capture.${idSuffix}`, 'aria-label': 'Quick capture an idea' });
-  const add = () => {
-    const text = input.value.trim();
-    if (!text) { input.focus(); return; }
-    commitWs((w) => M.createRecord(w, 'ideas', { title: text.slice(0, 80), rawInput: text, status: w.config.statuses.ideas[0] || '' }).ws);
-    input.value = '';
-  };
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
-  return el('div', { class: 'capture' }, [input, button('Add idea', add, 'primary', { 'data-field': `capture.${idSuffix}.add` })]);
-}
+/** The sidebar's capture box drops a thought - the lightest thing there is. */
+export const quickCapture = (key = 'side') => thoughtCapture(key);
 
-const done = (r) => ['Published', 'Parked', 'Completed', 'Abandoned', 'Rejected'].includes(r.status);
+const done = (r) => ['Published', 'Parked', 'Completed', 'Abandoned', 'Rejected', 'Ready'].includes(r.status);
 
 export function dashboard() {
   const ws = currentWs();
   const live = (t) => ws.records[t].filter((r) => !r.archived);
-  const total = M.RECORD_TYPES.reduce((n, t) => n + ws.records[t].length, 0);
   const today = M.nowIso().slice(0, 10);
-  const soon = plannerEntries(ws, today).filter((e) => !e.done && e.date <= new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)).slice(0, 8);
+  const a = agenda(plannerEntries(ws, today), today);
   const list = (items, empty) => (items.length ? el('ul', { class: 'plain' }, items) : el('p', { class: 'muted small', text: empty }));
+  const entry = (e) => el('li', {}, [el('span', { class: 'small muted', text: `${e.carried ? 'carried over' : e.date.slice(5)} ` }),
+    el('a', { href: e.kind === 'step' ? `#/content/${e.id}/production` : href(e.type, e.id), text: e.title }),
+    el('span', { class: 'small muted', text: ` · ${PLAN_KINDS[e.kind]}` })]);
+  const health = backlogHealth(ws, today);
+  const fresh = live('thoughts').filter((t) => !t.decision);
   return el('div', { class: 'grid' }, [
-    card('Quick capture', [el('p', { class: 'muted small', text: 'No form - just the thought. Shape it later in Ideas.' }), quickCapture('dash')], { class: 'card grid__wide' }),
-    total ? null : card('Getting started', [emptyState('This workspace is empty', 'Capture an idea above, set up your workspace, or explore the example workspace.', [
-      button('Workspace settings', () => go('#/settings')), button('How to use', () => go('#/guide'))])], { class: 'card grid__wide' }),
-    card('Active work', [list(live('content').filter((c) => !done(c)).map((c) => {
-      const p = progress(c.workflow);
-      return el('li', {}, [recordLink('content', c), el('span', { class: 'small muted', text: ` · ${c.status || 'no status'}${p.next ? ` · next: ${p.next.name}` : ''}` })]);
-    }), 'Nothing in progress.')]),
-    card('Upcoming dates', [list(soon.map((e) => el('li', {}, [
-      el('span', { class: `small ${e.overdue ? 'text-warn' : 'muted'}`, text: `${e.date} ` }), el('a', { href: href(e.type, e.id), text: e.title }),
-      el('span', { class: 'small muted', text: ` · ${PLAN_KINDS[e.kind]}` })])), 'Nothing dated in the next 30 days.')]),
-    card('Recent ideas', [list(live('ideas').slice(-6).reverse().map((i) => el('li', {}, [recordLink('ideas', i), el('span', { class: 'small muted', text: ` · ${i.status || ''}` })])), 'No ideas yet.')]),
-    card('Active projects', [list(live('projects').filter((p) => p.status === 'Active').map((p) => el('li', {}, [recordLink('projects', p), el('span', { class: 'small muted', text: p.stage ? ` · ${p.stage}` : '' })])), 'No active projects.')]),
+    el('div', { class: 'grid__wide' }, [nextTaskCard(ws)]),
+    card('Today', [list(a.today.map(entry), 'Nothing for today - the next task above is the one to pick up.')]),
+    card('The week ahead', [list(a.week.map(entry), 'Nothing forecast for the next six days.')]),
+    card('Ready to release', [health.length ? list(health.map((h) => el('li', {}, [el('strong', { text: h.platform.name }),
+      ` · ${h.ready} ready · ${h.empty} open slot${h.empty === 1 ? '' : 's'} in 4 weeks`, h.short ? badge('make a quick one', 'warn') : badge('enough waiting', 'ok')])), '')
+      : el('p', { class: 'muted small', text: 'Switch on a release rhythm for a platform (Platforms → TikTok) to see this.' }), button('Releases', () => go('#/releases'), 'small')]),
+    card('Projects: done by', [list(live('projects').filter((p) => !['Completed', 'Abandoned'].includes(p.status)).map((p) => {
+      const f = projectForecast(p, ws.process, ws.records.projects, today);
+      return el('li', {}, [recordLink('projects', p), el('span', { class: 'small muted', text: f && !f.past ? ` · about ${f.date}` : '' })]);
+    }), 'No projects under way.')]),
+    card(`Thoughts not looked at (${fresh.length})`, [list(fresh.slice(0, 6).map((t) => el('li', {}, [recordLink('thoughts', t)])), 'All weighed up.'),
+      button('Thoughts', () => go('#/thoughts'), 'small')]),
     card('Recently edited', [list(M.recentlyEdited(ws, 8).map((x) => el('li', {}, [
       el('span', { class: 'small muted', text: `${M.TYPE_LABEL[x.type][0]}: ` }), recordLink(x.type, x.record)])), 'Nothing yet.')], { class: 'card grid__wide' }),
-    card('Shortcuts', [el('div', { class: 'row' }, [
-      button('New content', () => createAndOpenContent({ workingTitle: 'Untitled content' })),
-      button('New project', () => createAndOpen('projects', { title: 'Untitled project' })),
-      button('Planner', () => go('#/planner')), button('Templates', () => go('#/templates'))])], { class: 'card grid__wide' }),
   ]);
 }
 
@@ -282,66 +233,90 @@ export const assetsModule = () => el('div', { class: 'stack' }, [
   recordList('assets', { title: 'Assets', intro: 'Images, diagrams, footage, audio and other files - by location or URL. Files themselves stay where they are.', newFields: { name: 'New asset' } }),
 ]);
 
+/* ------------------------------------------------------- content plan */
+
+const PLAN_STATUSES = ['Concept', 'Planning', 'Scripting'];
+
+export function contentPlan() {
+  const ws = currentWs();
+  const live = ws.records.content.filter((c) => !c.archived && (PLAN_STATUSES.includes(c.status) || !c.status));
+  const quick = ws.workflows.find((w) => /quick/i.test(w.name));
+  return el('div', { class: 'stack' }, [
+    card('Content plan', [
+      el('p', { class: 'muted small', text: 'The inputs for each video: story and timeline, script, shots and sound, platforms. When it is planned, move it to Capturing and it shows under Production.' }),
+      el('div', { class: 'row' }, [
+        button('New video', () => createAndOpenContent({ workingTitle: 'Untitled video' }), 'primary', { 'data-field': 'plan.new' }),
+        button('New quick video (1-2 days)', () => createAndOpenContent({ workingTitle: 'Quick video', contentType: 'Quick video', ...(quick ? { workflow: instantiateWorkflow(quick) } : {}) }), '', { 'data-field': 'plan.quick' }),
+      ]),
+    ]),
+    card(`Being planned (${live.length})`, [live.length ? el('div', { class: 'rows' }, live.map((c) => rowFor('content', c, ws)))
+      : emptyState('Nothing being planned', 'Start a video here, or from any thought, idea or project.')]),
+    el('p', { class: 'small muted' }, ['Every video, whatever its status: ', el('a', { href: '#/library', text: 'Library' }), '.']),
+  ]);
+}
+
 /* ------------------------------------------------------------ production */
+
+const MAKE_STATUSES = ['Capturing', 'Editing', 'Review', 'In Production'];
 
 export function production() {
   const ws = currentWs();
-  const live = ws.records.content.filter((c) => !c.archived && !done(c));
+  const today = M.nowIso().slice(0, 10);
+  const live = ws.records.content.filter((c) => !c.archived && MAKE_STATUSES.includes(c.status));
   const tasks = ws.records.tasks.filter((t) => !t.archived && t.status !== 'Done');
   const doneStatus = ws.config.statuses.tasks.at(-1);
   return el('div', { class: 'stack' }, [
-    card('Production pipeline', [live.length ? el('div', { class: 'rows' }, live.map((c) => {
-      const p = progress(c.workflow);
-      return el('a', { class: 'rowcard', href: `#/content/${c.id}/production` }, [
-        el('span', { class: 'rowcard__title', text: c.workingTitle }),
-        el('span', { class: 'rowcard__meta' }, [badge(c.status || 'no status', 'status'),
-          el('span', { class: 'small muted', text: c.workflow ? `${p.done}/${p.total} steps · ${p.next ? `next: ${p.next.name}` : 'all done'}` : 'no workflow chosen' }),
-          c.reviewStatus ? badge(c.reviewStatus) : null]),
-      ]);
-    })) : emptyState('Nothing in production', 'Content that is not published or parked shows here with its workflow progress.')]),
+    card('Production', [
+      el('p', { class: 'muted small', text: 'Go out and make it. Each video shows what is still needed, where every file goes, and when it can be ready if you keep going.' }),
+      live.length ? el('div', { class: 'rows' }, live.map((c) => {
+        const p = progress(c.workflow);
+        const cp = captureProgress(c.captures);
+        const f = c.workflow ? forecast(c.workflow, today) : null;
+        return el('a', { class: 'rowcard', href: `#/content/${c.id}/production` }, [
+          el('span', { class: 'rowcard__title', text: c.workingTitle }),
+          el('span', { class: 'rowcard__meta' }, [badge(c.status, 'status'),
+            cp.total ? badge(`${cp.saved}/${cp.total} captured`, cp.needed ? 'warn' : 'ok') : null,
+            el('span', { class: 'small muted', text: c.workflow ? `${p.next ? `next: ${p.next.name}` : 'all steps done'}${f ? ` · ready ~${f.ready.slice(5)}` : ''}` : 'no workflow' })]),
+        ]);
+      })) : emptyState('Nothing in production', 'Set a planned video\'s status to Capturing and it shows here.', [button('Content plan', () => go('#/plan'))]),
+    ]),
     card('Open tasks', [tasks.length ? el('div', { class: 'rows' }, tasks.map((t) => el('div', { class: 'rowcard' }, [
       el('label', { class: 'check' }, [el('input', { type: 'checkbox', 'data-field': `task.${t.id}.done`,
         on: { change: () => commitWs((w) => M.updateRecord(w, 'tasks', t.id, { status: doneStatus })) } }), recordLink('tasks', t)]),
-      el('span', { class: 'rowcard__meta' }, [t.due ? el('span', { class: 'small muted', text: `due ${t.due}` }) : null,
+      el('span', { class: 'rowcard__meta' }, [t.due ? el('span', { class: 'small muted', text: t.due < today ? 'carried over' : `for ${t.due}` }) : null,
         t.contentId && M.getRecord(ws, 'content', t.contentId) ? recordLink('content', M.getRecord(ws, 'content', t.contentId)) : null]),
     ]))) : el('p', { class: 'muted', text: 'No open tasks. Make one from any workflow step, or add one here.' }),
     button('New task', () => createAndOpen('tasks', { title: 'New task' }))]),
   ]);
 }
 
-/* --------------------------------------------------------------- planner */
+/* --------------------------------------------------------------- releases */
 
-const planFilter = { kind: '', view: 'calendar', month: '', show: '', picked: null };
+const planFilter = { kind: '', view: 'rhythm', month: '', show: '', picked: null };
 
 const DAY_MS = 86400000;
 const monthTitle = (ym) => new Date(`${ym}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 const longDate = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 function shiftMonth(ym, delta) {
   const [y, m] = ym.split('-').map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-  return d.toISOString().slice(0, 7);
+  return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
 }
 
-/** Puts a chip on a day (or '' = back on the shelf) and says what that set in motion. */
 function place(item, date) {
   planFilter.picked = null;
-  commitWs((w) => placeOnCalendar(w, item.type, item.id, date));
-  if (item.type !== 'content' || !date) return;
-  const c = M.getRecord(currentWs(), 'content', item.id);
-  toast(c?.workflow ? `Due ${longDate(date)}. Steps dated backwards - start by ${longDate(startDate(c.workflow))}.`
-    : `Due ${longDate(date)}. Choose a workflow under Production to get dated steps.`);
+  commitWs((w) => placeOnCalendar(w, item.id, date));
 }
 
 function calChip(item) {
   const picked = planFilter.picked?.id === item.id;
   return el('button', {
-    class: `calchip calchip--${item.type} ${item.done ? 'calchip--done' : ''}`, type: 'button', draggable: !item.done ? 'true' : null,
+    class: `calchip ${item.ready ? 'calchip--ready' : ''} ${item.done ? 'calchip--done' : ''}`, type: 'button', draggable: !item.done ? 'true' : null,
     style: item.color ? { '--cat': item.color } : null, 'aria-pressed': String(picked), 'data-field': `cal.${item.id}`,
-    title: `${item.title} · ${item.label}${item.category ? ` · ${item.category}` : ''}${item.done ? ' · published' : ''}`,
+    title: `${item.title} · ${item.label}${item.category ? ` · ${item.category}` : ''}${item.ready ? ' · ready' : ''}${item.done ? ' · published' : ''}`,
     on: {
-      dragstart: (e) => { e.dataTransfer.setData('text/plain', JSON.stringify({ type: item.type, id: item.id })); e.dataTransfer.effectAllowed = 'move'; },
-      click: (e) => { e.stopPropagation(); planFilter.picked = picked ? null : { type: item.type, id: item.id }; refresh(); },
-      dblclick: (e) => { e.stopPropagation(); go(href(item.type, item.id)); },
+      dragstart: (e) => { e.dataTransfer.setData('text/plain', JSON.stringify({ id: item.id })); e.dataTransfer.effectAllowed = 'move'; },
+      click: (e) => { e.stopPropagation(); planFilter.picked = picked ? null : { id: item.id }; refresh(); },
+      dblclick: (e) => { e.stopPropagation(); go(href('outputs', item.id)); },
     },
   }, [el('span', { class: 'calchip__title', text: item.title }), el('span', { class: 'calchip__label', text: item.label })]);
 }
@@ -361,14 +336,22 @@ function calendarView(ws, today) {
   const ym = planFilter.month || today.slice(0, 7);
   const all = calendarItems(ws);
   const show = planFilter.show;
-  const items = all.filter((i) => !show || (show === 'due' ? i.type === 'content' : i.platformId === show));
+  const items = all.filter((i) => !show || i.platformId === show);
   const byDate = new Map();
   for (const i of items.filter((x) => x.date)) {
     if (!byDate.has(i.date)) byDate.set(i.date, []);
     byDate.get(i.date).push(i);
   }
-  const shelf = items.filter((i) => !i.date && !i.done);
-  // Monday-first grid covering the whole month
+  const shelf = items.filter((i) => !i.date && !i.done).sort((a, b) => Number(b.ready) - Number(a.ready));
+  const slots = new Map();
+  for (const p of ws.platforms.filter((x) => x.rhythm?.enabled && (!show || x.id === show))) {
+    for (const d of slotDates(p.rhythm, addDays(`${ym}-01`, -7), 50)) slots.set(d, [...(slots.get(d) || []), p.name]);
+  }
+  const ready = new Map();
+  for (const c of ws.records.content.filter((x) => !x.archived && x.workflow && !done(x))) {
+    const f = forecast(c.workflow, today).ready;
+    ready.set(f, [...(ready.get(f) || []), c.workingTitle]);
+  }
   const first = new Date(`${ym}-01T00:00:00Z`);
   const lead = (first.getUTCDay() + 6) % 7;
   const start = new Date(first.getTime() - lead * DAY_MS);
@@ -380,14 +363,17 @@ function calendarView(ws, today) {
   }
   const showChip = (k, label) => el('button', { class: 'chip', type: 'button', 'aria-pressed': String(show === k), text: label,
     on: { click: () => { planFilter.show = k; refresh(); } } });
-  const usedPlatforms = ws.platforms.filter((p) => all.some((i) => i.platformId === p.id));
   const picked = planFilter.picked;
   const cell = (iso) => {
-    const node = el('div', { class: `calday ${iso.slice(0, 7) !== ym ? 'calday--out' : ''} ${iso === today ? 'calday--today' : ''} ${picked ? 'calday--target' : ''}`,
+    const chips = byDate.get(iso) || [];
+    const slot = slots.get(iso);
+    const node = el('div', { class: `calday ${iso.slice(0, 7) !== ym ? 'calday--out' : ''} ${iso === today ? 'calday--today' : ''} ${picked ? 'calday--target' : ''} ${slot && !chips.length && iso >= today ? 'calday--slot' : ''}`,
       on: { click: () => picked && place(picked, iso) } }, [
       el('button', { class: 'calday__n', type: 'button', text: String(Number(iso.slice(8))), 'aria-label': picked ? `Place on ${longDate(iso)}` : longDate(iso),
         on: { click: (e) => { e.stopPropagation(); if (picked) place(picked, iso); } } }),
-      ...(byDate.get(iso) || []).map(calChip),
+      ...chips.map(calChip),
+      slot && !chips.length && iso >= today ? el('span', { class: 'calday__slot', text: `${slot.join(', ')} slot` }) : null,
+      ready.has(iso) ? el('span', { class: 'calday__ready', title: ready.get(iso).join(', '), text: `ready: ${ready.get(iso).join(', ')}` }) : null,
     ]);
     return dropZone(node, iso);
   };
@@ -399,10 +385,10 @@ function calendarView(ws, today) {
         button('›', () => { planFilter.month = shiftMonth(ym, 1); refresh(); }, 'ghost', { 'aria-label': 'Next month' }),
         ym !== today.slice(0, 7) ? button('Today', () => { planFilter.month = ''; refresh(); }, 'small') : null,
       ]),
-      el('div', { class: 'chipset' }, [showChip('', 'Everything'), showChip('due', 'Final due dates'), ...usedPlatforms.map((p) => showChip(p.id, p.name))]),
+      el('div', { class: 'chipset' }, [showChip('', 'Every platform'), ...ws.platforms.map((p) => showChip(p.id, p.name))]),
       el('p', { class: 'small muted', text: picked
-        ? 'Now click a day to place it - or the shelf to unschedule it.'
-        : 'Drag a chip onto a day (or click it, then click a day). "Due" chips are the finished video: its workflow steps are dated backwards from there. Platform chips are release dates, each on its own schedule. Colours are categories. Double-click a chip to open it.' }),
+        ? 'Now click a day to place it - or the shelf to take its date off.'
+        : 'Each chip is one release on one platform. Drag it to a day (or click it, then a day). Dashed days are open release slots; "ready:" marks when a video in progress can be done, counted from today. Colours are categories.' }),
     ]),
     el('div', { class: 'cal' }, [
       el('div', { class: 'cal__grid' }, [
@@ -410,7 +396,7 @@ function calendarView(ws, today) {
         ...days.map(cell),
       ]),
       dropZone(el('div', { class: `cal__shelf ${picked ? 'calday--target' : ''}`, on: { click: () => picked && place(picked, '') } }, [
-        el('h3', { class: 'cal__shelfhead', text: 'Not scheduled yet' }),
+        el('h3', { class: 'cal__shelfhead', text: 'No release date yet' }),
         shelf.length ? el('div', { class: 'cal__shelfitems' }, shelf.map(calChip)) : el('p', { class: 'small muted', text: 'Everything has a date. Drop a chip here to take its date off.' }),
         ws.config.categories.length ? el('div', { class: 'cal__legend' }, ws.config.categories.map((c) => el('span', { class: 'cat' }, [el('span', { class: 'cat__dot', style: { background: c.color } }), c.name]))) : null,
       ]), ''),
@@ -418,11 +404,30 @@ function calendarView(ws, today) {
   ]);
 }
 
+function rhythmView(ws, today) {
+  const on = ws.platforms.filter((p) => p.rhythm?.enabled);
+  if (!on.length) return card('Release rhythm', [emptyState('No release rhythm yet', 'Pick the days you release on, per platform - for example TikTok every Saturday.', [button('Platforms', () => go('#/platforms'))])]);
+  return el('div', { class: 'stack' }, on.map((p) => {
+    const plan = releasePlan(ws, p.id, today, 28);
+    return card(`${p.name}: ${p.rhythm.days.map((d) => WEEKDAYS[d]).join(', ')}`, [
+      el('p', { class: 'small' }, [`${plan.backlog.length} ready and waiting, ${plan.empty} open slot${plan.empty === 1 ? '' : 's'} in the next 4 weeks.`,
+        plan.backlog.length < (Number(p.rhythm.target) || 0) ? el('span', { class: 'text-warn', text: ` Fewer than ${p.rhythm.target} waiting - a quick 1-2 day video would top it up.` }) : null]),
+      el('ul', { class: 'plain' }, plan.slots.map((s) => el('li', { class: 'slot' }, [
+        el('span', { class: 'plan__date', text: longDate(s.date) }),
+        s.output ? recordLink('outputs', s.output) : s.suggestion ? el('span', {}, [el('span', { class: 'muted', text: 'next in line: ' }), recordLink('outputs', s.suggestion)])
+          : el('span', { class: 'muted', text: 'open - nothing ready yet' }),
+      ]))),
+      plan.slots.some((s) => s.suggestion) ? button('Book the next in line into the open slots', () => commitWs((w) => fillSlots(w, p.id, today, 28)), 'primary', { 'data-field': `rel.fill.${p.id}` }) : null,
+      el('p', { class: 'small muted', text: 'Booking is always your click. Change any date by dragging on the calendar.' }),
+    ]);
+  }));
+}
+
 const planRow = (e, withDate = true) => el('div', { class: `plan plan--${e.kind} ${e.done ? 'plan--done' : ''}` }, [
   withDate ? el('span', { class: 'plan__date', text: e.date.slice(5) }) : null,
   el('a', { href: e.kind === 'step' ? `#/content/${e.id}/production` : href(e.type, e.id), text: e.title }),
   el('span', { class: 'small muted', text: PLAN_KINDS[e.kind] }),
-  e.overdue ? badge('Overdue', 'warn') : null, e.done ? badge('Done', 'ok') : null,
+  e.carried ? badge('carried over') : null, e.done ? badge('Done', 'ok') : null,
 ]);
 
 function agendaView(ws, today) {
@@ -430,11 +435,12 @@ function agendaView(ws, today) {
   const days = new Map();
   for (const e of a.week) { if (!days.has(e.date)) days.set(e.date, []); days.get(e.date).push(e); }
   return el('div', { class: 'stack' }, [
-    a.overdue.length ? card(`Overdue (${a.overdue.length})`, a.overdue.map((e) => planRow(e))) : null,
+    nextTaskCard(ws),
     card(`Today · ${longDate(today)}`, a.today.length ? a.today.map((e) => planRow(e, false))
-      : [el('p', { class: 'muted', text: 'Nothing due today.' })]),
+      : [el('p', { class: 'muted', text: 'Nothing for today.' })]),
     card('The week ahead', days.size ? [...days].map(([d, list]) => el('div', {}, [el('h3', { class: 'month__head', text: longDate(d) }), ...list.map((e) => planRow(e, false))]))
-      : [el('p', { class: 'muted', text: 'Nothing due in the next six days. Put a video on the calendar to date its steps.' })]),
+      : [el('p', { class: 'muted', text: 'Nothing forecast for the next six days.' })]),
+    el('p', { class: 'small muted', text: 'Forecasts are counted forwards from today. If something is not finished, it simply moves out with everything after it - nothing piles up.' }),
   ]);
 }
 
@@ -449,22 +455,22 @@ function listView(ws, today) {
   const chip = (k, label) => el('button', { class: 'chip', type: 'button', 'aria-pressed': String(planFilter.kind === k), text: label,
     on: { click: () => { planFilter.kind = k; refresh(); } } });
   return card('Every date', [
-    el('p', { class: 'muted small', text: 'Project milestones, due dates, workflow steps and publishing dates are kept apart. Ideas never appear here - an idea is not a commitment, so it cannot be overdue.' }),
+    el('p', { class: 'muted small', text: 'Milestones, forecasts, workflow steps, releases and tasks, kept apart. Thoughts and ideas never get dates - they are not commitments.' }),
     el('div', { class: 'chipset' }, [chip('', 'Everything'), ...Object.entries(PLAN_KINDS).map(([k, l]) => chip(k, l))]),
     entries.length ? el('div', {}, [...months].map(([m, list]) => el('div', { class: 'month' }, [
       el('h3', { class: 'month__head', text: monthTitle(m) }), ...list.map((e) => planRow(e))])))
-      : emptyState('Nothing dated yet', 'Put a video on the calendar, give a project a milestone, or schedule an output.'),
+      : emptyState('Nothing dated yet', 'Start a workflow on a video, move a project onto a stage, or give an output a release date.'),
   ]);
 }
 
-export function planner() {
+export function releases() {
   const ws = currentWs();
   const today = M.nowIso().slice(0, 10);
   const tab = (v, label) => el('button', { class: 'segmented__btn', type: 'button', 'aria-pressed': String(planFilter.view === v), text: label, 'data-field': `plan.view.${v}`,
     on: { click: () => { planFilter.view = v; planFilter.picked = null; refresh(); } } });
   return el('div', { class: 'stack' }, [
-    el('div', { class: 'segmented', role: 'group', 'aria-label': 'Planner view' }, [tab('calendar', 'Calendar'), tab('agenda', 'This week'), tab('list', 'All dates')]),
-    { calendar: calendarView, agenda: agendaView, list: listView }[planFilter.view](ws, today),
+    el('div', { class: 'segmented', role: 'group', 'aria-label': 'Releases view' }, [tab('rhythm', 'Release rhythm'), tab('calendar', 'Calendar'), tab('agenda', 'This week'), tab('list', 'All dates')]),
+    { rhythm: rhythmView, calendar: calendarView, agenda: agendaView, list: listView }[planFilter.view](ws, today),
   ]);
 }
 

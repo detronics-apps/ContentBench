@@ -37,6 +37,12 @@ function control(type, fdef, record, ws, onPatch) {
     node.value = value || '';
     return node;
   }
+  if (fdef.type === 'multi') {
+    const opts = optionsFor(fdef, type, ws.config);
+    const picked = new Set(value || []);
+    return el('div', { class: 'chipset' }, opts.map((o) => el('button', { class: 'chip', type: 'button', 'aria-pressed': String(picked.has(o.value)), text: o.label,
+      'data-field': `${key}.${o.value}`, on: { click: () => commit(picked.has(o.value) ? [...picked].filter((x) => x !== o.value) : [...picked, o.value], true) } })));
+  }
   if (fdef.type === 'tags') {
     return el('input', { class: 'input', 'data-field': key, value: (value || []).join(', '), placeholder: 'comma, separated',
       list: 'dl-tags', on: { change: (e) => commit(e.target.value.split(',').map((s) => s.trim()).filter(Boolean), false) } });
@@ -54,7 +60,7 @@ export function recordForm(type, record, ws, onPatch, { section } = {}) {
   const fields = visibleFields(type, store.ui.level, section);
   const hidden = (section ? FIELDS[type].filter((x) => x.section === section) : FIELDS[type]).length - fields.length;
   return el('div', { class: 'form' }, [
-    ...fields.map((f) => el('label', { class: `field ${f.ai ? 'field--ai' : ''}` }, [
+    ...fields.map((f) => el(f.type === 'multi' ? 'div' : 'label', { class: `field ${f.ai ? 'field--ai' : ''}` }, [
       el('span', { class: 'field__label' }, [f.label, f.ai ? badge('AI - not your words', 'ai') : null]),
       control(type, f, record, ws, onPatch),
       f.hint ? el('span', { class: 'field__hint', text: f.hint }) : null,

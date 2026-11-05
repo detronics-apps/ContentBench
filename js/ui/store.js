@@ -22,12 +22,15 @@ export const store = {
 };
 
 const listeners = new Set();
+const savedHooks = new Set();
+/** Called after every save - the folder sync uses it to write the private data file. */
+export const onSaved = (fn) => savedHooks.add(fn);
 export const onChange = (fn) => listeners.add(fn);
 /** Redraw after a view-only change (a filter, a view toggle) - nothing is saved. */
 export const refresh = () => { for (const l of listeners) l({ render: true }); };
 
 /** Saved straight away: every commit is a deliberate act, and losing one is losing work. */
-function persist() {
+function persist({ fromFile = false } = {}) {
   try {
     localStorage.setItem(KEY, JSON.stringify(store.app));
     store.savedAt = nowIso();
@@ -35,6 +38,14 @@ function persist() {
   } catch (e) {
     store.saveError = `Could not save (${e.name}). Export your workspace now so nothing is lost.`;
   }
+  if (!fromFile) for (const h of savedHooks) h();
+}
+
+/** Takes the whole app from the data file. Not written back - it came from there. */
+export function replaceApp(app) {
+  store.app = app;
+  persist({ fromFile: true });
+  for (const l of listeners) l({ render: true });
 }
 
 export function saveUi() {
@@ -62,4 +73,4 @@ export function commitApp(fn) {
   for (const l of listeners) l({ render: true });
 }
 
-persist();
+persist({ fromFile: true });

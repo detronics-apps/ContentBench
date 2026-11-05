@@ -12,24 +12,31 @@ import { zip } from './zip.js';
 import { outputLabel } from './content.js';
 import * as R from './ui/records.js';
 import { contentEditor, outputEditor } from './ui/content-view.js';
-import { templatesModule, templateEditor, platformsModule, platformEditor, settingsModule, guideModule } from './ui/config-view.js';
+import { templatesModule, templateEditor, platformsModule, platformEditor, settingsModule, guideModule, processEditor } from './ui/config-view.js';
+import * as Pl from './ui/planning.js';
+import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.2.0';
+export const APP_VERSION = '0.3.0';
 
 /** The modules, in the order the work runs. `match` is every route that lights the tab. */
 const TABS = [
-  { id: 'dashboard', label: 'Dashboard', short: 'Home' },
+  { id: 'home', label: 'Home', short: 'Home' },
+  { id: 'dashboard', label: 'Dashboard', short: 'Today' },
+  { group: 'Planning' },
+  { id: 'thoughts', label: 'Thoughts', short: 'Thoughts' },
   { id: 'ideas', label: 'Ideas', short: 'Ideas' },
   { id: 'projects', label: 'Projects', short: 'Projects' },
-  { id: 'library', label: 'Content Library', short: 'Library', match: ['content', 'outputs'] },
-  { id: 'create', label: 'Create Content', short: 'Create' },
-  { id: 'production', label: 'Production', short: 'Produce', match: ['tasks'] },
-  { id: 'planner', label: 'Planner', short: 'Plan' },
-  { id: 'platforms', label: 'Platforms & Publishing', short: 'Platforms', match: ['publications'] },
-  { id: 'performance', label: 'Performance', short: 'Feedback', match: ['feedback'] },
+  { group: 'Content' },
+  { id: 'plan', label: 'Content plan', short: 'Plan', match: ['content', 'create'] },
+  { id: 'production', label: 'Production', short: 'Make', match: ['tasks'] },
+  { id: 'releases', label: 'Releases', short: 'Release', match: ['outputs', 'planner'] },
+  { sep: true },
+  { id: 'library', label: 'Library', short: 'Library' },
   { id: 'templates', label: 'Templates', short: 'Templates' },
-  { id: 'assets', label: 'Assets & References', short: 'Assets', match: ['references'] },
+  { id: 'platforms', label: 'Platforms', short: 'Platforms', match: ['publications'] },
+  { id: 'assets', label: 'References & assets', short: 'Assets', match: ['references'] },
+  { id: 'performance', label: 'Performance', short: 'Feedback', match: ['feedback'] },
   { id: 'settings', label: 'Settings', short: 'Settings' },
   { sep: true },
   { id: 'guide', label: 'How to use', short: 'Help' },
@@ -47,49 +54,33 @@ const THEME_ICON = { system: '◐', light: '☀', dark: '☾' };
 const dom = {};
 
 function parseRoute() {
-  const [mod = 'dashboard', a = '', b = ''] = location.hash.replace(/^#\/?/, '').split('/');
-  return { mod: mod || 'dashboard', a, b };
-}
-
-function createPage() {
-  const ws = currentWs();
-  const recent = ws.records.content.filter((c) => !c.archived).sort((x, y) => (x.modified < y.modified ? 1 : -1)).slice(0, 6);
-  const title = el('input', { class: 'input', placeholder: 'Working title', 'data-field': 'create.title' });
-  const start = () => R.createAndOpenContent({ workingTitle: title.value.trim() || 'Untitled content' });
-  title.addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
-  return el('div', { class: 'stack' }, [
-    el('section', { class: 'card' }, [el('h2', { class: 'card__title', text: 'Start a new content item' }),
-      el('p', { class: 'muted small', text: 'Start from a title. Brief, concept, story, script, hooks, research, visuals and outputs each have their own section - fill them in any order.' }),
-      el('div', { class: 'capture' }, [title, button('Create', start, 'primary', { 'data-field': 'create.go' })]),
-      el('p', { class: 'muted small', text: 'Starting from an idea instead? Open it in Ideas and press "Develop into content".' })]),
-    el('section', { class: 'card' }, [el('h2', { class: 'card__title', text: 'Continue working on' }),
-      recent.length ? el('ul', { class: 'plain' }, recent.map((c) => el('li', {}, [el('a', { href: `#/content/${c.id}/overview`, text: c.workingTitle }),
-        el('span', { class: 'small muted', text: ` · ${c.status || ''}` })]))) : el('p', { class: 'muted', text: 'No content yet.' })]),
-  ]);
+  const [mod = 'home', a = '', b = ''] = location.hash.replace(/^#\/?/, '').split('/');
+  return { mod: mod || 'home', a, b };
 }
 
 function page(route) {
   const { mod, a, b } = route;
   switch (mod) {
+    case 'home': return Pl.hub();
     case 'dashboard': return R.dashboard();
-    case 'ideas': return a ? R.ideaDetail(a) : R.recordList('ideas', { title: 'Idea inbox', newFields: { title: 'New idea' },
-      intro: 'Capture first, decide later. Ideas can be explored, planned, parked or rejected - none has to become content.' });
-    case 'projects': return a ? R.projectDetail(a) : R.recordList('projects', { newFields: { title: 'New project' },
-      intro: 'Larger pieces of work: investigations, builds, experiments, journeys. A project may produce several content items, or none.' });
+    case 'thoughts': return a ? Pl.thoughtDetail(a) : Pl.thoughtsModule();
+    case 'ideas': return a ? Pl.ideaDetail(a) : R.recordList('ideas', { title: 'Ideas', newFields: { title: 'New idea' },
+      intro: 'About an hour each: is there something behind it? Develop a thought into one, or start one directly. An idea can become a project, a video, or be parked.' });
+    case 'projects': return a ? Pl.projectDetail(a) : Pl.projectsModule();
+    case 'plan': case 'create': return R.contentPlan();
+    case 'production': return R.production();
+    case 'releases': case 'planner': return R.releases();
     case 'library': return R.library();
-    case 'create': return createPage();
     case 'content': return contentEditor(a, b);
     case 'outputs': return outputEditor(a);
-    case 'production': return R.production();
-    case 'planner': return R.planner();
     case 'platforms': return a ? platformEditor(a) : platformsModule();
     case 'performance': return R.performance();
-    case 'templates': return a ? templateEditor(a, b) : templatesModule();
+    case 'templates': return a === 'process' ? processEditor() : a ? templateEditor(a, b) : templatesModule();
     case 'settings': return settingsModule();
     case 'assets': return a ? R.recordDetail('assets', a) : R.assetsModule();
     case 'guide': return guideModule(openOnboarding);
     case 'references': case 'tasks': case 'feedback': case 'publications': return R.recordDetail(mod, a);
-    default: return R.dashboard();
+    default: return Pl.hub();
   }
 }
 
@@ -137,7 +128,9 @@ function buildModebar() {
 function paintChrome() {
   const ws = currentWs();
   dom.wsName.textContent = ws.name;
-  dom.saved.textContent = store.saveError ? 'Not saved' : store.savedAt ? `Saved ${new Date(store.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
+  const at = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  dom.saved.textContent = store.saveError ? 'Not saved' : sync.status === 'connected' && sync.savedAt ? `Saved to ${sync.name || 'your folder'} ${at(sync.savedAt)}`
+    : store.savedAt ? `Saved in this browser ${at(store.savedAt)}` : '';
   dom.theme.textContent = THEME_ICON[store.ui.theme];
   dom.theme.setAttribute('aria-label', `Theme: ${store.ui.theme} - click to change`);
   dom.theme.title = dom.theme.getAttribute('aria-label');
@@ -176,7 +169,7 @@ function sideSection(id, title, kids) {
 
 function currentRecord(route) {
   const ws = currentWs();
-  const type = { ideas: 'ideas', projects: 'projects', content: 'content', outputs: 'outputs', assets: 'assets', references: 'references',
+  const type = { thoughts: 'thoughts', ideas: 'ideas', projects: 'projects', content: 'content', outputs: 'outputs', assets: 'assets', references: 'references',
     tasks: 'tasks', feedback: 'feedback', publications: 'publications' }[route.mod];
   const record = type && route.a ? M.getRecord(ws, type, route.a) : null;
   return record ? { type, record } : null;
@@ -235,7 +228,7 @@ function exportPanel(cur) {
 
 function workspacePanel() {
   const sel = el('select', { class: 'input', 'data-field': 'side.ws', 'aria-label': 'Switch workspace',
-    on: { change: (e) => { commitApp((app) => ({ ...app, currentId: e.target.value })); location.hash = '#/dashboard'; } } },
+    on: { change: (e) => { commitApp((app) => ({ ...app, currentId: e.target.value })); location.hash = '#/home'; } } },
   store.app.workspaces.map((w) => el('option', { value: w.id, text: w.name, selected: w.id === store.app.currentId })));
   return sideSection('workspace', 'Workspace', [sel, el('p', { class: 'small muted', text: currentWs().description || '' }), el('a', { href: '#/settings', class: 'small', text: 'Workspace settings' })]);
 }
@@ -243,7 +236,7 @@ function workspacePanel() {
 function buildSidebar(route) {
   const cur = currentRecord(route);
   dom.sidebar.replaceChildren(...[
-    sideSection('capture', 'Quick capture', [R.quickCapture('side')]),
+    sideSection('capture', 'Drop a thought', [R.quickCapture('side')]),
     relatedPanel(cur),
     explainPanel(route, cur),
     workspacePanel(),
@@ -252,6 +245,22 @@ function buildSidebar(route) {
 }
 
 /* ----------------------------------------------------------------- render */
+
+/** The folder states that must be settled from anywhere in the app, not just Settings. */
+function paintSync() {
+  const s = sync.status;
+  const bar = (text, kids, level = 'warn') => el('div', { class: `banner banner--${level} syncbar`, role: 'status' }, [el('span', { class: 'banner__text', text }), ...kids]);
+  const btn = (t, fn, kind = '') => button(t, fn, `small ${kind}`);
+  dom.syncbar.replaceChildren(...[
+    s === 'reconnect' ? bar(`Your folder "${sync.name}" needs one click to reconnect.`, [btn('Reconnect', reconnectFolder, 'primary')], 'info') : null,
+    s === 'choose' ? bar(`"${sync.name}" already holds ContentBench data. Which copy should be used?`, [
+      btn('Use the folder\'s data', useFolderCopy, 'primary'), btn('Replace it with this browser\'s data', useBrowserCopy)]) : null,
+    s === 'conflict' ? bar('The data file changed somewhere else while you were also editing here.', [
+      btn('Load the file\'s version', useFolderCopy, 'primary'), btn('Keep mine (overwrite the file)', useBrowserCopy)]) : null,
+    s === 'error' ? bar(`Folder problem: ${sync.error}`, [btn('Choose folder again', connectFolder)]) : null,
+  ].filter(Boolean));
+  dom.syncbar.hidden = !dom.syncbar.childElementCount;
+}
 
 function notices() {
   const ws = currentWs();
@@ -271,10 +280,12 @@ export function render() {
   const snap = captureFocus({ viewport: dom.viewport, sidebar: dom.sidebar });
   const winY = window.scrollY;
 
-  const owner = TABS.find((t) => t.id === route.mod || t.match?.includes(route.mod))?.id || 'dashboard';
-  dom.tabs.replaceChildren(...TABS.map((t) => (t.sep ? el('span', { class: 'segmented__sep', 'aria-hidden': 'true' }) : el('a', {
-    class: 'segmented__btn', href: `#/${t.id}`, 'aria-current': t.id === owner ? 'page' : null,
-  }, [el('span', { class: 'tab-label--long', text: t.label }), el('span', { class: 'tab-label--short', text: t.short })]))));
+  const owner = TABS.find((t) => t.id === route.mod || t.match?.includes(route.mod))?.id || 'home';
+  dom.tabs.replaceChildren(...TABS.map((t) => (t.sep ? el('span', { class: 'segmented__sep', 'aria-hidden': 'true' })
+    : t.group ? el('span', { class: 'segmented__group', text: t.group, 'aria-hidden': 'true' }) : el('a', {
+      class: 'segmented__btn', href: `#/${t.id}`, 'aria-current': t.id === owner ? 'page' : null,
+    }, [el('span', { class: 'tab-label--long', text: t.label }), el('span', { class: 'tab-label--short', text: t.short })]))));
+  paintSync();
   renderNotices(dom.notices, notices(), render);
   dom.page.replaceChildren(page(route));
   dom.tagList.replaceChildren(...currentWs().config.tags.map((t) => el('option', { value: t })));
@@ -298,7 +309,7 @@ function openOnboarding() {
   const overlay = el('div', { class: 'overlay', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'welcome-title' }, [
     el('div', { class: 'welcome' }, [
       el('h2', { id: 'welcome-title', text: 'Welcome to ContentBench' }),
-      el('p', { text: 'Take content from a first thought to researched, planned, produced, published and evaluated - with your own process, not someone else\'s. Everything stays in this browser.' }),
+      el('p', { text: 'From a passing thought to an idea, a project, and the videos it becomes - planned, captured, released. Your process, as help, never as rules. Your data stays on your own computer.' }),
       el('ol', { class: 'welcome__steps' }, ONBOARDING.map((s) => el('li', {}, [
         el('a', { href: s.href, on: { click: close } }, [el('strong', { text: s.title })]),
         el('p', { class: 'small muted', text: s.text })]))),
@@ -331,14 +342,17 @@ function init() {
   applyTheme();
   dom.tabs = el('nav', { class: 'segmented tabs', 'aria-label': 'Modules' });
   dom.notices = el('div', { class: 'notices-host' });
+  dom.syncbar = el('div', { class: 'syncbar-host', hidden: true });
   dom.page = el('div', { class: 'page' });
-  dom.viewport = el('section', { class: 'viewport' }, [dom.tabs, dom.notices, dom.page]);
+  dom.viewport = el('section', { class: 'viewport' }, [dom.tabs, dom.syncbar, dom.notices, dom.page]);
   dom.sidebar = el('aside', { class: 'sidebar', 'aria-label': 'Tools' });
   dom.tagList = el('datalist', { id: 'dl-tags' });
   document.body.append(buildHeader(), buildModebar(), el('main', { class: 'app-main' }, [dom.viewport, dom.sidebar]), buildFooter(), dom.tagList);
   onChange(({ render: full }) => (full ? render() : paintChrome()));
   window.addEventListener('hashchange', render);
+  onSync(() => { paintSync(); paintChrome(); });
   render();
+  restoreFolder();
   if (!store.ui.onboardedAt) openOnboarding();
   if (store.saveError) toast(store.saveError);
 }

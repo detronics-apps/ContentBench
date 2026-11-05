@@ -33,15 +33,16 @@ test('an instance keeps its version; template edits never reach it', () => {
   assert.equal(W.templateDrift(inst, W.makeWorkflowTemplate()), null, 'other template');
 });
 
-test('a required unskippable step refuses to be skipped; progress counts', () => {
+test('any step can be skipped - nothing is forced; progress counts', () => {
   let inst = W.instantiateWorkflow(tpl());
   const [a, b, c] = inst.steps;
-  inst = W.setStepStatus(inst, b.id, 'skipped');
-  assert.equal(inst.steps[1].status, 'todo');
-  inst = W.setStepStatus(inst, a.id, 'done');
   inst = W.setStepStatus(inst, c.id, 'skipped');
+  assert.equal(inst.steps[2].status, 'skipped');
+  inst = W.setStepStatus(inst, a.id, 'done');
   const p = W.progress(inst);
   assert.deepEqual({ ...p, next: p.next.name }, { done: 1, skipped: 1, total: 3, requiredLeft: 1, next: 'B' });
+  inst = W.setStepStatus(inst, b.id, 'skipped');
+  assert.equal(inst.steps[1].status, 'skipped');
   assert.throws(() => W.setStepStatus(inst, a.id, 'finished'));
 });
 
@@ -78,12 +79,14 @@ test('duplicateTemplate restarts at version 1 with a new id', () => {
   assert.match(d.name, /copy/);
 });
 
-test('back-scheduling: last step due on the date, each earlier one when the next must start; skipped take no time', () => {
+test('forecast counts forwards from today; done and skipped steps take no time', () => {
   let inst = W.instantiateWorkflow(W.makeWorkflowTemplate({ steps: [{ name: 'Research', days: 3 }, { name: 'Script', days: 2 }, { name: 'Extra', days: 5 }, { name: 'Record', days: 1 }] }));
+  inst = W.setStepStatus(inst, inst.steps[0].id, 'done');
   inst = W.setStepStatus(inst, inst.steps[2].id, 'skipped');
-  inst = W.scheduleBackwards(inst, '2026-03-31');
-  assert.deepEqual(inst.steps.map((s) => s.due), ['2026-03-28', '2026-03-30', '', '2026-03-31']);
-  assert.equal(W.startDate(inst), '2026-03-25');
+  const f = W.forecast(inst, '2026-03-25');
+  assert.deepEqual(inst.steps.map((s) => f.byStep[s.id] || ''), ['', '2026-03-27', '', '2026-03-28']);
+  assert.equal(f.ready, '2026-03-28');
+  assert.equal(W.forecast(null, '2026-03-25').ready, '2026-03-25');
   assert.equal(W.addDays('2026-03-29', 1), '2026-03-30', 'a DST weekend does not shift the day');
   assert.equal(W.stepDays({ days: '' }), 1);
   assert.equal(W.stepDays({ days: 0 }), 0);

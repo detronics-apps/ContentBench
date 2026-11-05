@@ -2,14 +2,16 @@
 // Pure - no DOM, no storage. Every helper returns a new object; nothing is mutated,
 // so the UI can keep the previous version and a test can compare before and after.
 
+import { DEFAULT_STAGES, DEFAULT_SCORECARD, DEFAULT_CAPTURE_KINDS, DEFAULT_THOUGHT_SOURCES, DEFAULT_PRODUCE } from './process-data.js';
+
 export const SCHEMA_VERSION = 1;
 
 /** Every kind of record a workspace holds, in the order the app presents them. */
-export const RECORD_TYPES = ['ideas', 'projects', 'content', 'outputs', 'references', 'assets',
+export const RECORD_TYPES = ['thoughts', 'ideas', 'projects', 'content', 'outputs', 'references', 'assets',
   'tasks', 'publications', 'feedback'];
 
 export const TYPE_LABEL = {
-  ideas: ['Idea', 'Ideas'], projects: ['Project', 'Projects'], content: ['Content item', 'Content'],
+  thoughts: ['Thought', 'Thoughts'], ideas: ['Idea', 'Ideas'], projects: ['Project', 'Projects'], content: ['Content item', 'Content'],
   outputs: ['Platform output', 'Platform outputs'], references: ['Reference', 'References'],
   assets: ['Asset', 'Assets'], tasks: ['Task', 'Tasks'], publications: ['Publishing record', 'Publishing records'],
   feedback: ['Feedback', 'Feedback'],
@@ -21,9 +23,10 @@ export const TYPE_LABEL = {
  * field -> target type. Fields ending in `Ids` are lists, the rest single ids.
  */
 export const LINKS = {
-  ideas: { relatedIdeaIds: 'ideas', referenceIds: 'references', assetIds: 'assets' },
-  projects: { ideaIds: 'ideas', referenceIds: 'references', assetIds: 'assets' },
-  content: { ideaIds: 'ideas', projectIds: 'projects', referenceIds: 'references', assetIds: 'assets' },
+  thoughts: {},
+  ideas: { thoughtIds: 'thoughts', relatedIdeaIds: 'ideas', referenceIds: 'references', assetIds: 'assets' },
+  projects: { thoughtIds: 'thoughts', ideaIds: 'ideas', referenceIds: 'references', assetIds: 'assets' },
+  content: { thoughtIds: 'thoughts', ideaIds: 'ideas', projectIds: 'projects', referenceIds: 'references', assetIds: 'assets' },
   outputs: { contentId: 'content', referenceIds: 'references', assetIds: 'assets' },
   references: {},
   assets: {},
@@ -38,7 +41,7 @@ const CASCADE = {
   outputs: [['publications', 'outputId'], ['tasks', 'outputId'], ['feedback', 'outputId']],
 };
 
-const PREFIX = { ideas: 'idea', projects: 'proj', content: 'cont', outputs: 'out', references: 'ref',
+const PREFIX = { thoughts: 'th', ideas: 'idea', projects: 'proj', content: 'cont', outputs: 'out', references: 'ref',
   assets: 'asset', tasks: 'task', publications: 'pub', feedback: 'fb', workspace: 'ws' };
 
 export const nowIso = () => new Date().toISOString();
@@ -49,6 +52,13 @@ export function newId(kind = 'rec') {
 }
 
 const isList = (field) => field.endsWith('Ids');
+
+/** A file-safe name: letters, digits, underscores. */
+export function slug(text, max = 40) {
+  return String(text || 'Untitled').normalize('NFKD').replace(/[^\w\s-]/g, '').trim()
+    .replace(/[\s-]+/g, '_').slice(0, max) || 'Untitled';
+}
+
 
 /* ---------------------------------------------------------------- config */
 
@@ -66,7 +76,7 @@ export function blankConfig() {
     statuses: {
       ideas: ['Inbox', 'Exploring', 'Ready for Planning', 'Planned', 'In Production', 'Published', 'Parked', 'Rejected'],
       projects: ['Proposed', 'Active', 'On hold', 'Completed', 'Abandoned'],
-      content: ['Concept', 'Planning', 'Scripting', 'In Production', 'Editing', 'Review', 'Ready', 'Published', 'Parked'],
+      content: ['Concept', 'Planning', 'Scripting', 'Capturing', 'Editing', 'Review', 'Ready', 'Published', 'Parked'],
       outputs: ['Draft', 'Adapting', 'Ready', 'Scheduled', 'Published'],
       references: ['Unverified', 'Verified', 'Disputed'],
       assets: ['Needed', 'In progress', 'Ready'],
@@ -74,9 +84,12 @@ export function blankConfig() {
     },
     ideaTypes: ['Topic', 'Question', 'Story', 'Experiment', 'Opinion', 'Tutorial'],
     projectTypes: ['Investigation', 'Build', 'Experiment', 'Series', 'Journey'],
-    contentTypes: ['Long-form video', 'Short-form video', 'Standalone discussion', 'Tutorial',
+    contentTypes: ['Quick video', 'Short-form video', 'Long-form video', 'Standalone discussion', 'Tutorial',
       'Documentary', 'Article', 'Carousel', 'Reference sheet'],
     preferences: { defaultWorkflowId: '', defaultStoryId: '' },
+    thoughtSources: [...DEFAULT_THOUGHT_SOURCES],
+    produce: [...DEFAULT_PRODUCE],
+    captureKinds: structuredClone(DEFAULT_CAPTURE_KINDS),
   };
 }
 
@@ -89,6 +102,7 @@ export function blankWorkspace({ name = 'My workspace', description = '' } = {},
     workflows: [],             // workflow templates (workflow.js)
     stories: [],               // storytelling templates
     platforms: [],             // platform profiles with their formats
+    process: { stages: structuredClone(DEFAULT_STAGES), scorecard: structuredClone(DEFAULT_SCORECARD) },
     records: emptyRecords(),
   };
 }
@@ -124,7 +138,7 @@ export function resetWorkspaceData(ws, now = nowIso()) {
 
 /** Restores configuration and templates to blank, keeps the records. */
 export function resetWorkspaceConfig(ws, now = nowIso()) {
-  return { ...ws, modified: now, config: blankConfig(), workflows: [], stories: [], platforms: [] };
+  return { ...ws, modified: now, config: blankConfig(), workflows: [], stories: [], platforms: [], process: blankWorkspace().process };
 }
 
 /** Plain-language list of exactly what an action will remove, for the confirm dialog. */
@@ -264,7 +278,7 @@ export function related(ws, type, id) {
 /** The human name of a record, whatever its type calls it. */
 export function titleOf(record) {
   if (!record) return '';
-  return record.title || record.name || record.workingTitle || record.rawInput?.slice(0, 60) || '(untitled)';
+  return record.title || record.name || record.workingTitle || record.text?.slice(0, 80) || record.rawInput?.slice(0, 60) || '(untitled)';
 }
 
 /* ---------------------------------------------------------------- search */
@@ -335,6 +349,10 @@ export function migrateWorkspace(raw) {
   ws.config.identity = { ...blank.config.identity, ...(raw.config?.identity || {}) };
   ws.config.preferences = { ...blank.config.preferences, ...(raw.config?.preferences || {}) };
   for (const k of ['workflows', 'stories', 'platforms']) ws[k] = Array.isArray(raw[k]) ? raw[k] : [];
+  ws.platforms = ws.platforms.map((p) => ({ ...p, rhythm: { enabled: false, days: [], target: 2, ...(p.rhythm || {}) } }));
+  ws.process = Array.isArray(raw.process?.stages) && raw.process.stages.length
+    ? { stages: raw.process.stages, scorecard: Array.isArray(raw.process.scorecard) ? raw.process.scorecard : blank.process.scorecard }
+    : blank.process;
   ws.records = {};
   for (const t of RECORD_TYPES) {
     const list = Array.isArray(raw.records?.[t]) ? raw.records[t] : [];

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+- A hub home: your next task, drop a thought, Planning (thoughts, ideas, projects) and Content
+  (content plan, production, releases), plus a Dashboard.
+- Thoughts as their own records, with optional Passport questions; ideas with problem, approaches,
+  balance and an optional scorecard; projects moving through fifteen stages, forwards or
+  back, with a folder of everything linked and any number of videos.
+- Forward forecasts replace backwards scheduling: counted from today, so unfinished work moves out;
+  your own stage times replace placeholder estimates; no overdue lists.
+- Capture list per video with the exact folder for each file; folders created and checked in your
+  private folder.
+- Release rhythm per platform, a ready-to-release backlog filling open slots.
+- Safe zones drawn per format; LinkedIn added to the example platforms.
+- Your private folder: the data file lives in your own (Drive-synced) folder; tools/cb.mjs edits it.
+- Nothing is forced: every step can be skipped, every question and score is optional.
+
 ## 0.2.0
 - Planner calendar: drag a video's Due chip onto a day; its workflow steps are dated backwards from it
   (each step has a number of days). Click-then-click works on touch screens and keyboards.

@@ -61,9 +61,10 @@ test("accepting a suggestion appends - it never overwrites the creator's text", 
   assert.equal(C.resolveSuggestion(empty, empty.aiSuggestions[0].id, 'accepted').x, 't', 'empty field takes it as is');
 });
 
-test('planner keeps kinds separate, never lists ideas, and marks overdue only when not done', () => {
+test('planner keeps kinds separate, never lists ideas or thoughts, and marks a passed date only when not done', () => {
   let ws = M.blankWorkspace({}, T);
   const add = (type, f) => { ws = M.createRecord(ws, type, f, T).ws; };
+  add('thoughts', { text: 'a thought', due: '2020-01-01' });
   add('ideas', { title: 'idea', targetDate: '2020-01-01' });
   add('projects', { title: 'P', status: 'Active', milestones: [{ id: 'm', name: 'M1', date: '2026-01-05', done: false }] });
   add('content', { workingTitle: 'C', targetDate: '2025-12-01', status: 'Published' });
@@ -71,10 +72,24 @@ test('planner keeps kinds separate, never lists ideas, and marks overdue only wh
   add('outputs', { title: 'O', scheduledDate: '2026-02-01' });
   add('tasks', { title: 'Tk', due: '2026-01-03', status: 'To do' });
   const e = C.plannerEntries(ws, '2026-01-04');
-  assert.ok(!e.some((x) => x.type === 'ideas'));
-  assert.deepEqual(e.map((x) => [x.kind, x.title, x.overdue]), [
-    ['production', 'C', false], ['production', 'Late', true], ['task', 'Tk', true],
+  assert.ok(!e.some((x) => x.type === 'ideas' || x.type === 'thoughts'));
+  assert.deepEqual(e.map((x) => [x.kind, x.title, x.passed]), [
+    ['production', 'C: target', false], ['production', 'Late: target', true], ['task', 'Tk', true],
     ['milestone', 'P: M1', false], ['publishing', 'O', false]]);
+});
+
+test('planner forecasts forwards: workflow steps and a project done-by date', async () => {
+  const { exampleWorkspace } = await import('../js/seed.js');
+  const ws = exampleWorkspace('2026-01-01T00:00:00.000Z');
+  const e = C.plannerEntries(ws, '2026-01-01');
+  const steps = e.filter((x) => x.kind === 'step');
+  assert.ok(steps.length && steps.every((x) => x.date >= '2026-01-01' && x.forecast), 'steps dated from today onwards');
+  assert.ok(e.some((x) => x.kind === 'project' && x.forecast), 'project done-by');
+  assert.ok(!e.some((x) => x.kind === 'step' && x.title.startsWith('Speed is not truth')), 'a ready item has nothing left to forecast');
+  const a = C.agenda(e, '2026-01-01');
+  assert.ok(a.next && a.next.kind === 'step', 'one next task to focus on');
+  const late = C.agenda([{ kind: 'task', date: '2025-12-20', title: 'missed', done: false }], '2026-01-01');
+  assert.deepEqual(late.today.map((x) => [x.title, x.carried]), [['missed', true]], 'a missed date is carried into today, not flagged');
 });
 
 test('verificationAge is null until verified', () => {
@@ -82,23 +97,3 @@ test('verificationAge is null until verified', () => {
   assert.equal(C.verificationAge(C.makePlatform({ verifiedOn: '2026-01-01' }), '2026-01-31'), 30);
 });
 
-test('calendar: dropping content dates its workflow; outputs keep their own release dates', async () => {
-  const { exampleWorkspace } = await import('../js/seed.js');
-  const C = await import('../js/content.js');
-  let ws = exampleWorkspace('2026-01-01T00:00:00.000Z');
-  const c = ws.records.content.find((x) => x.workingTitle === 'Why bridges hum');
-  ws = C.placeOnCalendar(ws, 'content', c.id, '2026-02-20');
-  const after = ws.records.content.find((x) => x.id === c.id);
-  assert.equal(after.targetDate, '2026-02-20');
-  assert.equal(after.workflow.steps.at(-1).due, '2026-02-20');
-  const out = ws.records.outputs.find((o) => o.contentId === c.id);
-  ws = C.placeOnCalendar(ws, 'outputs', out.id, '2026-02-25');
-  const items = C.calendarItems(ws);
-  assert.equal(items.find((i) => i.id === out.id).date, '2026-02-25');
-  assert.ok(items.find((i) => i.id === c.id).color, 'category colour carried');
-  const entries = C.plannerEntries(ws, '2026-02-18');
-  assert.ok(entries.some((e) => e.kind === 'step'));
-  const a = C.agenda(entries, '2026-02-18');
-  assert.ok(a.week.some((e) => e.date === '2026-02-20'));
-  assert.ok(a.overdue.every((e) => e.date < '2026-02-18' && !e.done));
-});

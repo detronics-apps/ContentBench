@@ -1,16 +1,14 @@
 // The content package: a folder of Markdown files an outside collaborator or assistant
 // can read without guessing. Only files that have something in them are written.
 
-import { getRecord, related } from './model.js';
+import { getRecord, related, slug } from './model.js';
+import { capturePath } from './capture.js';
 import { outputLabel } from './content.js';
 import { progress } from './workflow.js';
 import { RULES } from './ai.js';
 
 /** Safe for a folder name on every OS; ids keep it unique, so the name is only for people. */
-export function slug(text, max = 40) {
-  return String(text || 'Untitled').normalize('NFKD').replace(/[^\w\s-]/g, '').trim()
-    .replace(/[\s-]+/g, '_').slice(0, max) || 'Untitled';
-}
+export { slug };
 
 const section = (title, body) => (body && String(body).trim() ? `## ${title}\n\n${String(body).trim()}\n` : '');
 const doc = (title, ...parts) => {
@@ -79,7 +77,9 @@ export function contentPackage(ws, contentId, now = new Date().toISOString()) {
   put('Production_Notes.md', doc('Production', section('Instructions', c.productionNotes),
     section('Recording', c.recordingNotes), section('Editing', c.editingNotes),
     section('Review', c.reviewStatus), section('Workflow', workflowText(c.workflow))));
-  put('Asset_Manifest.md', doc('Assets', list(assets.map(assetLine))));
+  const kinds = ws.config.captureKinds || [];
+  const captureLine = (cp) => `${kinds.find((k) => k.id === cp.kind)?.name || cp.kind}: ${cp.what || '(not described)'} -> ${capturePath(kinds, c, cp).full}.* (${cp.status})`;
+  put('Asset_Manifest.md', doc('Assets', list(assets.map(assetLine)), section('To capture, and where each file goes', list((c.captures || []).map(captureLine)))));
   put('AI_Instructions.md', doc('Instructions for an assistant', list(RULES) + '\n',
     section('Creator\'s standing instructions', ws.config.aiInstructions),
     section('Voice and tone', ws.config.voice.tone)));

@@ -4,7 +4,9 @@ import { el, toast } from './dom.js';
 import * as M from '../model.js';
 import { CONTENT_SECTIONS } from '../schema.js';
 import * as W from '../workflow.js';
-import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, scheduleContent } from '../content.js';
+import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS } from '../content.js';
+import * as K from '../capture.js';
+import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
 import { store, ws as currentWs, commitWs } from './store.js';
 import { recordForm, linkEditor, button, card, emptyState, confirmDialog, badge, recordLink, href, checkbox, timelineBar } from './forms.js';
 import { detailHeader, recordActions, backlinks, go, createAndOpen } from './records.js';
@@ -98,9 +100,9 @@ function workflowPanel(type, record, ws) {
       const ok = await confirmDialog({ title: 'Start a different workflow?', removes: 'the progress recorded on the current one', keeps: 'tasks already made from it', confirm: 'Replace' });
       if (!ok) return;
     }
-    editRec(type, record.id, () => ({ workflow: W.scheduleBackwards(W.instantiateWorkflow(tpl), record.targetDate) }));
+    editRec(type, record.id, () => ({ workflow: W.instantiateWorkflow(tpl) }));
   };
-  const setDays = (stepId, days) => setWf((w) => W.scheduleBackwards({ ...w, steps: w.steps.map((s) => (s.id === stepId ? { ...s, days } : s)) }, record.targetDate));
+  const setDays = (stepId, days) => setWf((w) => ({ ...w, steps: w.steps.map((s) => (s.id === stepId ? { ...s, days } : s)) }));
   const chooser = ws.workflows.length ? el('div', { class: 'row' }, [pick, button(inst ? 'Switch workflow' : 'Start this workflow', start, inst ? '' : 'primary')])
     : emptyState('No workflow templates', 'Create one under Templates, or add the examples.', [
       button('Add example workflows', () => commitWs((w) => ({ ...w, workflows: [...w.workflows, ...exampleWorkflows()] })))]);
@@ -108,30 +110,125 @@ function workflowPanel(type, record, ws) {
   const p = W.progress(inst);
   const blocked = new Set(W.blockedSteps(inst));
   const drift = W.templateDrift(inst, ws.workflows.find((t) => t.id === inst.templateId));
+  const today = M.nowIso().slice(0, 10);
+  const fc = W.forecast(inst, today);
   return card('Workflow', [
-    el('p', { class: 'small muted', text: `"${inst.templateName}" v${inst.templateVersion} · ${p.done} done, ${p.skipped} skipped of ${p.total}${p.requiredLeft ? ` · ${p.requiredLeft} required left` : ''}` }),
+    el('p', { class: 'small muted', text: `"${inst.templateName}" v${inst.templateVersion} · ${p.done} done, ${p.skipped} skipped of ${p.total}` }),
     drift ? el('p', { class: 'small text-warn', text: `The template is now v${drift.to}. This item keeps v${drift.from} - switch workflow below if you want the new one.` }) : null,
-    type === 'content' ? el('p', { class: 'small' }, record.targetDate
-      ? [el('strong', { text: `Due ${record.targetDate}` }), ` · start by ${W.startDate(inst) || record.targetDate}. Steps are dated backwards from the due date - move it on the `, el('a', { href: '#/planner', text: 'Planner calendar' }), '.']
-      : ['No due date yet. Drag this item onto a day in the ', el('a', { href: '#/planner', text: 'Planner calendar' }), ' and every step gets a date.']) : null,
+    p.next ? el('p', { class: 'small' }, [el('strong', { text: `Next: ${p.next.name}` }), ` · if you keep going, ready about ${fc.ready}${record.targetDate ? ` (your target: ${record.targetDate})` : ''}. Counted from today - anything unfinished just moves out.`]) : el('p', { class: 'small text-ok', text: 'Every step is done or skipped.' }),
     el('ol', { class: 'steps' }, inst.steps.map((s) => el('li', { class: `step step--${s.status}` }, [
       el('div', { class: 'row' }, [
-        s.due && s.status !== 'skipped' ? el('span', { class: 'step__due', text: s.due.slice(5) }) : null,
+        fc.byStep[s.id] ? el('span', { class: 'step__due', title: 'Forecast, counted from today', text: `~${fc.byStep[s.id].slice(5)}` }) : null,
         el('span', { class: 'step__name', text: s.name }),
-        s.optional ? badge('optional') : null, !W.canSkip(s) ? badge('required') : null,
+        s.optional ? badge('optional') : null,
         blocked.has(s.id) ? badge('waiting on another step', 'warn') : null,
         el('span', { class: 'row__push' }),
         type === 'content' && store.ui.level !== 'simple' ? el('label', { class: 'small muted' }, ['days ',
           el('input', { class: 'input input--inline input--dur', type: 'number', min: 0, value: W.stepDays(s), 'data-field': `step.${s.id}.days`,
             on: { change: (e) => setDays(s.id, e.target.value === '' ? '' : Number(e.target.value)) } })]) : null,
         s.status === 'todo' ? button('Done', () => setWf((w) => W.setStepStatus(w, s.id, 'done')), 'small', { 'data-field': `step.${s.id}.done` }) : button('Reopen', () => setWf((w) => W.setStepStatus(w, s.id, 'todo')), 'small'),
-        s.status === 'todo' && W.canSkip(s) ? button('Skip', () => setWf((w) => W.setStepStatus(w, s.id, 'skipped')), 'small') : null,
+        s.status === 'todo' ? button('Skip', () => setWf((w) => W.setStepStatus(w, s.id, 'skipped')), 'small') : null,
         type === 'content' ? button('Make task', () => createAndOpen('tasks', { title: s.name, contentId: record.id, stepId: s.id }), 'small ghost') : null,
       ]),
       s.instructions ? el('p', { class: 'small muted', text: s.instructions }) : null,
       ...s.checklist.map((c, i) => checkbox(c, !!s.checks[i], () => setWf((w) => W.toggleCheck(w, s.id, i)), `step.${s.id}.chk.${i}`)),
     ]))),
     el('details', { class: 'more' }, [el('summary', { text: 'Use a different workflow' }), chooser]),
+  ]);
+}
+
+/* ------------------------------------------------------- shots & sound */
+
+const capKinds = (ws) => ws.config.captureKinds || [];
+const setCaps = (id, fn, render = true) => editRec('content', id, (r) => ({ captures: fn(r.captures || []) }), render);
+
+/** The capture list: what has to be recorded or gathered, tied to the timeline where it belongs. */
+function captureSection(c, ws) {
+  const kinds = capKinds(ws);
+  const blocks = c.story?.blocks || [];
+  const caps = c.captures || [];
+  const row = (cp) => {
+    const path = K.capturePath(kinds, c, cp);
+    return el('div', { class: 'capture-row' }, [
+      el('div', { class: 'row' }, [
+        el('span', { class: 'block__n', text: String(cp.n) }),
+        el('select', { class: 'input input--inline', 'data-field': `cap.${cp.id}.kind`, 'aria-label': 'Kind',
+          on: { change: (e) => setCaps(c.id, (l) => M.patchItem(l, cp.id, { kind: e.target.value })) } },
+        kinds.map((k) => el('option', { value: k.id, text: k.name, selected: k.id === cp.kind }))),
+        el('input', { class: 'input capture-row__what', value: cp.what, placeholder: 'What exactly? e.g. CAD walkthrough of the gear train', 'data-field': `cap.${cp.id}.what`,
+          on: { change: (e) => setCaps(c.id, (l) => M.patchItem(l, cp.id, { what: e.target.value })) } }),
+        blocks.length ? el('select', { class: 'input input--inline', 'data-field': `cap.${cp.id}.block`, 'aria-label': 'Timeline block',
+          on: { change: (e) => setCaps(c.id, (l) => M.patchItem(l, cp.id, { blockId: e.target.value })) } },
+        [el('option', { value: '', text: 'Whole video' }), ...blocks.map((b) => el('option', { value: b.id, text: b.name, selected: b.id === cp.blockId }))]) : null,
+        button('×', () => setCaps(c.id, (l) => M.removeItem(l, cp.id)), 'ghost', { 'aria-label': `Remove capture ${cp.n}` }),
+      ]),
+      el('p', { class: 'small muted capture-row__path' }, ['Save as ', el('code', { text: `${path.full}.*` })]),
+    ]);
+  };
+  const perBlock = () => setCaps(c.id, (l) => blocks.reduce((acc, b) => [...acc, K.makeCapture(acc, { kind: 'main', what: b.name, blockId: b.id })], l));
+  return card('What to capture', [
+    el('p', { class: 'small muted', text: 'Everything needed before editing: main footage, backup footage, screen recordings, screenshots, voice-over, music. Each one gets a fixed number and an exact place to save it - Production checks the folder for it.' }),
+    caps.length ? el('div', { class: 'stack stack--tight' }, caps.map(row)) : el('p', { class: 'muted', text: 'Nothing listed yet.' }),
+    el('div', { class: 'row' }, [
+      button('Add a capture', () => setCaps(c.id, (l) => [...l, K.makeCapture(l, { kind: kinds[0]?.id || 'main' })]), 'primary', { 'data-field': 'cap.add' }),
+      blocks.length ? button('One per timeline block', perBlock, '', { title: 'Adds a main-footage capture for every block of the story' }) : null,
+    ]),
+  ]);
+}
+
+/* ------------------------------------------------------------ production */
+
+async function checkFolder(c, ws) {
+  const kinds = capKinds(ws);
+  const listing = await listFolders([...new Set((c.captures || []).map((cp) => K.capturePath(kinds, c, cp).dir))]);
+  const next = K.checkCaptures(kinds, c, listing);
+  setCaps(c.id, () => next);
+  const p = K.captureProgress(next);
+  toast(p.needed ? `${p.saved} of ${p.total} found. ${p.needed} still to go.` : `All ${p.total} captures are in their folders.`);
+}
+
+function productionCaptures(c, ws) {
+  const kinds = capKinds(ws);
+  const caps = c.captures || [];
+  const prog = K.captureProgress(caps);
+  const live = folderReady();
+  const tree = K.folderTree(kinds, c);
+  const mark = (cp, on) => setCaps(c.id, (l) => M.patchItem(l, cp.id, { status: on ? 'marked' : 'needed' }));
+  return card(`Captures: ${prog.saved} of ${prog.total} saved`, [
+    live ? el('p', { class: 'small muted', text: `Folder: ${sync.name}. Save each file where it says, then press Check folder - a file counts once it is there.` })
+      : el('p', { class: 'small muted', text: folderSupported() ? 'Connect your folder (Settings → Your private folder) and the app makes these folders and checks for each file itself.'
+        : 'This browser cannot open folders. Download the folder tree, save files into it, and tick each one by hand.' }),
+    el('div', { class: 'row' }, [
+      live ? button('Make the folders', async () => { await makeFolders(tree); toast(`Folders ready in ${sync.name}/${K.contentFolder(c)}`); }, '', { 'data-field': 'prod.mkdirs' }) : null,
+      live ? button('Check folder', () => checkFolder(c, ws).catch((e) => toast(`Could not read the folder: ${e.message}`)), 'primary', { 'data-field': 'prod.check' }) : null,
+      !live ? button('Download the folder tree (.zip)', () => downloadTree(K.contentFolder(c).split('/').pop(), tree), '', { 'data-field': 'prod.zip' }) : null,
+    ]),
+    caps.length ? el('ul', { class: 'plain captures' }, caps.map((cp) => {
+      const path = K.capturePath(kinds, c, cp);
+      const kind = kinds.find((k) => k.id === cp.kind)?.name || cp.kind;
+      return el('li', { class: `cap cap--${cp.status}` }, [
+        el('span', { class: 'cap__state', text: cp.status === 'needed' ? '○' : '●', 'aria-hidden': 'true' }),
+        el('div', { class: 'cap__body' }, [
+          el('strong', { text: `${cp.n}. ${cp.what || kind}` }), el('span', { class: 'small muted', text: ` · ${kind}` }),
+          el('div', { class: 'small' }, [el('code', { text: `${path.full}.*` })]),
+          cp.status === 'saved' ? el('div', { class: 'small text-ok', text: `Found: ${cp.file}` }) : null,
+        ]),
+        cp.status === 'saved' ? badge('found', 'ok')
+          : checkbox('saved', cp.status === 'marked', (on) => mark(cp, on), `prod.${cp.id}.mark`),
+      ]);
+    })) : el('p', { class: 'muted' }, ['No captures listed. Add them under ', el('a', { href: `#/content/${c.id}/capture`, text: 'Shots & sound' }), '.']),
+  ]);
+}
+
+function readyCard(c, ws) {
+  const outs = ws.records.outputs.filter((o) => o.contentId === c.id && !o.archived);
+  const ready = c.status === 'Ready';
+  const markReady = () => commitWs((w) => outs.reduce((acc, o) => (o.publishedDate || o.scheduledDate ? acc : M.updateRecord(acc, 'outputs', o.id, { status: 'Ready' })),
+    M.updateRecord(w, 'content', c.id, { status: 'Ready' })));
+  return card(ready ? 'Ready to release' : 'Finished?', [
+    el('p', { class: 'small muted', text: ready ? `In the release backlog with ${outs.length} platform output${outs.length === 1 ? '' : 's'}. Releases → Release rhythm books it into the next open slot.`
+      : 'When the edit is done, move it to the release backlog. Its platform outputs wait there for the next open slot.' }),
+    ready ? button('Releases', () => go('#/releases'), 'small') : button('Mark ready to release', markReady, 'primary', { 'data-field': 'prod.ready' }),
   ]);
 }
 
@@ -209,8 +306,7 @@ export function contentEditor(id, section = 'overview') {
   const c = M.getRecord(ws, 'content', id);
   if (!c) return emptyState('Not found', 'This content item no longer exists.', [button('Content library', () => go('#/library'))]);
   if (!CONTENT_SECTIONS.some(([s]) => s === section)) section = 'overview';
-  const base = patch('content', id);
-  const p = (pt, render) => ('targetDate' in pt ? commitWs((w) => scheduleContent(w, id, pt.targetDate), { render }) : base(pt, render));
+  const p = patch('content', id);
   const form = recordForm('content', c, ws, p, { section });
   const hasFields = form.querySelector('.field');
   const extra = {
@@ -219,18 +315,20 @@ export function contentEditor(id, section = 'overview') {
     story: () => storyEditor('content', c, ws),
     research: () => card('References', [linkEditor('content', c, ws, link('content', id), { only: ['referenceIds'] }),
       button('New reference', () => { let made; commitWs((w) => { const r = M.createRecord(w, 'references', { title: 'New reference', status: w.config.statuses.references[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'referenceIds', made.id, true); }, { render: false }); go(href('references', made.id)); })]),
-    visuals: () => card('Assets', [linkEditor('content', c, ws, link('content', id), { only: ['assetIds'] }),
-      button('New asset', () => { let made; commitWs((w) => { const r = M.createRecord(w, 'assets', { name: 'New asset', status: w.config.statuses.assets[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'assetIds', made.id, true); }, { render: false }); go(href('assets', made.id)); })]),
+    capture: () => el('div', { class: 'stack' }, [captureSection(c, ws), card('Assets', [linkEditor('content', c, ws, link('content', id), { only: ['assetIds'] }),
+      button('New asset', () => { let made; commitWs((w) => { const r = M.createRecord(w, 'assets', { name: 'New asset', status: w.config.statuses.assets[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'assetIds', made.id, true); }, { render: false }); go(href('assets', made.id)); })])]),
     outputs: () => outputsSection(c, ws),
-    production: () => workflowPanel('content', c, ws),
+    production: () => el('div', { class: 'stack' }, [workflowPanel('content', c, ws), productionCaptures(c, ws), readyCard(c, ws)]),
     publishing: () => publishingSection(c, ws),
     performance: () => performanceSection(c, ws),
     history: () => historySection(c),
   }[section];
   return el('div', { class: 'detail' }, [
-    detailHeader('content', c, [el('a', { href: '#/library', text: 'Content library' })]),
-    el('nav', { class: 'subtabs', 'aria-label': 'Content sections' }, CONTENT_SECTIONS.map(([s, label]) =>
-      el('a', { class: `subtab ${s === section ? 'subtab--active' : ''}`, href: `#/content/${id}/${s}`, text: label, 'aria-current': s === section ? 'page' : null }))),
+    detailHeader('content', c, [el('a', { href: '#/plan', text: 'Content plan' }), el('a', { href: '#/production', text: 'Production' })]),
+    el('nav', { class: 'subtabs subtabs--grouped', 'aria-label': 'Content sections' }, [['plan', 'Plan'], ['make', 'Make']].map(([g, gl]) => el('div', { class: 'subtabs__group' }, [
+      el('span', { class: 'subtabs__label', text: gl }),
+      ...CONTENT_SECTIONS.filter((x) => x[2] === g).map(([s, label]) =>
+        el('a', { class: `subtab ${s === section ? 'subtab--active' : ''}`, href: `#/content/${id}/${s}`, text: label, 'aria-current': s === section ? 'page' : null }))]))),
     hasFields ? card('', [form]) : null,
     extra ? extra() : null,
     ['overview', 'history'].includes(section) ? backlinks('content', id, ws) : null,

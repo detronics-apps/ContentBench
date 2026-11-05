@@ -1,9 +1,12 @@
 // Configuration screens: templates, platforms, workspace settings, and the guide.
 
-import { el, download } from './dom.js';
+import { el, svg, download } from './dom.js';
 import * as M from '../model.js';
 import * as W from '../workflow.js';
 import { makePlatform, makeFormat, verificationAge, outputLabel } from '../content.js';
+import { WEEKDAYS } from '../releases.js';
+import * as P from '../process.js';
+import { sync, folderSupported, connectFolder, reconnectFolder, disconnectFolder } from './folder.js';
 import { exampleWorkspace, exampleWorkflows, exampleStories, examplePlatforms } from '../seed.js';
 import { HOWTOS, FAQS, MENTAL_MODEL, FEATURES, guideMatches } from '../guide.js';
 import { store, ws as currentWs, commitWs, commitApp } from './store.js';
@@ -42,6 +45,10 @@ export function templatesModule() {
   return el('div', { class: 'stack' }, [
     list('wf', ws.workflows, () => W.makeWorkflowTemplate({ name: 'New workflow', steps: ['First step'] }), exampleWorkflows),
     list('story', ws.stories, () => W.makeStoryTemplate({ name: 'New structure', blocks: ['Opening'] }), exampleStories),
+    card('Process (stages)', [
+      el('p', { class: 'muted small', text: `The stages a thought, idea and project move through: ${P.sortedStages(ws.process).map((s) => s.name).join(' → ')}. Edit the names, questions and the days each stage usually takes.` }),
+      button('Edit the process', () => go('#/templates/process'), 'primary', { 'data-field': 'tpl.process' }),
+    ]),
     card('Also planned', [el('p', { class: 'muted small', text: 'Content templates (pre-filled briefs per content type) and stand-alone publishing templates are planned for a later phase. Today, production checklists live on workflow steps and publishing checklists on platforms and formats.' })]),
   ]);
 }
@@ -68,7 +75,6 @@ function itemRow(kind, tpl, item, i, len) {
     ]),
     isWf ? el('div', { class: 'row' }, [
       checkbox('Optional', item.optional, (v) => set({ optional: v }, true), `tpl.${item.id}.optional`),
-      checkbox('Can be skipped', item.skippable, (v) => set({ skippable: v }, true), `tpl.${item.id}.skippable`),
     ]) : null,
     isWf ? ta('instructions', 'Purpose / instructions') : ta('purpose', 'Purpose'),
     isWf && adv() ? linesField('Checklist', item.checklist, (v) => set({ checklist: v }), { key: `tpl.${item.id}.checklist`, rows: 2 }) : null,
@@ -170,6 +176,7 @@ export function platformEditor(id) {
       adv() ? textField('Disclosure and reference requirements', p.disclosure, (v) => setPlatform(id, { disclosure: v }), { key: 'plat.disclosure', multiline: true }) : null,
       linesField('Publishing checklist', p.checklist, (v) => setPlatform(id, { checklist: v }), { key: 'plat.checklist', hint: 'Copied into each new output for this platform.' }),
     ]),
+    rhythmCard(p),
     card('Formats', [
       ...p.formats.map((f, i) => el('div', { class: 'block' }, [
         el('div', { class: 'row' }, [
@@ -184,6 +191,7 @@ export function platformEditor(id) {
         el('div', { class: 'two' }, [fmtField(f, 'duration', 'Duration constraints'), fmtField(f, 'cover', 'Thumbnail / cover')]),
         adv() ? el('div', { class: 'two' }, [fmtField(f, 'frameRate', 'Frame rate'), fmtField(f, 'fileFormat', 'File format')]) : null,
         adv() ? el('div', { class: 'two' }, [fmtField(f, 'fileSize', 'File size / export'), fmtField(f, 'safeZones', 'Safe zones and overlays')]) : null,
+        safeZoneEditor(p, f, setFormats),
         adv() ? linesField('Format checklist', f.checklist, (v) => setFormats(M.patchItem(p.formats, f.id, { checklist: v }), false), { key: `fmt.${f.id}.chk`, rows: 2 }) : null,
       ])),
       button('Add format', () => setFormats([...p.formats, makeFormat()]), 'primary'),
@@ -195,6 +203,127 @@ export function platformEditor(id) {
       commitWs((w) => ({ ...w, platforms: w.platforms.filter((x) => x.id !== id) }), { render: false });
       go('#/platforms');
     }, 'danger')]),
+  ]);
+}
+
+/** Release days for one platform. Switched off, it simply has no slots. */
+function rhythmCard(p) {
+  const r = p.rhythm || { enabled: false, days: [], target: 2 };
+  const set = (patch) => setPlatform(p.id, { rhythm: { ...r, ...patch } }, true);
+  return card('Release rhythm', [
+    checkbox(`Release on ${p.name} on a regular rhythm`, r.enabled, (v) => set({ enabled: v }), `plat.${p.id}.rhythm`),
+    el('div', { class: 'chipset', role: 'group', 'aria-label': 'Release days' }, WEEKDAYS.map((d, i) => el('button', { class: 'chip', type: 'button',
+      'aria-pressed': String(r.days.includes(i)), text: d, disabled: !r.enabled, 'data-field': `plat.${p.id}.day.${i}`,
+      on: { click: () => set({ days: r.days.includes(i) ? r.days.filter((x) => x !== i) : [...r.days, i].sort() }) } }))),
+    el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Keep at least this many ready and waiting' }),
+      el('input', { class: 'input input--dur', type: 'number', min: 0, value: r.target ?? 2, 'data-field': `plat.${p.id}.target`,
+        on: { change: (e) => set({ target: Number(e.target.value) || 0 }) } })]),
+    el('p', { class: 'small muted', text: 'Each platform runs on its own days. Start with one; switch others on when you are ready.' }),
+  ]);
+}
+
+const sizeOf = (f) => {
+  const m = String(f.resolution || '').match(/(\d+)\s*[x×]\s*(\d+)/);
+  if (m) return [Number(m[1]), Number(m[2])];
+  const a = String(f.aspectRatio || '').match(/(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)/);
+  return a ? [Number(a[1]) * 100, Number(a[2]) * 100] : [1080, 1920];
+};
+
+/** The frame with its no-go margins drawn, so "keep text clear" is something you can see. */
+function safeZoneEditor(p, f, setFormats) {
+  const safe = { top: 0, bottom: 0, left: 0, right: 0, ...(f.safe || {}) };
+  const [w, h] = sizeOf(f);
+  const H = 180;
+  const W = Math.round((H * w) / h);
+  const pct = (v) => Math.max(0, Math.min(45, Number(v) || 0));
+  const box = (x, y, bw, bh) => svg('rect', { x, y, width: Math.max(0, bw), height: Math.max(0, bh), class: 'safe__nogo' });
+  const t = (pct(safe.top) * H) / 100; const b = (pct(safe.bottom) * H) / 100;
+  const l = (pct(safe.left) * W) / 100; const r = (pct(safe.right) * W) / 100;
+  const pic = svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: 'safe__frame', role: 'img', 'aria-label': `${f.name} frame, ${w}x${h}, keep clear: top ${safe.top}%, bottom ${safe.bottom}%, left ${safe.left}%, right ${safe.right}%` }, [
+    svg('rect', { x: 0.5, y: 0.5, width: W - 1, height: H - 1, class: 'safe__bg' }),
+    box(0, 0, W, t), box(0, H - b, W, b), box(0, t, l, H - t - b), box(W - r, t, r, H - t - b),
+    svg('rect', { x: l, y: t, width: Math.max(0, W - l - r), height: Math.max(0, H - t - b), class: 'safe__ok' }),
+    svg('text', { x: W / 2, y: H / 2, class: 'safe__label', 'text-anchor': 'middle', 'dominant-baseline': 'middle', text: 'safe' }),
+  ]);
+  const num = (k, label) => el('label', { class: 'field field--inline' }, [el('span', { class: 'field__label', text: label }),
+    el('input', { class: 'input input--dur', type: 'number', min: 0, max: 45, value: safe[k], 'data-field': `fmt.${f.id}.safe.${k}`,
+      on: { change: (e) => setFormats(M.patchItem(p.formats, f.id, { safe: { ...safe, [k]: pct(e.target.value) } })) } })]);
+  return el('div', { class: 'safe' }, [pic, el('div', { class: 'stack stack--tight' }, [
+    el('strong', { class: 'small', text: 'No-go zones (% of the frame)' }),
+    el('div', { class: 'row' }, [num('top', 'Top'), num('bottom', 'Bottom'), num('left', 'Left'), num('right', 'Right')]),
+    el('p', { class: 'small muted', text: 'Shaded parts are covered by the platform\'s buttons and captions. Placeholders - check the platform\'s current layout.' })])]);
+}
+
+/* ---------------------------------------------------------------- process */
+
+const setProcess = (fn, render = false) => commitWs((w) => ({ ...w, modified: M.nowIso(), process: fn(w.process) }), { render });
+
+export function processEditor() {
+  const ws = currentWs();
+  const stages = P.sortedStages(ws.process);
+  const upd = (id, patch, render = false) => setProcess((pr) => ({ ...pr, stages: pr.stages.map((s) => (s.id === id ? { ...s, ...patch } : s)) }), render);
+  return el('div', { class: 'detail' }, [
+    el('nav', { class: 'crumbs' }, [el('a', { href: '#/templates', text: 'Templates' })]),
+    el('h1', { class: 'detail__title', text: 'Process' }),
+    el('p', { class: 'muted small', text: 'The stages a project moves through, in the six levels: Thought, Idea, Plan, Educate, Evaluate, Goal. Days are your guess for a typical project; once a stage has been done twice, your own average replaces it.' }),
+    ...stages.map((s) => card('', [
+      el('div', { class: 'row' }, [
+        el('span', { class: 'block__n', text: String(s.n) }),
+        el('input', { class: 'input block__name', value: s.name, 'aria-label': 'Stage name', 'data-field': `pr.${s.id}.name`, on: { change: (e) => upd(s.id, { name: e.target.value }) } }),
+        el('select', { class: 'input input--inline', 'aria-label': 'Level', 'data-field': `pr.${s.id}.group`, on: { change: (e) => upd(s.id, { group: e.target.value }, true) } },
+          P.GROUPS.map((g) => el('option', { value: g, text: g, selected: g === s.group }))),
+        el('label', { class: 'small muted' }, ['days ', el('input', { class: 'input input--inline input--dur', type: 'number', min: 0, value: s.days, 'data-field': `pr.${s.id}.days`,
+          on: { change: (e) => upd(s.id, { days: Number(e.target.value) || 0 }) } })]),
+        el('label', { class: 'check small' }, [el('input', { type: 'radio', name: 'finish', checked: !!s.finish, 'data-field': `pr.${s.id}.finish`,
+          on: { change: () => setProcess((pr) => ({ ...pr, stages: pr.stages.map((x) => ({ ...x, finish: x.id === s.id })) }), true) } }), 'done-by counts to here']),
+      ]),
+      textField('The question', s.question, (v) => upd(s.id, { question: v }), { key: `pr.${s.id}.q` }),
+      adv() ? textField('What you do', s.does, (v) => upd(s.id, { does: v }), { key: `pr.${s.id}.does`, multiline: true }) : null,
+      linesField('Have you thought of… (prompts, all optional)', s.prompts, (v) => upd(s.id, { prompts: v }), { key: `pr.${s.id}.prompts`, rows: 3 }),
+    ])),
+    card('', [button('Restore the default process…', async () => {
+      if (await confirmDialog({ title: 'Restore the default process?', removes: 'your edits to stage names, questions, prompts and days', keeps: 'every project and its stage history', confirm: 'Restore', danger: false })) setProcess(() => P.defaultProcess(), true);
+    })]),
+  ]);
+}
+
+/* ------------------------------------------------------------ your folder */
+
+function folderCard() {
+  const s = sync.status;
+  const steps = el('details', { class: 'more' }, [el('summary', { text: 'How to set it up (once)' }), el('ol', { class: 'howto-steps small' }, [
+    'Install Google Drive for Desktop. A Google Drive folder appears in File Explorer (often G:\\My Drive).',
+    'Make a folder there called ContentBench. Right-click it → Offline access → Available offline.',
+    'Here, press "Choose folder" and pick that ContentBench folder. Allow the browser to edit files.',
+    'Done. Your data lives in contentbench-data.json in that folder, and every video gets its own folder under Content/.',
+  ].map((t) => el('li', { text: t })))]);
+  if (!folderSupported()) {
+    return card('Your private folder', [el('p', { class: 'small', text: 'This browser cannot open folders - use Chrome or Edge on a computer for the live folder. Here, your data stays in this browser; export the workspace as a backup.' }), steps]);
+  }
+  return card('Your private folder', [
+    el('p', { class: 'small muted', text: 'Keep your real data out of the public app: in a folder on your own computer that Google Drive (or OneDrive) syncs. The app reads and writes the file there; it never talks to a server.' }),
+    s === 'off' ? el('div', { class: 'row' }, [button('Choose folder', () => connectFolder(), 'primary', { 'data-field': 'folder.connect' })]) : null,
+    s === 'connected' ? el('p', {}, [el('strong', { text: `Connected: ${sync.name}` }), el('span', { class: 'small muted', text: sync.savedAt ? ` · last written ${new Date(sync.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '' })]) : null,
+    s === 'reconnect' ? el('div', { class: 'row' }, [el('span', { class: 'small', text: `The browser needs your OK to use "${sync.name}" again.` }), button('Reconnect', () => reconnectFolder(), 'primary')]) : null,
+    s === 'error' ? el('p', { class: 'small text-warn', text: sync.error }) : null,
+    s !== 'off' ? el('div', { class: 'row' }, [button('Choose a different folder', () => connectFolder()), button('Disconnect', () => disconnectFolder(), 'ghost')]) : null,
+    el('p', { class: 'small muted', text: 'Chrome or Edge on a computer. The browser asks again after a restart - one click.' }),
+    steps,
+  ]);
+}
+
+function captureKindsEditor(ws) {
+  const kinds = ws.config.captureKinds || [];
+  const set = (list, render = true) => setCfg({ captureKinds: list }, render);
+  return el('div', { class: 'field' }, [
+    el('span', { class: 'field__label', text: 'Kinds of capture, and the folder each goes into' }),
+    ...kinds.map((k) => el('div', { class: 'row row--item' }, [
+      el('input', { class: 'input', value: k.name, 'aria-label': 'Kind', 'data-field': `ck.${k.id}.name`, on: { change: (e) => set(M.patchItem(kinds, k.id, { name: e.target.value }), false) } }),
+      el('input', { class: 'input', value: k.folder, 'aria-label': 'Folder', 'data-field': `ck.${k.id}.folder`, on: { change: (e) => set(M.patchItem(kinds, k.id, { folder: e.target.value.replace(/^\/+|\/+$/g, '') }), false) } }),
+      button('×', () => set(M.removeItem(kinds, k.id)), 'ghost', { 'aria-label': `Remove ${k.name}` }),
+    ])),
+    button('Add a kind', () => set([...kinds, { id: M.newId('ck'), name: 'New kind', folder: '09_Other' }])),
+    el('span', { class: 'field__hint', text: 'Changing a folder here changes where the app looks - move files already saved, or they will show as still needed.' }),
   ]);
 }
 
@@ -238,6 +367,7 @@ export function settingsModule() {
       infoDialog('Imported', [`"${currentWs().name}" was added as a new workspace and opened. Nothing existing was changed.`]);
     } } });
   return el('div', { class: 'stack' }, [
+    folderCard(),
     card('Workspace', [
       el('p', { class: 'muted small', text: 'Everything below belongs to this workspace only. The application, and every other workspace, are never touched by these actions.' }),
       textField('Workspace name', ws.name, (v) => commitWs((w) => ({ ...w, name: v || 'Untitled workspace', modified: M.nowIso() })), { key: 'ws.name' }),
@@ -274,6 +404,11 @@ export function settingsModule() {
       adv() ? lines('Content types / formats', 'contentTypes') : null,
       adv() ? lines('Idea types', 'ideaTypes') : null,
       adv() ? lines('Project types', 'projectTypes') : null,
+    ]),
+    card('Thoughts, ideas and capture', [
+      lines('Where thoughts come from', 'thoughtSources'),
+      lines('What a project or idea can produce', 'produce'),
+      captureKindsEditor(ws),
     ]),
     adv() ? card('Statuses', Object.entries(c.statuses).map(([type, list]) => linesField(M.TYPE_LABEL[type][1], list,
       (v) => setCfg({ statuses: { ...currentWs().config.statuses, [type]: v.length ? v : list } }), { key: `cfg.status.${type}`, hint: 'In order. Records keep their current status even if you remove it here.' }))) : null,
@@ -326,12 +461,12 @@ export function guideModule(openOnboarding) {
     ]),
     results,
     card('The process in words', [el('ol', { class: 'lanes' }, [
-      'Capture - an idea goes in with no form to fill.',
-      'Develop - the idea becomes one or more content items with a brief, a message and a promise.',
-      'Structure - choose a storytelling structure and a workflow; both are copied in.',
-      'Adapt - make an output per platform and format, each rewritten as it needs.',
-      'Produce and publish - work the steps and checklists, then record the date and URL.',
-      'Learn - add feedback and lessons, and capture the follow-up ideas.',
+      'Thought - seconds. Drop it in; weigh it up later with the Passport questions, if you like.',
+      'Idea - about an hour. Who has the problem, what could solve it, what it could produce; score it if that helps.',
+      'Project - days. Move through the stages, forwards or back; the done-by date is counted forwards from today.',
+      'Content plan - for any thought, idea or project, at any stage: story and timeline, script, what to capture, platforms.',
+      'Production - capture each file into its exact folder, work the steps, then mark it ready.',
+      'Release - ready videos wait in a backlog and fill each platform\'s release slots. Then feedback and lessons.',
     ].map((t) => el('li', { text: t })))]),
     card('The ideas it is built on', [tiles(MENTAL_MODEL)]),
     card('Features worth knowing', [tiles(FEATURES)]),

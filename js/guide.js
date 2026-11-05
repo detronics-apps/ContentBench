@@ -10,7 +10,10 @@ export const SEARCH_ALIASES = {
   workspace: ['profile', 'channel', 'account', 'brand', 'start over', 'reset', 'backup'],
   export: ['download', 'zip', 'package', 'share', 'send', 'backup', 'claude', 'assistant'],
   archive: ['hide', 'remove', 'delete', 'restore', 'bin'],
-  planner: ['calendar', 'schedule', 'dates', 'deadline', 'due', 'drag', 'week', 'today', 'release'],
+  planner: ['calendar', 'schedule', 'dates', 'deadline', 'due', 'drag', 'week', 'today', 'release', 'backlog', 'saturday', 'next task', 'behind'],
+  thought: ['jot', 'brain dump', 'note', 'passport', 'quick'],
+  capture: ['shot', 'footage', 'b-roll', 'screen recording', 'screenshot', 'voice', 'audio', 'music', 'folder', 'save'],
+  stage: ['phase', 'step', 'progress', 'forecast', 'done by'],
   structure: ['timeline', 'running time', 'length', 'seconds', 'intro', 'rework', 're-hook', 'variant', 'a/b'],
   assistant: ['ai', 'claude', 'chatgpt', 'prompt', 'suggestion'],
   reference: ['source', 'citation', 'link', 'evidence', 'fact check'],
@@ -31,28 +34,39 @@ export function guideMatches(text, q) {
 }
 
 export const HOWTOS = [
-  { id: 'deadline', category: 'Planner', title: 'Set a due date and get the steps dated for you', steps: [
-    'Open Planner → Calendar. Videos without a date wait in "Not scheduled yet".',
-    'Drag the "Due" chip onto the day the finished video should be ready (on a phone: tap the chip, then tap the day).',
-    'Every step of its workflow is dated backwards from there, using each step\'s days. The toast says when you have to start.',
-    'Planner → This week lists what is due today and over the next six days. Drag the chip again to move everything at once.'] },
-  { id: 'release-dates', category: 'Planner', title: 'Plan TikTok, Reels and YouTube on their own schedules', steps: [
-    'Each platform output (a TikTok, a Reel, a long-form upload) is its own chip on the calendar.',
-    'Drag each one to its release day. Filter the calendar by platform with the chips above it.',
-    'Chip colours are the content\'s category - set the colours in Settings.'] },
+  { id: 'next-task', category: 'Planning', title: 'Know what to work on next (without catching up)', steps: [
+    'Open Home or the Dashboard: "Your next task" is the one thing to focus on.',
+    'Finish it, press Done on its step, and the next one takes its place.',
+    'If you do not finish something, nothing turns red: tomorrow it is still the next task, and every date after it moves out by itself.'] },
+  { id: 'release-dates', category: 'Releases', title: 'Release on a rhythm (for example every Saturday)', steps: [
+    'Platforms → TikTok → Release rhythm: switch it on and pick the days.',
+    'When a video is finished, Production → Mark ready to release. Its outputs join the backlog.',
+    'Releases → Release rhythm shows the open slots and the next in line; press Book to give them dates.',
+    'Each platform runs on its own days. Drag any chip on the calendar to change a date.'] },
   { id: 'timeline', category: 'Story', title: 'Lay out the video as a timeline and test a variant', steps: [
     'Give each block of a storytelling template a duration, like 0:15. The bar shows each block\'s share of the running time.',
     'Make it the default (Templates → the template → Make this the default) and new videos start with a copy.',
     'On a video\'s Story section, repeat a block (an extra re-hook) or change a duration. The bar compares it with the template.',
     'Liked it? "Save as a new template (variant)" keeps it to use on other videos; the default is untouched.'] },
-  { id: 'capture', category: 'Ideas', title: 'Capture an idea quickly', steps: [
-    'Type it into Quick capture in the sidebar (or the box on the Dashboard) and press Add.',
-    'That is all - it lands in the Ideas inbox with your words kept exactly as typed.',
-    'Open it later from Ideas to add a category, angle or research questions.'] },
-  { id: 'idea-to-content', category: 'Ideas', title: 'Turn an idea into a content item', steps: [
-    'Open the idea from the Ideas tab.',
-    'Press "Develop into content". A content item is created and linked back to the idea.',
-    'One idea can become several content items - press it again for another.'] },
+  { id: 'capture', category: 'Planning', title: 'Drop a thought, then grow it', steps: [
+    'Type it into "Drop a thought" on Home or in the sidebar and press Enter. Seconds, no form.',
+    'Later, in Thoughts, mark it Develop, Park or Drop - or leave it. The Passport questions are there if they help.',
+    'Press → Idea to spend about an hour on it, → Project for days of work, or → Video to make content straight away.'] },
+  { id: 'idea-to-content', category: 'Planning', title: 'Turn a thought, idea or project into videos', steps: [
+    'Open it and press "Make a video" (on a project: "New video from this project", with a series).',
+    'The video is linked back. One project can make many videos - lessons learned, how it was built, educational - at any stage, even if it fails.'] },
+  { id: 'stages', category: 'Planning', title: 'Move a project through its stages', steps: [
+    'Open the project. The stage track shows every stage, grouped Thought, Idea, Plan, Educate, Evaluate, Goal.',
+    'Click any stage to move there - forwards or back. Add a reason if you like.',
+    'The done-by forecast updates from today. Once a stage has been done twice, your own average replaces the placeholder days.'] },
+  { id: 'captures', category: 'Content', title: 'List what to record, and know when it is really saved', steps: [
+    'Open the video → Shots & sound. Add each capture: main footage, backup footage, screen recording, screenshot, voice-over, music.',
+    'Tie each one to a timeline block if you like. Each shows the exact folder and file name to use.',
+    'In Production, press Make the folders, save each file there, then Check folder. A capture counts once its file is found.'] },
+  { id: 'private-folder', category: 'Settings', title: 'Keep your data in your own Google Drive folder', steps: [
+    'Install Google Drive for Desktop and make a folder called ContentBench in it (Available offline).',
+    'Settings → Your private folder → Choose folder, and pick it. Allow edits.',
+    'From then on your data is saved to contentbench-data.json there, and video folders go under Content/. The public app holds none of it.'] },
   { id: 'link-project', category: 'Content', title: 'Link content to a project (or leave it standalone)', steps: [
     'Open the content item and stay on Overview.',
     'Under Links, tick the project. Untick to make it standalone again.',
@@ -88,6 +102,10 @@ export const HOWTOS = [
 ];
 
 export const FAQS = [
+  { q: 'What if I do not finish something by its date?', a: 'Nothing happens - no overdue list, no pile-up. Forecasts are counted from today every day, so the unfinished step simply continues and everything after it moves out. The next task is the one to focus on.' },
+  { q: 'Do I have to answer the Passport questions or the scorecard?', a: 'No. They are suggestions: answer the ones that help, skip the rest. Nothing in the app waits for an answer before you can move on.' },
+  { q: 'Where is my real data kept?', a: 'Connect your private folder (Settings → Your private folder) and it is a file in that folder - for example in Google Drive - not in the public app. Without a folder it stays in this browser.' },
+  { q: 'How does the app know a capture is done?', a: 'Every capture has a number and an exact folder. Save the file there with a name starting with that number (01-, 02-, …) and press Check folder. In browsers that cannot open folders, tick it by hand.' },
   { q: 'How are the step dates worked out?', a: 'Backwards from the due date. The last step is due on it; each earlier step is due when the next one has to start, using each step\'s days. Skipped steps take no time. Weekends are counted as normal days.' },
   { q: 'Why does a block show "no time yet"?', a: 'Its duration is blank or not a time. Use 15, 0:15, 1:30, 45s or 2m. The app never guesses a length.' },
   { q: 'Where is my data?', a: 'Only in this browser, on this device (localStorage). Nothing is uploaded. Export a workspace regularly as a backup.' },
@@ -96,7 +114,7 @@ export const FAQS = [
   { q: 'What is the difference between a content item and a platform output?', a: 'The content item is the idea of the piece. An output is one version of it for one platform and format. One item can have none, one or many.' },
   { q: 'Are the platform specs correct?', a: 'They are placeholders you edit. Each platform shows when you last verified it - specs change, so check before publishing.' },
   { q: 'What does archive do?', a: 'Hides a record from lists without deleting it. Turn on "Show archived" to see and restore it. Delete is permanent and asks first.' },
-  { q: 'Why does an idea never show as overdue?', a: 'An idea is not a commitment. Only dated projects, content, outputs and tasks appear in the Planner.' },
+  { q: 'Why do thoughts and ideas never get dates?', a: 'They are not commitments. Only projects, videos, releases and tasks appear in the dates.' },
   { q: 'What do Simple, Advanced and Expert change?', a: 'Only how many fields are shown. Nothing hidden is cleared, and every level saves the same data.' },
 ];
 
@@ -108,6 +126,14 @@ export const MENTAL_MODEL = [
 ];
 
 export const FEATURES = [
+  ['Thoughts', 'Planning → Thoughts', 'Seconds each: drop it, weigh it up later with optional Passport questions.'],
+  ['Project stages', 'Projects → a project', 'Move to any stage, forwards or back; the done-by date follows, from today.'],
+  ['Scorecard', 'Idea or project', 'Optional 1-10 criteria; score only what applies.'],
+  ['Capture list', 'Content → Shots & sound', 'Every shot, recording and sound, with the exact folder it goes in.'],
+  ['Check folder', 'Content → Production', 'Finds each saved file, so done means really there.'],
+  ['Release rhythm', 'Platforms → a platform', 'Release days per platform; the backlog fills the open slots.'],
+  ['Safe zones drawn', 'Platforms → a format', 'The no-go margins shown on the frame.'],
+  ['Private folder', 'Settings', 'Your data in your own Google Drive folder, not in the public app.'],
   ['Deadline calendar', 'Planner → Calendar', 'Drag a video to its due day; its workflow steps are dated backwards.'],
   ['This week', 'Planner → This week', 'Overdue, today and the next six days, steps included.'],
   ['Release chips per platform', 'Planner → Calendar', 'Each TikTok, Reel and YouTube upload has its own date and category colour.'],
@@ -125,27 +151,30 @@ export const FEATURES = [
 
 /** The first-run story: numbered starting actions, each a link into the app. */
 export const ONBOARDING = [
-  { title: 'Look around the example', text: 'You are in a labelled example workspace. Open "Why bridges hum" to see an idea carried all the way to two platform outputs.', href: '#/library' },
-  { title: 'Capture your own idea', text: 'Type a thought into Quick capture. No form to fill in.', href: '#/ideas' },
-  { title: 'Make it yours', text: 'In Settings, name your workspace and set your categories, series and audiences.', href: '#/settings' },
-  { title: 'Start clean when ready', text: 'Create a blank workspace, or remove the samples. The app itself is never affected.', href: '#/settings' },
+  { title: 'Drop a thought', text: 'Home has a box for it. Seconds, no form. Weigh it up later - or never.', href: '#/thoughts' },
+  { title: 'Grow the good ones', text: 'A thought becomes an idea (about an hour), an idea becomes a project (days). Every question is optional.', href: '#/projects' },
+  { title: 'Plan a video, then make it', text: 'Any thought, idea or project can become videos: story, what to capture and where each file goes.', href: '#/plan' },
+  { title: 'Keep your data private', text: 'Settings → Your private folder: pick a Google Drive folder and your data lives there, not in the public app.', href: '#/settings' },
 ];
 
 /** The "How this works" panel per module: the idea in plain language. main.js adds the live numbers. */
 export const EXPLAIN = {
-  dashboard: ['Your workspace at a glance', 'Active work, dates coming up and what you touched last. No scores and no streaks - just where things are.'],
-  ideas: ['Ideas are cheap on purpose', 'An idea needs only a few words. Your original wording is kept untouched; summaries and interpretations sit beside it. Parking or rejecting an idea is a valid outcome.'],
-  projects: ['A project is not a video', 'A project is a larger piece of work - a build, an investigation, a journey. It can produce several content items, or none.'],
-  library: ['One piece, many versions', 'A content item is the idea of one piece of communication. Platform outputs are its versions; each item can have none, one or many.'],
-  create: ['Work on the master first', 'Brief, message and promise come before any platform. Outputs copy the master when created and never change silently afterwards.'],
-  content: ['Work on the master first', 'Brief, message and promise come before any platform. Outputs copy the master when created and never change silently afterwards.'],
+  home: ['Two sides and a dashboard', 'Planning holds the inputs - thoughts, ideas, projects - with more time and energy at each level. Content is the execution: plan each video, make it, release it.'],
+  dashboard: ['What to do now', 'One next task, today and the week ahead. Everything is counted forwards from today, so unfinished work moves out instead of piling up.'],
+  thoughts: ['Seconds each, no limit', 'Drop thoughts in as they come. Not all of them have merit - the Passport questions help you weigh them up, when you feel like it.'],
+  ideas: ['About an hour each', 'Who has the problem, what could solve it, what it could produce. The scorecard is there if it helps; skip any of it.'],
+  projects: ['Days each, a folder that fills up', 'A project moves through stages, forwards or back. Its done-by date is a forecast from today, using your own times once it has them. It can produce videos at any stage, even if it fails.'],
+  plan: ['The inputs for each video', 'Story and timeline, script, what to capture (footage, screen recordings, voice, music), lighting and sound, platforms.'],
+  create: ['The inputs for each video', 'Story and timeline, script, what to capture, lighting and sound, platforms.'],
+  content: ['Plan it, then make it', 'The Plan tabs are the inputs; the Make tabs are production, publishing and what happened after.'],
   outputs: ['An adaptation that remembers its source', 'This output copied its master when it was made. When the master changes, you are told which fields, and you choose per field.'],
-  production: ['Steps from a copied workflow', 'Each item follows its own copy of a workflow template. Required steps cannot be skipped; optional ones can. Tasks are separate actionable items made from steps.'],
-  planner: ['Pick the date, the steps follow', 'Put a video\'s Due chip on a day and its workflow is dated backwards from it. Platform releases are their own chips with their own dates. Ideas never get dates, so an idea can never be overdue.'],
-  platforms: ['A platform holds formats', 'YouTube is a platform; long-form and Shorts are its formats, each with its own specs. Specs are editable and dated, because platforms change them.'],
-  performance: ['Look back, then capture forward', 'Record what happened and what you learned. Follow-up ideas go back into Ideas.'],
-  templates: ['Templates are copied, never linked', 'Editing a template bumps its version. Items already using it keep the version they started with.'],
-  settings: ['The workspace is yours, the app is not', 'Categories, colours, voice and AI instructions are workspace data. Resetting a workspace never touches the app or other workspaces.'],
-  assets: ['Sources and files as records', 'A reference or asset is entered once and linked wherever it is used, rather than pasted into every script.'],
+  production: ['Go and make it', 'Each capture has an exact folder. Save the file there and Check folder finds it. When it is done, mark it ready - it joins the release backlog.'],
+  releases: ['A backlog and a rhythm', 'Each platform has its own release days. Ready videos wait in a backlog and fill the next open slot when you book them.'],
+  planner: ['A backlog and a rhythm', 'Each platform has its own release days. Ready videos wait in a backlog and fill the next open slot.'],
+  platforms: ['A platform holds formats', 'Each format has its own size, length and no-go zones, drawn so you can see them. Specs are editable and dated, because platforms change them.'],
+  performance: ['Look back, then capture forward', 'Record what happened and what you learned. Follow-up thoughts go back into Thoughts.'],
+  templates: ['Templates are copied, never linked', 'Workflows, story structures and the stage process are yours to edit. Items already using a template keep the version they started with.'],
+  settings: ['The workspace is yours, the app is not', 'Your private folder, categories, capture kinds and voice are workspace data. Resetting a workspace never touches the app or other workspaces.'],
+  assets: ['Sources and files as records', 'A reference or asset is entered once and linked wherever it is used.'],
   guide: ['Search in your own words', 'The search knows that "tiktok version" means a platform output and "backup" means export.'],
 };

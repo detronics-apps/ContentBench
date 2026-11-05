@@ -2,7 +2,8 @@
 // outputs and what they inherit from the master, AI suggestions, and the planner.
 
 import { newId, nowIso, createRecord, getRecord, updateRecord } from './model.js';
-import { instantiateStory, scheduleBackwards, addDays } from './workflow.js';
+import { instantiateStory, forecast, addDays } from './workflow.js';
+import { projectForecast, stageById } from './process.js';
 
 /* ------------------------------------------------------------- platforms */
 
@@ -12,6 +13,7 @@ export function makeFormat(fields = {}) {
     id: newId('fmt'), name: 'New format', aspectRatio: '', resolution: '', duration: '',
     fileSize: '', frameRate: '', fileFormat: '', safeZones: '', cover: '', checklist: [],
     ...fields,
+    safe: { top: 0, bottom: 0, left: 0, right: 0, ...(fields.safe || {}) },  // % of the frame kept clear
   };
 }
 
@@ -21,6 +23,7 @@ export function makePlatform(fields = {}) {
     id: newId('plat'), name: 'New platform', notes: '', verifiedOn: '',
     metadataFields: ['Title', 'Caption', 'Tags'], disclosure: '', checklist: [],
     ...rest,
+    rhythm: { enabled: false, days: [], target: 2, ...(rest.rhythm || {}) },
     formats: formats.map(makeFormat),
   };
 }
@@ -135,33 +138,41 @@ export function resolveSuggestion(record, id, decision, editedText, now = nowIso
 /* --------------------------------------------------------------- planner */
 
 export const PLAN_KINDS = {
-  milestone: 'Project milestone', project: 'Project date', production: 'Content due', step: 'Workflow step',
-  publishing: 'Publishing', task: 'Task',
+  milestone: 'Project milestone', project: 'Project done by', production: 'Content ready by', step: 'Workflow step',
+  publishing: 'Release', task: 'Task',
 };
 
+const contentDone = (c) => ['Ready', 'Published', 'Parked'].includes(c.status);
+
 /**
- * Everything with a date, kept in separate kinds. Ideas never appear: an uncommitted
- * idea has no deadline, so it can never be overdue.
+ * Everything with a date, kept in separate kinds. Forecast dates are counted forwards
+ * from today. Ideas and thoughts never appear: they are not commitments, so never overdue.
  */
 export function plannerEntries(ws, today = nowIso().slice(0, 10)) {
   const live = (t) => ws.records[t].filter((r) => !r.archived);
   const items = [];
-  const push = (kind, date, title, type, id, done) => {
+  const push = (kind, date, title, type, id, done, extra = {}) => {
     if (!date) return;
-    items.push({ kind, date, title, type, id, done, overdue: !done && date < today });
+    items.push({ kind, date, title, type, id, done, passed: !done && date < today, ...extra });
   };
-  for (const p of live('projects')) {
+  const projects = live('projects');
+  for (const p of projects) {
     const finished = ['Completed', 'Abandoned'].includes(p.status);
     for (const m of p.milestones || []) push('milestone', m.date, `${p.title}: ${m.name}`, 'projects', p.id, !!m.done || finished);
+    if (!finished && p.stageId) {
+      const f = projectForecast(p, ws.process, projects, today);
+      if (f && !f.past) push('project', f.date, `${p.title}: done by (${f.finishStage.name})`, 'projects', p.id, false, { forecast: true });
+    }
     push('project', p.targetDate, `${p.title}: target`, 'projects', p.id, finished);
-    push('project', p.reviewDate, `${p.title}: review`, 'projects', p.id, finished);
   }
   for (const c of live('content')) {
-    const finished = c.status === 'Published';
-    push('production', c.targetDate, c.workingTitle, 'content', c.id, finished);
-    for (const s of c.workflow?.steps || []) {
-      if (s.status !== 'skipped') push('step', s.due, `${c.workingTitle}: ${s.name}`, 'content', c.id, finished || s.status === 'done');
+    const finished = contentDone(c);
+    if (c.workflow && !finished) {
+      const f = forecast(c.workflow, today);
+      for (const s of c.workflow.steps) if (f.byStep[s.id]) push('step', f.byStep[s.id], `${c.workingTitle}: ${s.name}`, 'content', c.id, false, { forecast: true, stepId: s.id });
+      push('production', f.ready, c.workingTitle, 'content', c.id, false, { forecast: true });
     }
+    push('production', c.targetDate, `${c.workingTitle}: target`, 'content', c.id, finished);
   }
   for (const o of live('outputs')) {
     push('publishing', o.publishedDate || o.scheduledDate, o.title, 'outputs', o.id, !!o.publishedDate || o.status === 'Published');
@@ -170,51 +181,18 @@ export function plannerEntries(ws, today = nowIso().slice(0, 10)) {
   return items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
-/** Overdue, today and the next six days - what to work on now. */
+/**
+ * Today and the next six days. Nothing is ever "overdue": a date that passed is carried
+ * into today, and forecasts are counted from today anyway, so unfinished work moves out
+ * instead of piling up. `next` is the one thing to focus on.
+ */
 export function agenda(entries, today = nowIso().slice(0, 10)) {
   const weekEnd = addDays(today, 6);
-  const open = entries.filter((e) => !e.done);
-  return {
-    overdue: open.filter((e) => e.date < today),
-    today: open.filter((e) => e.date === today),
-    week: open.filter((e) => e.date > today && e.date <= weekEnd),
-  };
+  const open = entries.filter((e) => !e.done && e.kind !== 'production' && e.kind !== 'project');
+  const now = open.filter((e) => e.date <= today).map((e) => (e.date < today ? { ...e, carried: true } : e));
+  const week = open.filter((e) => e.date > today && e.date <= weekEnd);
+  return { today: now, week, next: now.find((e) => e.kind === 'step' || e.kind === 'task') || week.find((e) => e.kind === 'step' || e.kind === 'task') || now[0] || week[0] || null };
 }
 
-/** Drops a content item on a date: that is its due date, and its workflow is dated backwards from it. */
-export function scheduleContent(ws, contentId, date, now = nowIso()) {
-  const c = getRecord(ws, 'content', contentId);
-  if (!c) return ws;
-  const workflow = !c.workflow ? c.workflow : date ? scheduleBackwards(c.workflow, date)
-    : { ...c.workflow, dueDate: '', steps: c.workflow.steps.map((s) => ({ ...s, due: '' })) };
-  return updateRecord(ws, 'content', contentId, { targetDate: date, workflow }, now);
-}
-
-/**
- * Everything that sits on the calendar: each content item's final due date and each
- * platform release, so a Reel, a TikTok and a long-form upload keep their own dates.
- * Colour is the content's category - the creator's data, not the theme.
- */
-export function calendarItems(ws) {
-  const cat = (id) => ws.config.categories.find((x) => x.id === id) || null;
-  const items = [];
-  for (const c of ws.records.content.filter((r) => !r.archived)) {
-    items.push({ type: 'content', id: c.id, title: c.workingTitle || '(untitled)', label: 'Due', platformId: '', date: c.targetDate || '',
-      color: cat(c.categoryId)?.color || '', category: cat(c.categoryId)?.name || '', done: c.status === 'Published' });
-  }
-  for (const o of ws.records.outputs.filter((r) => !r.archived)) {
-    const c = getRecord(ws, 'content', o.contentId);
-    items.push({ type: 'outputs', id: o.id, title: o.title || c?.workingTitle || '(untitled)', label: outputLabel(ws, o),
-      platformId: o.platformId, date: o.publishedDate || o.scheduledDate || '', color: cat(c?.categoryId)?.color || '',
-      category: cat(c?.categoryId)?.name || '', done: !!o.publishedDate || o.status === 'Published' });
-  }
-  return items;
-}
-
-/** One drop on the calendar, whichever kind of chip it was. A published output keeps its date. */
-export function placeOnCalendar(ws, type, id, date, now = nowIso()) {
-  if (type === 'content') return scheduleContent(ws, id, date, now);
-  const o = getRecord(ws, 'outputs', id);
-  if (!o || o.publishedDate) return ws;
-  return updateRecord(ws, 'outputs', id, { scheduledDate: date }, now);
-}
+/** The stage a project is on, by name, for lists. */
+export const stageName = (ws, project) => stageById(ws.process, project.stageId)?.name || '';

@@ -9,7 +9,7 @@ import { newId, nowIso, moveItem, removeItem, patchItem, duplicateItem } from '.
 export function makeStep(fields = {}) {
   return {
     id: newId('step'), name: 'New step', description: '', instructions: '',
-    optional: false, skippable: true, inputs: '', expectedOutput: '', checklist: [],
+    optional: false, inputs: '', expectedOutput: '', checklist: [],
     dependsOn: [], effort: '', aiPrompt: '', days: 1,
     ...fields,
   };
@@ -48,16 +48,10 @@ export function instantiateWorkflow(tpl, now = nowIso()) {
 
 export const STEP_STATUSES = ['todo', 'done', 'skipped'];
 
-export const canSkip = (step) => step.optional || step.skippable;
-
-/** A required, unskippable step asked to skip is refused rather than half-applied. */
+/** Any step can be done, skipped or reopened - the workflow helps, it never blocks. */
 export function setStepStatus(inst, stepId, status) {
   if (!STEP_STATUSES.includes(status)) throw new Error(`setStepStatus: unknown status "${status}"`);
-  return { ...inst, steps: inst.steps.map((s) => {
-    if (s.id !== stepId) return s;
-    if (status === 'skipped' && !canSkip(s)) return s;
-    return { ...s, status };
-  }) };
+  return { ...inst, steps: inst.steps.map((s) => (s.id === stepId ? { ...s, status } : s)) };
 }
 
 export function toggleCheck(inst, stepId, index) {
@@ -86,7 +80,7 @@ export function templateDrift(inst, tpl) {
   return tpl.version > inst.templateVersion ? { from: inst.templateVersion, to: tpl.version } : null;
 }
 
-/* ----------------------------------------------------- back-scheduling */
+/* ---------------------------------------------------------- forecasting */
 
 /** ISO date plus n calendar days. Done in UTC so a DST change never shifts the day. */
 export function addDays(iso, n) {
@@ -95,33 +89,26 @@ export function addDays(iso, n) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Days a step takes. Blank or nonsense counts as one day; 0 is allowed (same day as the next). */
+/** Days a step takes. Blank or nonsense counts as one day; 0 is allowed. */
 export function stepDays(step) {
   const n = Number(step.days);
   return step.days === '' || step.days == null || !Number.isFinite(n) || n < 0 ? 1 : Math.round(n);
 }
 
 /**
- * Works backwards from the final due date: the last step is due on it, each earlier
- * step is due when the next one has to start. Skipped steps take no time and get no date.
- * ponytail: calendar days, no weekends or holidays skipped - add a working-days flag if asked.
+ * When the remaining steps can be done, counted forwards from today: each step still to
+ * do takes its days, one after another. Done and skipped steps take no time.
+ * ponytail: calendar days, one item at a time - no weekends or juggling of several videos.
  */
-export function scheduleBackwards(inst, due) {
-  if (!inst || !due) return inst;
-  let cursor = due;
-  const dated = [...inst.steps].reverse().map((s) => {
-    if (s.status === 'skipped') return { ...s, due: '' };
-    const out = { ...s, due: cursor };
-    cursor = addDays(cursor, -stepDays(s));
-    return out;
-  }).reverse();
-  return { ...inst, steps: dated, dueDate: due };
-}
-
-/** The day work has to start to make the date, or '' with no workflow. */
-export function startDate(inst) {
-  const first = inst?.steps.find((s) => s.status !== 'skipped' && s.due);
-  return first ? addDays(first.due, -stepDays(first)) : '';
+export function forecast(inst, today) {
+  let cursor = today;
+  const byStep = {};
+  for (const s of inst?.steps || []) {
+    if (s.status !== 'todo') continue;
+    cursor = addDays(cursor, stepDays(s));
+    byStep[s.id] = cursor;
+  }
+  return { byStep, ready: cursor };
 }
 
 /* --------------------------------------------------------------- timeline */

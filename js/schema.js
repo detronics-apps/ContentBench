@@ -1,7 +1,7 @@
 // The fields of each record type, as data. One generic form renders all of them,
 // so a new field is one line here and no layout code.
 //
-//   type    text | textarea | select | date | url | number | tags
+//   type    text | textarea | select | multi | date | url | number | tags
 //   options 'status' (the workspace's statuses for this type), 'categories',
 //           a config list name ('series', 'audiences', ...), or a literal array
 //   level   simple | advanced | expert - the least detail level that shows it
@@ -13,6 +13,14 @@ const f = (key, label, type = 'text', extra = {}) => ({ key, label, type, level:
 const adv = { level: 'advanced' };
 
 export const FIELDS = {
+  thoughts: [
+    f('text', 'The thought', 'textarea', { rows: 2, hint: 'As it popped up. Nothing else is needed.' }),
+    f('source', 'Where it came from', 'select', { options: 'thoughtSources' }),
+    f('decision', 'Worth developing?', 'select', { options: ['Develop', 'Park', 'Drop'], hint: 'Your call - nothing has to be decided.' }),
+    f('categoryId', 'Category', 'select', { options: 'categories', ...adv }),
+    f('tags', 'Tags', 'tags', adv),
+    f('notes', 'Notes', 'textarea', adv),
+  ],
   ideas: [
     f('title', 'Title', 'text', { hint: 'A few words is enough. Everything else can wait.' }),
     f('rawInput', 'Original input', 'textarea', { hint: 'Kept exactly as you wrote it. Clean-ups go in the summary below.' }),
@@ -23,6 +31,11 @@ export const FIELDS = {
     f('series', 'Series', 'select', { options: 'series', ...adv }),
     f('audience', 'Intended audience', 'select', { options: 'audiences', ...adv }),
     f('tags', 'Tags', 'tags', adv),
+    f('problem', 'The problem: who has it, how often, why it matters', 'textarea', { section: 'problem' }),
+    f('approaches', 'Possible solutions and approaches', 'textarea', { section: 'ideas' }),
+    f('gain', 'Balance: what we gain', 'textarea', { section: 'ideas', ...adv }),
+    f('giveUp', 'Balance: what we give up', 'textarea', { section: 'ideas', ...adv }),
+    f('produce', 'Could produce', 'multi', { options: 'produce', section: 'ideas' }),
     f('cleanedSummary', 'Cleaned summary', 'textarea', adv),
     f('viewerValue', 'Potential viewer value', 'textarea', adv),
     f('angle', 'Initial angle', 'textarea', adv),
@@ -34,9 +47,10 @@ export const FIELDS = {
     f('title', 'Title'),
     f('description', 'Description', 'textarea'),
     f('status', 'Status', 'select', { options: 'status' }),
-    f('stage', 'Current stage'),
     f('projectType', 'Project type', 'select', { options: 'projectTypes', ...adv }),
-    f('problem', 'Problem or opportunity', 'textarea', adv),
+    f('problem', 'Problem or opportunity', 'textarea'),
+    f('elevatorPitch', 'Elevator pitch', 'textarea', { hint: 'The whole plan in a sentence or two - the simplicity that was earned.' }),
+    f('produce', 'Produces', 'multi', { options: 'produce' }),
     f('categoryId', 'Category', 'select', { options: 'categories', ...adv }),
     f('audience', 'Audience', 'select', { options: 'audiences', ...adv }),
     f('tags', 'Tags', 'tags', adv),
@@ -74,7 +88,10 @@ export const FIELDS = {
     f('researchNotes', 'Research notes', 'textarea', { section: 'research' }),
     f('claimsToVerify', 'Claims to verify', 'textarea', { section: 'research', ...adv }),
     f('counterarguments', 'Counterarguments and limitations', 'textarea', { section: 'research', ...adv }),
-    f('visualPlan', 'Visual plan', 'textarea', { section: 'visuals' }),
+    f('visualPlan', 'Visual plan', 'textarea', { section: 'capture' }),
+    f('lighting', 'Lighting setup', 'textarea', { section: 'capture', rows: 2 }),
+    f('sound', 'Sound setup (mic, room, levels)', 'textarea', { section: 'capture', rows: 2 }),
+    f('music', 'Music selection', 'textarea', { section: 'capture', rows: 2 }),
     f('productionNotes', 'Production instructions', 'textarea', { section: 'production' }),
     f('recordingNotes', 'Recording notes', 'textarea', { section: 'production', ...adv }),
     f('editingNotes', 'Editing notes', 'textarea', { section: 'production', ...adv }),
@@ -144,16 +161,17 @@ export const FIELDS = {
   ],
 };
 
-/** The content item's sections, in the order the work actually runs. */
+/** The content item's sections, in the order the work runs: plan (inputs), then make. */
 export const CONTENT_SECTIONS = [
-  ['overview', 'Overview'], ['concept', 'Concept'], ['story', 'Story'], ['script', 'Script'],
-  ['hooks', 'Hooks & CTA'], ['research', 'Research'], ['visuals', 'Visuals & assets'],
-  ['outputs', 'Outputs'], ['production', 'Production'], ['publishing', 'Publishing'],
-  ['performance', 'Performance'], ['history', 'History & notes'],
+  ['overview', 'Overview', 'plan'], ['concept', 'Concept', 'plan'], ['story', 'Story & timeline', 'plan'],
+  ['script', 'Script', 'plan'], ['hooks', 'Hooks & CTA', 'plan'], ['research', 'Research', 'plan'],
+  ['capture', 'Shots & sound', 'plan'], ['outputs', 'Platforms', 'plan'],
+  ['production', 'Production', 'make'], ['publishing', 'Publishing', 'make'],
+  ['performance', 'Performance', 'make'], ['history', 'History & notes', 'make'],
 ];
 
 /** The field a record's title lives in. */
-export const TITLE_FIELD = { ideas: 'title', projects: 'title', content: 'workingTitle', outputs: 'title',
+export const TITLE_FIELD = { thoughts: 'text', ideas: 'title', projects: 'title', content: 'workingTitle', outputs: 'title',
   references: 'title', assets: 'name', tasks: 'title', publications: 'title', feedback: 'title' };
 
 export const atLeast = (current, level) => LEVELS.indexOf(current) >= LEVELS.indexOf(level || 'simple');
