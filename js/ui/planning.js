@@ -13,7 +13,7 @@ import { store, ws as currentWs, commitWs } from './store.js';
 import { button, card, emptyState, badge, catDot, recordLink, href } from './forms.js';
 import { recordDetail, go, createAndOpenContent } from './records.js';
 
-const today = () => M.nowIso().slice(0, 10);
+const today = () => M.todayIso();
 const longDate = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : '');
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 

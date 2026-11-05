@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+- Videos are forecast one at a time (soonest release first, then the one furthest along), so today
+  holds one real task instead of every video's first step.
+- "Today" is your local date, not UTC - it no longer lags until 2 am in time zones ahead of UTC.
+
 ## 0.3.0
 - A hub home: your next task, drop a thought, Planning (thoughts, ideas, projects) and Content
   (content plan, production, releases), plus a Dashboard.

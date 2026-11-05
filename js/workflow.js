@@ -100,8 +100,8 @@ export function stepDays(step) {
  * do takes its days, one after another. Done and skipped steps take no time.
  * ponytail: calendar days, one item at a time - no weekends or juggling of several videos.
  */
-export function forecast(inst, today) {
-  let cursor = today;
+export function forecast(inst, today, start = today) {
+  let cursor = start > today ? start : today;
   const byStep = {};
   for (const s of inst?.steps || []) {
     if (s.status !== 'todo') continue;

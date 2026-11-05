@@ -1,7 +1,7 @@
 // Content-specific rules on top of the generic model: platform profiles, platform
 // outputs and what they inherit from the master, AI suggestions, and the planner.
 
-import { newId, nowIso, createRecord, getRecord, updateRecord } from './model.js';
+import { newId, nowIso, todayIso, createRecord, getRecord, updateRecord } from './model.js';
 import { instantiateStory, forecast, addDays } from './workflow.js';
 import { projectForecast, stageById } from './process.js';
 
@@ -29,7 +29,7 @@ export function makePlatform(fields = {}) {
 }
 
 /** Days since the platform's specs were last verified, or null when never. */
-export function verificationAge(platform, today = nowIso().slice(0, 10)) {
+export function verificationAge(platform, today = todayIso()) {
   if (!platform.verifiedOn) return null;
   return Math.round((Date.parse(today) - Date.parse(platform.verifiedOn)) / 86400000);
 }
@@ -145,10 +145,32 @@ export const PLAN_KINDS = {
 const contentDone = (c) => ['Ready', 'Published', 'Parked'].includes(c.status);
 
 /**
+ * One video at a time: videos still being worked on are queued - soonest release first,
+ * then the one furthest along, then the oldest - and each is forecast to start when the
+ * one before it is ready. So today holds one real task, not every video's first step.
+ * ponytail: a single lane; add a "parallel videos" setting if two are ever made at once.
+ */
+export function contentSchedule(ws, today = todayIso()) {
+  const order = ws.config.statuses.content;
+  const release = (c) => ws.records.outputs.filter((o) => o.contentId === c.id && !o.archived && o.scheduledDate && !o.publishedDate)
+    .map((o) => o.scheduledDate).sort()[0] || c.targetDate || '9999';
+  const queue = ws.records.content.filter((c) => !c.archived && c.workflow && !contentDone(c))
+    .sort((a, b) => release(a).localeCompare(release(b)) || order.indexOf(b.status) - order.indexOf(a.status) || (a.created < b.created ? -1 : 1));
+  const out = new Map();
+  let cursor = today;
+  for (const c of queue) {
+    const f = forecast(c.workflow, today, cursor);
+    out.set(c.id, f);
+    cursor = f.ready;
+  }
+  return out;
+}
+
+/**
  * Everything with a date, kept in separate kinds. Forecast dates are counted forwards
  * from today. Ideas and thoughts never appear: they are not commitments, so never overdue.
  */
-export function plannerEntries(ws, today = nowIso().slice(0, 10)) {
+export function plannerEntries(ws, today = todayIso()) {
   const live = (t) => ws.records[t].filter((r) => !r.archived);
   const items = [];
   const push = (kind, date, title, type, id, done, extra = {}) => {
@@ -165,10 +187,11 @@ export function plannerEntries(ws, today = nowIso().slice(0, 10)) {
     }
     push('project', p.targetDate, `${p.title}: target`, 'projects', p.id, finished);
   }
+  const sched = contentSchedule(ws, today);
   for (const c of live('content')) {
     const finished = contentDone(c);
-    if (c.workflow && !finished) {
-      const f = forecast(c.workflow, today);
+    if (sched.has(c.id)) {
+      const f = sched.get(c.id);
       for (const s of c.workflow.steps) if (f.byStep[s.id]) push('step', f.byStep[s.id], `${c.workingTitle}: ${s.name}`, 'content', c.id, false, { forecast: true, stepId: s.id });
       push('production', f.ready, c.workingTitle, 'content', c.id, false, { forecast: true });
     }
@@ -186,7 +209,7 @@ export function plannerEntries(ws, today = nowIso().slice(0, 10)) {
  * into today, and forecasts are counted from today anyway, so unfinished work moves out
  * instead of piling up. `next` is the one thing to focus on.
  */
-export function agenda(entries, today = nowIso().slice(0, 10)) {
+export function agenda(entries, today = todayIso()) {
   const weekEnd = addDays(today, 6);
   const open = entries.filter((e) => !e.done && e.kind !== 'production' && e.kind !== 'project');
   const now = open.filter((e) => e.date <= today).map((e) => (e.date < today ? { ...e, carried: true } : e));

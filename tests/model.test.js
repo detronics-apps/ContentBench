@@ -160,3 +160,8 @@ test('migrateApp recovers a stored app and rejects junk', () => {
   const app = M.migrateApp({ currentId: 'gone', workspaces: [{ id: 'w1', name: 'x' }] });
   assert.equal(app.currentId, 'w1');
 });
+
+test('today is the local date of the reader, not UTC', () => {
+  assert.equal(M.todayIso(new Date(2026, 0, 2, 0, 30)), '2026-01-02');
+  assert.equal(M.todayIso(new Date(2026, 11, 31, 23, 59)), '2026-12-31');
+});

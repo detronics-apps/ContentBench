@@ -97,3 +97,16 @@ test('verificationAge is null until verified', () => {
   assert.equal(C.verificationAge(C.makePlatform({ verifiedOn: '2026-01-01' }), '2026-01-31'), 30);
 });
 
+
+test('videos are forecast one at a time, soonest release first - today holds one task, not all of them', async () => {
+  const W = await import('../js/workflow.js');
+  let ws = M.blankWorkspace({}, T);
+  const tpl = W.makeWorkflowTemplate({ steps: [{ name: 'Outline', days: 0 }, { name: 'Record', days: 1 }, { name: 'Edit', days: 1 }] });
+  const add = (f) => { const r = M.createRecord(ws, 'content', { status: 'Concept', workflow: W.instantiateWorkflow(tpl), ...f }, T); ws = r.ws; return r.record; };
+  const a = add({ workingTitle: 'A' });
+  const b = add({ workingTitle: 'B', targetDate: '2026-01-03' });
+  const s = C.contentSchedule(ws, '2026-01-01');
+  assert.deepEqual([s.get(b.id).ready, s.get(a.id).ready], ['2026-01-03', '2026-01-05'], 'B has a date, so it goes first; A starts when B is ready');
+  const today = C.agenda(C.plannerEntries(ws, '2026-01-01'), '2026-01-01').today.filter((e) => e.kind === 'step');
+  assert.deepEqual(today.map((e) => e.title), ['B: Outline']);
+});

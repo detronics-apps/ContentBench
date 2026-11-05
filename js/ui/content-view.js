@@ -4,7 +4,7 @@ import { el, toast } from './dom.js';
 import * as M from '../model.js';
 import { CONTENT_SECTIONS } from '../schema.js';
 import * as W from '../workflow.js';
-import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS } from '../content.js';
+import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule } from '../content.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
 import { store, ws as currentWs, commitWs } from './store.js';
@@ -110,8 +110,8 @@ function workflowPanel(type, record, ws) {
   const p = W.progress(inst);
   const blocked = new Set(W.blockedSteps(inst));
   const drift = W.templateDrift(inst, ws.workflows.find((t) => t.id === inst.templateId));
-  const today = M.nowIso().slice(0, 10);
-  const fc = W.forecast(inst, today);
+  const today = M.todayIso();
+  const fc = (type === 'content' && contentSchedule(ws, today).get(record.id)) || W.forecast(inst, today);
   return card('Workflow', [
     el('p', { class: 'small muted', text: `"${inst.templateName}" v${inst.templateVersion} · ${p.done} done, ${p.skipped} skipped of ${p.total}` }),
     drift ? el('p', { class: 'small text-warn', text: `The template is now v${drift.to}. This item keeps v${drift.from} - switch workflow below if you want the new one.` }) : null,
@@ -274,7 +274,7 @@ function publishingSection(c, ws) {
       el('div', { class: 'row' }, [recordLink('outputs', o), el('span', { class: 'small muted', text: outputLabel(ws, o) }), badge(o.status || '', 'status')]),
       el('p', { class: 'small muted', text: `Checklist ${checked}/${(o.checklist || []).length} · scheduled ${o.scheduledDate || '-'} · published ${o.publishedDate || '-'}` }),
       ...pubs.map((p) => el('div', { class: 'small' }, [recordLink('publications', p), p.url ? ` · ${p.url}` : ''])),
-      button('Log a publication', () => createAndOpen('publications', { title: `${outputLabel(ws, o)} - ${o.title}`, outputId: o.id, date: M.nowIso().slice(0, 10), url: o.publishedUrl || '' }), 'small'),
+      button('Log a publication', () => createAndOpen('publications', { title: `${outputLabel(ws, o)} - ${o.title}`, outputId: o.id, date: M.todayIso(), url: o.publishedUrl || '' }), 'small'),
     ]);
   }));
 }
@@ -285,7 +285,7 @@ function performanceSection(c, ws) {
   return card('Performance and feedback', [
     fb.length ? el('ul', { class: 'plain' }, fb.map((f) => el('li', {}, [recordLink('feedback', f), el('span', { class: 'small muted', text: f.date ? ` · ${f.date}` : '' })])))
       : el('p', { class: 'muted', text: 'No feedback recorded yet.' }),
-    button('Add feedback', () => createAndOpen('feedback', { title: `Feedback: ${c.workingTitle}`, contentId: c.id, date: M.nowIso().slice(0, 10) })),
+    button('Add feedback', () => createAndOpen('feedback', { title: `Feedback: ${c.workingTitle}`, contentId: c.id, date: M.todayIso() })),
   ]);
 }
 

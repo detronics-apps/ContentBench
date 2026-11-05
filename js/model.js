@@ -46,6 +46,11 @@ const PREFIX = { thoughts: 'th', ideas: 'idea', projects: 'proj', content: 'cont
 
 export const nowIso = () => new Date().toISOString();
 
+/** The reader's own calendar date (not UTC's) - "today" must flip at their midnight. */
+export function todayIso(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Stable unique id. The prefix is only for humans reading an export. */
 export function newId(kind = 'rec') {
   return `${PREFIX[kind] || kind}_${globalThis.crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;

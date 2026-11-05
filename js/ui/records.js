@@ -3,8 +3,8 @@
 
 import { el } from './dom.js';
 import * as M from '../model.js';
-import { plannerEntries, PLAN_KINDS, outputLabel, agenda } from '../content.js';
-import { progress, forecast, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
+import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule } from '../content.js';
+import { progress, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
 import { projectForecast } from '../process.js';
 import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS } from '../releases.js';
 import { captureProgress } from '../capture.js';
@@ -175,7 +175,7 @@ const done = (r) => ['Published', 'Parked', 'Completed', 'Abandoned', 'Rejected'
 export function dashboard() {
   const ws = currentWs();
   const live = (t) => ws.records[t].filter((r) => !r.archived);
-  const today = M.nowIso().slice(0, 10);
+  const today = M.todayIso();
   const a = agenda(plannerEntries(ws, today), today);
   const list = (items, empty) => (items.length ? el('ul', { class: 'plain' }, items) : el('p', { class: 'muted small', text: empty }));
   const entry = (e) => el('li', {}, [el('span', { class: 'small muted', text: `${e.carried ? 'carried over' : e.date.slice(5)} ` }),
@@ -261,8 +261,9 @@ const MAKE_STATUSES = ['Capturing', 'Editing', 'Review', 'In Production'];
 
 export function production() {
   const ws = currentWs();
-  const today = M.nowIso().slice(0, 10);
+  const today = M.todayIso();
   const live = ws.records.content.filter((c) => !c.archived && MAKE_STATUSES.includes(c.status));
+  const sched = contentSchedule(ws, today);
   const tasks = ws.records.tasks.filter((t) => !t.archived && t.status !== 'Done');
   const doneStatus = ws.config.statuses.tasks.at(-1);
   return el('div', { class: 'stack' }, [
@@ -271,7 +272,7 @@ export function production() {
       live.length ? el('div', { class: 'rows' }, live.map((c) => {
         const p = progress(c.workflow);
         const cp = captureProgress(c.captures);
-        const f = c.workflow ? forecast(c.workflow, today) : null;
+        const f = sched.get(c.id) || null;
         return el('a', { class: 'rowcard', href: `#/content/${c.id}/production` }, [
           el('span', { class: 'rowcard__title', text: c.workingTitle }),
           el('span', { class: 'rowcard__meta' }, [badge(c.status, 'status'),
@@ -348,8 +349,9 @@ function calendarView(ws, today) {
     for (const d of slotDates(p.rhythm, addDays(`${ym}-01`, -7), 50)) slots.set(d, [...(slots.get(d) || []), p.name]);
   }
   const ready = new Map();
-  for (const c of ws.records.content.filter((x) => !x.archived && x.workflow && !done(x))) {
-    const f = forecast(c.workflow, today).ready;
+  for (const [id, fc] of contentSchedule(ws, today)) {
+    const c = M.getRecord(ws, 'content', id);
+    const f = fc.ready;
     ready.set(f, [...(ready.get(f) || []), c.workingTitle]);
   }
   const first = new Date(`${ym}-01T00:00:00Z`);
@@ -465,7 +467,7 @@ function listView(ws, today) {
 
 export function releases() {
   const ws = currentWs();
-  const today = M.nowIso().slice(0, 10);
+  const today = M.todayIso();
   const tab = (v, label) => el('button', { class: 'segmented__btn', type: 'button', 'aria-pressed': String(planFilter.view === v), text: label, 'data-field': `plan.view.${v}`,
     on: { click: () => { planFilter.view = v; planFilter.picked = null; refresh(); } } });
   return el('div', { class: 'stack' }, [
@@ -483,7 +485,7 @@ export function performance() {
     recordList('feedback', { title: 'Feedback and performance', intro: 'What happened after publishing: numbers if you have them, comments, and lessons. Advanced analytics are planned for a later phase.', newFields: { title: 'New feedback' } }),
     card('Published outputs', [published.length ? el('ul', { class: 'plain' }, published.map((o) => el('li', {}, [recordLink('outputs', o),
       el('span', { class: 'small muted', text: ` · ${outputLabel(ws, o)} · ${o.publishedDate || ''}` }),
-      ' ', button('Add feedback', () => createAndOpen('feedback', { title: `Feedback: ${o.title}`, outputId: o.id, contentId: o.contentId, date: M.nowIso().slice(0, 10) }), 'small')])))
+      ' ', button('Add feedback', () => createAndOpen('feedback', { title: `Feedback: ${o.title}`, outputId: o.id, contentId: o.contentId, date: M.todayIso() }), 'small')])))
       : el('p', { class: 'muted', text: 'Nothing published yet.' })]),
   ]);
 }

@@ -17,7 +17,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.3.0';
+export const APP_VERSION = '0.3.1';
 
 /** The modules, in the order the work runs. `match` is every route that lights the tab. */
 const TABS = [
@@ -221,7 +221,7 @@ function exportPanel(cur) {
       button('Copy assistant brief', () => copyText(assistantBrief(ws, c.id), 'Brief copied'), '', { 'data-field': 'export.brief' }),
     ]) : null,
     el('div', { class: 'row' }, [button('Export workspace (.json)', () => download(new Blob([M.exportWorkspace(ws)], { type: 'application/json' }),
-      `ContentBench_${slug(ws.name)}_${M.nowIso().slice(0, 10)}.json`), '', { 'data-field': 'export.ws' })]),
+      `ContentBench_${slug(ws.name)}_${M.todayIso()}.json`), '', { 'data-field': 'export.ws' })]),
     el('p', { class: 'small muted', text: 'Files download to this device. Nothing is uploaded.' }),
   ]);
 }

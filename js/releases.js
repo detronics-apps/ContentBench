@@ -1,7 +1,7 @@
 // Releasing on a rhythm. Each platform has its own release days; finished outputs wait
 // in a backlog and fill the next free slot. Nothing is moved without the creator's click.
 
-import { nowIso, getRecord, updateRecord } from './model.js';
+import { nowIso, todayIso, getRecord, updateRecord } from './model.js';
 import { addDays } from './workflow.js';
 import { outputLabel } from './content.js';
 
@@ -31,7 +31,7 @@ export function backlog(ws, platformId) {
 }
 
 /** The next weeks of slots for one platform: what is booked, and what the backlog would fill. */
-export function releasePlan(ws, platformId, today = nowIso().slice(0, 10), span = 28) {
+export function releasePlan(ws, platformId, today = todayIso(), span = 28) {
   const platform = ws.platforms.find((p) => p.id === platformId);
   if (!platform) return null;
   const queue = backlog(ws, platformId);
@@ -46,7 +46,7 @@ export function releasePlan(ws, platformId, today = nowIso().slice(0, 10), span 
 }
 
 /** One line per platform with a rhythm switched on: is there enough waiting? */
-export function backlogHealth(ws, today = nowIso().slice(0, 10), span = 28) {
+export function backlogHealth(ws, today = todayIso(), span = 28) {
   return ws.platforms.filter((p) => p.rhythm?.enabled).map((p) => {
     const plan = releasePlan(ws, p.id, today, span);
     const target = Number(p.rhythm.target) || 0;

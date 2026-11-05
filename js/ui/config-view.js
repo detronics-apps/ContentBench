@@ -169,7 +169,7 @@ export function platformEditor(id) {
       textField('Platform name', p.name, (v) => setPlatform(id, { name: v }), { key: 'plat.name' }),
       el('div', { class: 'row' }, [
         textField('Specs last verified', p.verifiedOn, (v) => setPlatform(id, { verifiedOn: v }, true), { key: 'plat.verified', type: 'date' }),
-        button('Verified today', () => setPlatform(id, { verifiedOn: M.nowIso().slice(0, 10) }, true)),
+        button('Verified today', () => setPlatform(id, { verifiedOn: M.todayIso() }, true)),
       ]),
       textField('Notes', p.notes, (v) => setPlatform(id, { notes: v }), { key: 'plat.notes', multiline: true }),
       linesField('Metadata fields', p.metadataFields, (v) => setPlatform(id, { metadataFields: v }), { key: 'plat.meta', hint: 'Title, caption, description, tags, chapters, links… one per line.' }),
@@ -377,7 +377,7 @@ export function settingsModule() {
         wsAction('Load example workspace', () => commitApp((app) => M.addWorkspace(app, exampleWorkspace()))),
       ]),
       el('div', { class: 'row' }, [
-        wsAction('Export workspace (.json)', () => download(new Blob([M.exportWorkspace(ws)], { type: 'application/json' }), `ContentBench_${ws.name.replace(/\W+/g, '_')}_${M.nowIso().slice(0, 10)}.json`)),
+        wsAction('Export workspace (.json)', () => download(new Blob([M.exportWorkspace(ws)], { type: 'application/json' }), `ContentBench_${ws.name.replace(/\W+/g, '_')}_${M.todayIso()}.json`)),
         wsAction('Import workspace…', () => importInput.click()), importInput,
       ]),
       el('div', { class: 'row' }, [
