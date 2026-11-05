@@ -9,7 +9,7 @@ on your own computer (for example in Google Drive), never in this repository.
 
 | Area | What it does |
 |---|---|
-| Home | A hub: your next task, drop a thought, the Planning side and the Content side, and a Dashboard button |
+| Home | Big blocks, one per section - Dashboard, Planning, Content, Library, Settings, How to use - each saying what is waiting; inside a section, only its own tabs. Plus your next task and a box to drop a thought |
 | Thoughts | Seconds each, no limit. Develop / Park / Drop, and the optional Passport questions |
 | Ideas | About an hour: the problem, approaches, balance (gain / give up), what it could produce, an optional scorecard |
 | Projects | Days: fifteen stages from Passport to Close, moved forwards or back with the reason kept; a done-by forecast counted forwards from today; a folder of everything linked; any number of videos, at any stage |

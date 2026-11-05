@@ -8,10 +8,10 @@ import * as P from '../process.js';
 import { plannerEntries, agenda, PLAN_KINDS } from '../content.js';
 import { backlogHealth } from '../releases.js';
 import { captureProgress } from '../capture.js';
-import { progress } from '../workflow.js';
 import { store, ws as currentWs, commitWs } from './store.js';
 import { button, card, emptyState, badge, catDot, recordLink, href } from './forms.js';
 import { recordDetail, go, createAndOpenContent } from './records.js';
+import { sync } from './folder.js';
 
 const today = () => M.todayIso();
 const longDate = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : '');
@@ -332,48 +332,97 @@ export function nextTaskCard(ws) {
   ]);
 }
 
-export function hub() {
-  const ws = currentWs();
+
+/**
+ * The app's sections. Home shows one big block each; inside a section only its own
+ * tabs show. `owns` is every route that belongs to it, so the breadcrumb always knows.
+ */
+export const SECTIONS = [
+  { id: 'dashboard', name: 'Dashboard', purpose: 'Your next task, today, the week ahead and what is ready to release.',
+    tabs: [['dashboard', 'Dashboard']], owns: ['dashboard'] },
+  { id: 'planning', name: 'Planning', purpose: 'The inputs: thoughts (seconds), ideas (an hour), projects (days).',
+    tabs: [['thoughts', 'Thoughts'], ['ideas', 'Ideas'], ['projects', 'Projects']], owns: ['thoughts', 'ideas', 'projects'] },
+  { id: 'content', name: 'Content', purpose: 'Plan each video, go and make it, release it on a rhythm.',
+    tabs: [['plan', 'Content plan'], ['production', 'Production'], ['releases', 'Releases'], ['performance', 'Performance']],
+    owns: ['plan', 'create', 'content', 'production', 'tasks', 'releases', 'planner', 'outputs', 'performance', 'feedback', 'publications'] },
+  { id: 'library', name: 'Library', purpose: 'Every video, references and assets, templates and platforms.',
+    tabs: [['library', 'All videos'], ['assets', 'References & assets'], ['templates', 'Templates'], ['platforms', 'Platforms']],
+    owns: ['library', 'assets', 'references', 'templates', 'platforms'] },
+  { id: 'settings', name: 'Settings', purpose: 'Your private folder, workspaces, categories, voice and capture kinds.',
+    tabs: [['settings', 'Settings']], owns: ['settings'] },
+  { id: 'guide', name: 'How to use', purpose: 'Search in your own words: how-tos, questions and what is worth knowing.',
+    tabs: [['guide', 'How to use']], owns: ['guide'] },
+];
+
+export const sectionOf = (mod) => SECTIONS.find((s) => s.owns.includes(mod)) || null;
+
+/** Which tab lights up for a page that is not a tab itself (a video, an output, a task). */
+const TAB_FOR = { content: 'plan', create: 'plan', tasks: 'production', outputs: 'releases', planner: 'releases', publications: 'releases', feedback: 'performance', references: 'assets' };
+export const tabFor = (mod) => TAB_FOR[mod] || mod;
+
+/** One line per section saying what is waiting there right now. */
+function sectionNote(id, ws) {
   const live = (t) => ws.records[t].filter((r) => !r.archived);
   const content = live('content');
-  const inPlan = content.filter((c) => ['Concept', 'Planning', 'Scripting', ''].includes(c.status || ''));
-  const inMake = content.filter((c) => ['Capturing', 'Editing', 'Review', 'In Production'].includes(c.status));
-  const needed = inMake.concat(inPlan).reduce((n, c) => n + captureProgress(c.captures).needed, 0);
-  const health = backlogHealth(ws, today());
-  const newThoughts = live('thoughts').filter((t) => !t.decision).length;
-  const activeProjects = live('projects').filter((p) => !['Completed', 'Abandoned'].includes(p.status));
-  const tile = (title, n, text, to, key) => el('a', { class: 'hubtile', href: to, 'data-field': key }, [
-    el('span', { class: 'hubtile__n', text: String(n) }), el('span', { class: 'hubtile__title', text: title }), el('span', { class: 'small muted', text })]);
+  if (id === 'dashboard') {
+    const n = agenda(plannerEntries(ws, today()), today()).next;
+    return n ? `Next: ${n.title}` : 'Nothing lined up yet';
+  }
+  if (id === 'planning') {
+    const fresh = live('thoughts').filter((t) => !t.decision).length;
+    const active = live('projects').filter((p) => !['Completed', 'Abandoned'].includes(p.status)).length;
+    return `${plural(live('thoughts').length, 'thought')}${fresh ? ` (${fresh} new)` : ''} · ${plural(live('ideas').length, 'idea')} · ${plural(active, 'project')} under way`;
+  }
+  if (id === 'content') {
+    const planned = content.filter((c) => ['Concept', 'Planning', 'Scripting', ''].includes(c.status || '')).length;
+    const making = content.filter((c) => ['Capturing', 'Editing', 'Review', 'In Production'].includes(c.status)).length;
+    const health = backlogHealth(ws, today());
+    return `${planned} being planned · ${making} being made${health.length ? ` · ${health.map((h) => `${h.platform.name}: ${h.ready} ready`).join(', ')}` : ''}`;
+  }
+  if (id === 'library') return `${plural(content.length, 'video')} · ${plural(ws.workflows.length + ws.stories.length, 'template')} · ${plural(ws.platforms.length, 'platform')}`;
+  if (id === 'settings') return sync.status === 'connected' ? `Saving to your folder "${sync.name || 'folder'}"` : 'Data kept in this browser - connect your folder';
+  return 'Start here if something is unclear';
+}
+
+/** Home: one big block per section, then the next task and a place to drop a thought. */
+export function hub() {
+  const ws = currentWs();
   return el('div', { class: 'stack' }, [
+    el('div', { class: 'navtiles' }, SECTIONS.map((s) => el('a', { class: `navtile navtile--${s.id}`, href: s.tabs.length > 1 ? `#/section/${s.id}` : `#/${s.tabs[0][0]}`, 'data-field': `hub.${s.id}` }, [
+      el('span', { class: 'navtile__name', text: s.name }),
+      el('span', { class: 'navtile__purpose', text: s.purpose }),
+      el('span', { class: 'navtile__meta', text: sectionNote(s.id, ws) }),
+    ]))),
     el('div', { class: 'two' }, [nextTaskCard(ws), card('Drop a thought', [thoughtCapture('hub'),
-      el('p', { class: 'small muted', text: 'No form, no decision. Weigh it up later in Thoughts.' })])]),
-    el('div', { class: 'hub' }, [
-      el('section', { class: 'hub__side' }, [
-        el('h2', { class: 'hub__title', text: 'Planning' }), el('p', { class: 'small muted', text: 'The inputs. More time and energy at each level.' }),
-        el('div', { class: 'hub__tiles' }, [
-          tile('Thoughts', live('thoughts').length, newThoughts ? `${newThoughts} not looked at yet · seconds each` : 'seconds each', '#/thoughts', 'hub.thoughts'),
-          tile('Ideas', live('ideas').length, 'about an hour each', '#/ideas', 'hub.ideas'),
-          tile('Projects', activeProjects.length, 'days each · folders that fill up', '#/projects', 'hub.projects'),
-        ]),
-      ]),
-      el('section', { class: 'hub__side' }, [
-        el('h2', { class: 'hub__title', text: 'Content' }), el('p', { class: 'small muted', text: 'The execution: plan each video, then go and make it.' }),
-        el('div', { class: 'hub__tiles' }, [
-          tile('Content plan', inPlan.length, 'story, timeline, shots, sound, platforms', '#/plan', 'hub.plan'),
-          tile('Production', inMake.length, needed ? `${needed} capture${needed === 1 ? '' : 's'} still needed` : 'go and make it', '#/production', 'hub.production'),
-          tile('Releases', health.reduce((n, h) => n + h.ready, 0), health.length ? health.map((h) => `${h.platform.name}: ${h.ready} ready${h.short ? ' - make a quick one' : ''}`).join(' · ') : 'set a release rhythm under Platforms', '#/releases', 'hub.releases'),
-        ]),
-      ]),
-    ]),
-    el('div', { class: 'row hub__more' }, [
-      button('Dashboard', () => go('#/dashboard'), 'primary', { 'data-field': 'hub.dashboard' }),
-      ...[['Library', '#/library'], ['Templates', '#/templates'], ['Platforms', '#/platforms'], ['References & assets', '#/assets'], ['Performance', '#/performance'], ['Settings', '#/settings'], ['How to use', '#/guide']]
-        .map(([t, h]) => button(t, () => go(h), 'ghost')),
-    ]),
-    content.length || live('thoughts').length ? null : card('', [el('p', { class: 'muted', text: `Start anywhere: drop a thought, or open Projects. ${store.ui.level === 'simple' ? 'The bar under the header shows more detail when you want it.' : ''}` })]),
-    inMake.length ? card('Being made', [el('ul', { class: 'plain' }, inMake.map((c) => {
-      const p = progress(c.workflow);
-      return el('li', {}, [el('a', { href: `#/content/${c.id}/production`, text: c.workingTitle }), el('span', { class: 'small muted', text: ` · ${c.status}${p.next ? ` · next: ${p.next.name}` : ''}` })]);
-    }))]) : null,
+      el('p', { class: 'small muted', text: 'No form, no decision. Weigh it up later in Planning → Thoughts.' })])]),
+  ]);
+}
+
+/** A section's own page: a big block for each of its parts. */
+export function sectionPage(id) {
+  const s = SECTIONS.find((x) => x.id === id);
+  if (!s) return hub();
+  const ws = currentWs();
+  const live = (t) => ws.records[t].filter((r) => !r.archived);
+  const PURPOSE = {
+    thoughts: ['Seconds each, no limit.', `${live('thoughts').filter((t) => !t.decision).length} not looked at yet`],
+    ideas: ['About an hour each: is there something behind it?', plural(live('ideas').length, 'idea')],
+    projects: ['Days each: stages, a forecast, a folder that fills up.', plural(live('projects').length, 'project')],
+    plan: ['Story and timeline, script, shots and sound, platforms.', `${live('content').filter((c) => ['Concept', 'Planning', 'Scripting', ''].includes(c.status || '')).length} being planned`],
+    production: ['Capture each file into its folder, work the steps, mark it ready.', `${live('content').reduce((n, c) => n + captureProgress(c.captures).needed, 0)} captures still needed`],
+    releases: ['A rhythm per platform; ready videos fill the open slots.', backlogHealth(ws, today()).map((h) => `${h.platform.name}: ${h.ready} ready`).join(' · ') || 'No rhythm set yet'],
+    performance: ['What happened after publishing, and what you learned.', plural(live('feedback').length, 'feedback record')],
+    library: ['Every video, whatever its status.', plural(live('content').length, 'video')],
+    assets: ['Sources and files, entered once, linked anywhere.', `${plural(live('references').length, 'reference')} · ${plural(live('assets').length, 'asset')}`],
+    templates: ['Workflows, story structures and the stage process.', plural(ws.workflows.length + ws.stories.length, 'template')],
+    platforms: ['Formats, sizes, no-go zones and release days.', plural(ws.platforms.length, 'platform')],
+  };
+  return el('div', { class: 'stack' }, [
+    el('p', { class: 'muted', text: s.purpose }),
+    el('div', { class: 'navtiles' }, s.tabs.map(([to, label]) => el('a', { class: 'navtile', href: `#/${to}`, 'data-field': `section.${to}` }, [
+      el('span', { class: 'navtile__name', text: label }),
+      el('span', { class: 'navtile__purpose', text: PURPOSE[to]?.[0] || '' }),
+      el('span', { class: 'navtile__meta', text: PURPOSE[to]?.[1] || '' }),
+    ]))),
   ]);
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+- Home is a grid of big blocks, one per section: Dashboard, Planning, Content, Library, Settings,
+  How to use - each with what is waiting there. The long tab bar is gone: inside a section you see
+  a breadcrumb home and only that section's tabs. "ContentBench" in the header goes home.
+
 ## 0.3.1
 - Videos are forecast one at a time (soonest release first, then the one furthest along), so today
   holds one real task instead of every video's first step.

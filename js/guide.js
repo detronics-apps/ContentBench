@@ -159,7 +159,8 @@ export const ONBOARDING = [
 
 /** The "How this works" panel per module: the idea in plain language. main.js adds the live numbers. */
 export const EXPLAIN = {
-  home: ['Two sides and a dashboard', 'Planning holds the inputs - thoughts, ideas, projects - with more time and energy at each level. Content is the execution: plan each video, make it, release it.'],
+  home: ['One block per section', 'Planning holds the inputs - thoughts, ideas, projects. Content is the execution: plan each video, make it, release it. Library, Settings and How to use hold the rest. Each block says what is waiting there.'],
+  section: ['The parts of this section', 'Pick one. The bar at the top keeps every part of the section one click away, and Home goes back to the blocks.'],
   dashboard: ['What to do now', 'One next task, today and the week ahead. Everything is counted forwards from today, so unfinished work moves out instead of piling up.'],
   thoughts: ['Seconds each, no limit', 'Drop thoughts in as they come. Not all of them have merit - the Passport questions help you weigh them up, when you feel like it.'],
   ideas: ['About an hour each', 'Who has the problem, what could solve it, what it could produce. The scorecard is there if it helps; skip any of it.'],

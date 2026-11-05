@@ -17,30 +17,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.3.1';
-
-/** The modules, in the order the work runs. `match` is every route that lights the tab. */
-const TABS = [
-  { id: 'home', label: 'Home', short: 'Home' },
-  { id: 'dashboard', label: 'Dashboard', short: 'Today' },
-  { group: 'Planning' },
-  { id: 'thoughts', label: 'Thoughts', short: 'Thoughts' },
-  { id: 'ideas', label: 'Ideas', short: 'Ideas' },
-  { id: 'projects', label: 'Projects', short: 'Projects' },
-  { group: 'Content' },
-  { id: 'plan', label: 'Content plan', short: 'Plan', match: ['content', 'create'] },
-  { id: 'production', label: 'Production', short: 'Make', match: ['tasks'] },
-  { id: 'releases', label: 'Releases', short: 'Release', match: ['outputs', 'planner'] },
-  { sep: true },
-  { id: 'library', label: 'Library', short: 'Library' },
-  { id: 'templates', label: 'Templates', short: 'Templates' },
-  { id: 'platforms', label: 'Platforms', short: 'Platforms', match: ['publications'] },
-  { id: 'assets', label: 'References & assets', short: 'Assets', match: ['references'] },
-  { id: 'performance', label: 'Performance', short: 'Feedback', match: ['feedback'] },
-  { id: 'settings', label: 'Settings', short: 'Settings' },
-  { sep: true },
-  { id: 'guide', label: 'How to use', short: 'Help' },
-];
+export const APP_VERSION = '0.4.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - the essentials of each record. Nothing hidden is cleared.',
@@ -62,6 +39,7 @@ function page(route) {
   const { mod, a, b } = route;
   switch (mod) {
     case 'home': return Pl.hub();
+    case 'section': return Pl.sectionPage(a);
     case 'dashboard': return R.dashboard();
     case 'thoughts': return a ? Pl.thoughtDetail(a) : Pl.thoughtsModule();
     case 'ideas': return a ? Pl.ideaDetail(a) : R.recordList('ideas', { title: 'Ideas', newFields: { title: 'New idea' },
@@ -110,7 +88,7 @@ function buildHeader() {
       el('a', { class: 'brand__home', href: 'https://www.detronics.co.za/', target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Detronics website (opens in a new tab)' },
         [el('img', { class: 'brand__logo', src: 'assets/logo.png', alt: 'Detronics' })]),
       el('span', { class: 'brand__sep', 'aria-hidden': 'true' }),
-      el('span', { class: 'brand__tool', text: 'ContentBench' }),
+      el('a', { class: 'brand__tool', href: '#/home', text: 'ContentBench', title: 'Home', 'aria-label': 'ContentBench - home' }),
     ]),
     dom.wsName,
     el('div', { class: 'header-actions' }, [dom.saved,
@@ -280,11 +258,19 @@ export function render() {
   const snap = captureFocus({ viewport: dom.viewport, sidebar: dom.sidebar });
   const winY = window.scrollY;
 
-  const owner = TABS.find((t) => t.id === route.mod || t.match?.includes(route.mod))?.id || 'home';
-  dom.tabs.replaceChildren(...TABS.map((t) => (t.sep ? el('span', { class: 'segmented__sep', 'aria-hidden': 'true' })
-    : t.group ? el('span', { class: 'segmented__group', text: t.group, 'aria-hidden': 'true' }) : el('a', {
-      class: 'segmented__btn', href: `#/${t.id}`, 'aria-current': t.id === owner ? 'page' : null,
-    }, [el('span', { class: 'tab-label--long', text: t.label }), el('span', { class: 'tab-label--short', text: t.short })]))));
+  // Home is the grid of sections; inside one, a breadcrumb home and only that section's tabs.
+  const sec = route.mod === 'section' ? Pl.SECTIONS.find((x) => x.id === route.a) : Pl.sectionOf(route.mod);
+  const current = sec?.tabs.find(([id]) => id === route.mod)?.[0] || (sec && route.mod !== 'section' ? Pl.tabFor(route.mod) : null);
+  dom.tabs.hidden = route.mod === 'home';
+  dom.tabs.replaceChildren(...(route.mod === 'home' ? [] : [
+    el('nav', { class: 'crumbs crumbs--top', 'aria-label': 'You are here' }, [
+      el('a', { href: '#/home', text: 'Home', 'data-field': 'nav.home' }),
+      sec ? ' › ' : null,
+      sec ? (sec.tabs.length > 1 ? el('a', { href: `#/section/${sec.id}`, text: sec.name }) : el('span', { text: sec.name })) : null,
+    ]),
+    sec && sec.tabs.length > 1 ? el('div', { class: 'segmented', role: 'navigation', 'aria-label': sec.name }, sec.tabs.map(([id, label]) =>
+      el('a', { class: 'segmented__btn', href: `#/${id}`, text: label, 'aria-current': id === current ? 'page' : null }))) : null,
+  ]));
   paintSync();
   renderNotices(dom.notices, notices(), render);
   dom.page.replaceChildren(page(route));
@@ -340,7 +326,7 @@ function buildFooter() {
 
 function init() {
   applyTheme();
-  dom.tabs = el('nav', { class: 'segmented tabs', 'aria-label': 'Modules' });
+  dom.tabs = el('div', { class: 'sectionbar' });
   dom.notices = el('div', { class: 'notices-host' });
   dom.syncbar = el('div', { class: 'syncbar-host', hidden: true });
   dom.page = el('div', { class: 'page' });

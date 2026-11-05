@@ -23,6 +23,7 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
+  ['0.4.0', 'Home as big section blocks (Dashboard, Planning, Content, Library, Settings, How to use); inside a section, only its own tabs.'],
   ['0.3.1', 'Videos forecast one at a time so today holds one task; today follows your local date.'],
   ['0.3.0', 'Hub home with Planning and Content sides; thoughts, idea scorecard and project stages; forward forecasts that never pile up; capture list with exact folders and folder checking; release rhythm and backlog; your private folder.'],
   ['0.2.0', 'Deadline calendar: drag videos and platform releases onto days, workflow steps dated backwards, a This week view. Video timeline bar on structures, with template comparison, defaults and variants.'],
