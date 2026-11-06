@@ -127,7 +127,7 @@ export const MENTAL_MODEL = [
 
 export const FEATURES = [
   ['Back and Home', 'Bottom of every page', 'Big buttons: one step back to the logical place, or straight home. The breadcrumb up top shows where you are.'],
-  ['Series numbers and parts', 'A video → Overview', 'Pick a series and it takes the next number; split one topic into Part 1, 2, 3 under the same number.'],
+  ['Series numbers and parts', 'A video → Overview', 'Pick a series and it takes the next number; Add part splits one topic into Part 1, 2, 3 under the same number.'],
   ['A look per audience', 'Settings → A look per audience', 'Same look and feel, its own colours - so a niche video tells viewers what to expect.'],
   ['Thoughts', 'Planning → Thoughts', 'Seconds each: drop it, weigh it up later with optional Passport questions.'],
   ['Project stages', 'Projects → a project', 'Move to any stage, forwards or back; the done-by date follows, from today.'],

@@ -4,7 +4,7 @@
 
 - Every page ends with big **Back** and **Home** buttons (44 px, 52 px and full width on a phone). Back goes one logical step up: a video to its list, a tab to its section, a section to home. The breadcrumb at the top stays as the "where am I".
 - **Series numbers:** choosing a series gives the video the next free number in it (Grind my Gears #5). The number is editable.
-- **Parts:** "Split into parts" turns one content-plan line into Part 1, 2, 3 under the same series number, carrying category, audience and links.
+- **Parts:** "Add part" turns one content-plan line into Part 1, 2, 3 under the same series number, carrying category, audience and links.
 - Each video shows where it sits in its category (video 3 of 7 in Business).
 - **A look per audience:** two colours (main, accent) per audience profile; a video picks them up from its audience and shows them on its page.
 

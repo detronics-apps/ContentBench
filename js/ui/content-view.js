@@ -363,9 +363,9 @@ function seriesCard(c, ws) {
     !ws.config.series.length ? el('p', { class: 'small muted' }, ['Add your series in ', el('a', { href: '#/settings', text: 'Settings' }), '; each one keeps its own count.']) : null,
     place ? el('p', { class: 'small muted', text: `Video ${place.n} of ${place.of} in ${cat?.name || 'this category'}.` }) : null,
     parts.length > 1 ? el('ol', { class: 'parts' }, parts.map((x) => el('li', {}, [x.id === c.id ? el('strong', { text: x.workingTitle }) : el('a', { href: `#/content/${x.id}`, text: x.workingTitle }), ' ', badge(x.status || '-', 'status')]))) : null,
-    el('div', { class: 'row' }, [button(parts.length > 1 ? 'Add another part' : 'Split into parts', () => {
+    el('div', { class: 'row' }, [button('Add part', () => {
       let made; commitWs((w) => { const r = addPart(w, c.id); made = r.record; return r.ws; }, { render: false }); go(`#/content/${made.id}`);
-    }, '', { 'data-field': 'content.addPart' }),
+    }, '', { 'data-field': 'content.addPart', title: 'Split this topic into another part under the same series number' }),
       el('span', { class: 'small muted', text: 'Same topic, same series number - Part 1, 2, 3.' })]),
     look ? el('div', { class: 'look' }, [el('span', { class: 'small', text: `Look for "${c.audience}": ` }),
       el('span', { class: 'swatch', style: { background: look.main }, title: look.main }), el('code', { class: 'small', text: look.main }),
