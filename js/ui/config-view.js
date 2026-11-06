@@ -329,6 +329,29 @@ function captureKindsEditor(ws) {
 
 /* --------------------------------------------------------------- settings */
 
+/** Each audience gets its own two colours: same layout and type, so viewers know what to expect. */
+function looksEditor(ws) {
+  const looks = ws.config.looks || {};
+  const set = (aud, patch) => commitWs((w) => ({ ...w, modified: M.nowIso(), config: { ...w.config,
+    looks: { ...(w.config.looks || {}), [aud]: { ...(w.config.looks?.[aud] || { main: '#1f2d3d', accent: '#2f6e94' }), ...patch } } } }), { render: true });
+  const pick = (aud, k, v, label) => el('label', { class: 'small look__pick' }, [label, ' ', el('input', { type: 'color', value: v, 'aria-label': `${aud} ${label}`,
+    'data-field': `look.${aud}.${k}`, on: { change: (e) => set(aud, { [k]: e.target.value }) } })]);
+  return el('div', { class: 'field' }, [
+    el('span', { class: 'field__label', text: 'A look per audience' }),
+    el('span', { class: 'field__hint', text: 'The same look and feel, in a different palette: a niche video (say, 3D printing) gets its own colours, so viewers know what kind of video it is before they watch. Videos pick it up from their audience.' }),
+    ws.config.audiences.length ? null : el('p', { class: 'small muted', text: 'Add an audience profile above first.' }),
+    ...ws.config.audiences.map((aud) => {
+      const l = looks[aud] || { main: '#1f2d3d', accent: '#2f6e94' };
+      return el('div', { class: 'row row--item look-row' }, [
+        el('span', { class: 'look-preview', style: { '--look-main': l.main, '--look-accent': l.accent } }, [el('span', { text: 'Aa' })]),
+        el('strong', { class: 'small', text: aud }),
+        pick(aud, 'main', l.main, 'Main'), pick(aud, 'accent', l.accent, 'Accent'),
+        looks[aud] ? null : el('span', { class: 'small muted', text: '(default)' }),
+      ]);
+    }),
+  ]);
+}
+
 const setCfg = (patch, render = false) => commitWs((w) => ({ ...w, modified: M.nowIso(), config: { ...w.config, ...patch } }), { render });
 const setNested = (key, patch) => commitWs((w) => ({ ...w, modified: M.nowIso(), config: { ...w.config, [key]: { ...w.config[key], ...patch } } }), { render: false });
 
@@ -400,7 +423,7 @@ export function settingsModule() {
     ]),
     card('Categories, series, audiences and tags', [
       categoriesEditor(ws),
-      lines('Series', 'series'), lines('Audience profiles', 'audiences'), lines('Tags', 'tags', 'Suggested when tagging. One per line.'),
+      lines('Series', 'series', 'Each series keeps its own count: Grind my Gears #1, #2 ...'), lines('Audience profiles', 'audiences'), looksEditor(ws), lines('Tags', 'tags', 'Suggested when tagging. One per line.'),
       adv() ? lines('Content types / formats', 'contentTypes') : null,
       adv() ? lines('Idea types', 'ideaTypes') : null,
       adv() ? lines('Project types', 'projectTypes') : null,

@@ -4,7 +4,8 @@ import { el, toast } from './dom.js';
 import * as M from '../model.js';
 import { CONTENT_SECTIONS } from '../schema.js';
 import * as W from '../workflow.js';
-import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule } from '../content.js';
+import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule,
+  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor } from '../content.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
 import { store, ws as currentWs, commitWs } from './store.js';
@@ -306,12 +307,14 @@ export function contentEditor(id, section = 'overview') {
   const c = M.getRecord(ws, 'content', id);
   if (!c) return emptyState('Not found', 'This content item no longer exists.', [button('Content library', () => go('#/library'))]);
   if (!CONTENT_SECTIONS.some(([s]) => s === section)) section = 'overview';
-  const p = patch('content', id);
+  const plain = patch('content', id);
+  // choosing a series hands out its next number, for every part at once
+  const p = (q, render) => ('series' in q ? commitWs((w) => setSeries(w, id, q.series), { render: true }) : plain(q, render));
   const form = recordForm('content', c, ws, p, { section });
   const hasFields = form.querySelector('.field');
   const extra = {
-    overview: () => card('Links', [linkEditor('content', c, ws, link('content', id), { only: ['ideaIds', 'projectIds'] }),
-      el('p', { class: 'small muted', text: 'No project linked means standalone - that is valid.' })]),
+    overview: () => el('div', { class: 'stack' }, [seriesCard(c, ws), card('Links', [linkEditor('content', c, ws, link('content', id), { only: ['ideaIds', 'projectIds'] }),
+      el('p', { class: 'small muted', text: 'No project linked means standalone - that is valid.' })])]),
     story: () => storyEditor('content', c, ws),
     research: () => card('References', [linkEditor('content', c, ws, link('content', id), { only: ['referenceIds'] }),
       button('New reference', () => { let made; commitWs((w) => { const r = M.createRecord(w, 'references', { title: 'New reference', status: w.config.statuses.references[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'referenceIds', made.id, true); }, { render: false }); go(href('references', made.id)); })]),
@@ -323,7 +326,8 @@ export function contentEditor(id, section = 'overview') {
     performance: () => performanceSection(c, ws),
     history: () => historySection(c),
   }[section];
-  return el('div', { class: 'detail' }, [
+  const look = lookFor(ws, c.audience);
+  return el('div', { class: `detail${look ? ' detail--look' : ''}`, style: look ? { '--look-main': look.main, '--look-accent': look.accent } : null }, [
     detailHeader('content', c, [el('a', { href: '#/plan', text: 'Content plan' }), el('a', { href: '#/production', text: 'Production' })]),
     el('nav', { class: 'subtabs subtabs--grouped', 'aria-label': 'Content sections' }, [['plan', 'Plan'], ['make', 'Make']].map(([g, gl]) => el('div', { class: 'subtabs__group' }, [
       el('span', { class: 'subtabs__label', text: gl }),
@@ -334,6 +338,39 @@ export function contentEditor(id, section = 'overview') {
     ['overview', 'history'].includes(section) ? backlinks('content', id, ws) : null,
     ['concept', 'script', 'hooks', 'research', 'overview'].includes(section) ? assistantPanel('content', c, ws) : null,
     section === 'history' || section === 'overview' ? card('', [recordActions('content', c, '#/library')]) : null,
+  ]);
+}
+
+/* --------------------------------------------------------- series & parts */
+
+function seriesCard(c, ws) {
+  const label = seriesLabel(ws, c);
+  const parts = partsOf(ws, c);
+  const place = categoryPlace(ws, c);
+  const cat = ws.config.categories.find((x) => x.id === c.categoryId);
+  const look = lookFor(ws, c.audience);
+  const seriesSel = el('select', { class: 'input input--inline', 'data-field': 'content.seriesPick',
+    on: { change: (e) => commitWs((w) => setSeries(w, c.id, e.target.value)) } },
+    [el('option', { value: '', text: 'No series' }), ...ws.config.series.map((s) => el('option', { value: s, text: s, selected: s === c.series }))]);
+  return card('Series & parts', [
+    label ? el('p', { class: 'series-label', text: label }) : null,
+    el('div', { class: 'row' }, [
+      el('label', { class: 'small' }, ['Series ', seriesSel]),
+      c.series ? el('label', { class: 'small' }, ['Number ', el('input', { class: 'input input--inline input--num', type: 'number', min: 1, step: 1, value: c.episode ?? '',
+        'data-field': 'content.episode', on: { change: (e) => commitWs((w) => setEpisode(w, c.id, e.target.value === '' ? '' : Number(e.target.value))) } })]) : null,
+      c.series ? el('span', { class: 'small muted', text: `next free: #${nextEpisode(ws, c.series)}` }) : null,
+    ]),
+    !ws.config.series.length ? el('p', { class: 'small muted' }, ['Add your series in ', el('a', { href: '#/settings', text: 'Settings' }), '; each one keeps its own count.']) : null,
+    place ? el('p', { class: 'small muted', text: `Video ${place.n} of ${place.of} in ${cat?.name || 'this category'}.` }) : null,
+    parts.length > 1 ? el('ol', { class: 'parts' }, parts.map((x) => el('li', {}, [x.id === c.id ? el('strong', { text: x.workingTitle }) : el('a', { href: `#/content/${x.id}`, text: x.workingTitle }), ' ', badge(x.status || '-', 'status')]))) : null,
+    el('div', { class: 'row' }, [button(parts.length > 1 ? 'Add another part' : 'Split into parts', () => {
+      let made; commitWs((w) => { const r = addPart(w, c.id); made = r.record; return r.ws; }, { render: false }); go(`#/content/${made.id}`);
+    }, '', { 'data-field': 'content.addPart' }),
+      el('span', { class: 'small muted', text: 'Same topic, same series number - Part 1, 2, 3.' })]),
+    look ? el('div', { class: 'look' }, [el('span', { class: 'small', text: `Look for "${c.audience}": ` }),
+      el('span', { class: 'swatch', style: { background: look.main }, title: look.main }), el('code', { class: 'small', text: look.main }),
+      el('span', { class: 'swatch', style: { background: look.accent }, title: look.accent }), el('code', { class: 'small', text: look.accent })])
+      : c.audience ? el('p', { class: 'small muted' }, [`"${c.audience}" has no colours yet - `, el('a', { href: '#/settings', text: 'give it a look' }), '.']) : null,
   ]);
 }
 

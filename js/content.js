@@ -219,3 +219,68 @@ export function agenda(entries, today = todayIso()) {
 
 /** The stage a project is on, by name, for lists. */
 export const stageName = (ws, project) => stageById(ws.process, project.stageId)?.name || '';
+
+/* ------------------------------------------------------- series and parts */
+
+const liveContent = (ws) => ws.records.content.filter((c) => !c.archived);
+
+/** The next free number in a series. */
+export function nextEpisode(ws, series) {
+  if (!series) return '';
+  return Math.max(0, ...liveContent(ws).filter((c) => c.series === series).map((c) => Number(c.episode) || 0)) + 1;
+}
+
+/** Every part of the same video, in part order (just this one when it was never split). */
+export function partsOf(ws, c) {
+  if (!c.partGroup) return [c];
+  return liveContent(ws).filter((x) => x.partGroup === c.partGroup).sort((a, b) => (Number(a.part) || 0) - (Number(b.part) || 0));
+}
+
+/** "Grind my Gears #5 · Part 2 of 3", or '' for a standalone video. */
+export function seriesLabel(ws, c) {
+  const parts = partsOf(ws, c);
+  const head = c.series ? `${c.series}${c.episode ? ` #${c.episode}` : ''}` : '';
+  const part = parts.length > 1 && c.part ? `Part ${c.part} of ${parts.length}` : '';
+  return [head, part].filter(Boolean).join(' · ');
+}
+
+/** Puts a video (and all its parts) in a series, taking the next free number. Clearing the series clears the number. */
+export function setSeries(ws, id, series, now = nowIso()) {
+  const c = getRecord(ws, 'content', id);
+  if (!c) return ws;
+  if (c.series === series && (c.episode || !series)) return ws;
+  const episode = series ? nextEpisode(ws, series) : '';
+  return partsOf(ws, c).reduce((w, p) => updateRecord(w, 'content', p.id, { series, episode }, now), ws);
+}
+
+/** Renumbers a video and its parts; numbers are the creator's to choose, duplicates allowed. */
+export const setEpisode = (ws, id, episode, now = nowIso()) =>
+  partsOf(ws, getRecord(ws, 'content', id)).reduce((w, p) => updateRecord(w, 'content', p.id, { episode }, now), ws);
+
+/** Splits one content-plan line into another part: same series, number, category, audience and links. */
+export function addPart(ws, id, now = nowIso()) {
+  const c = getRecord(ws, 'content', id);
+  if (!c) return { ws, record: null };
+  let w = ws;
+  const group = c.partGroup || c.id;
+  if (!c.partGroup) w = updateRecord(w, 'content', c.id, { partGroup: group, part: 1 }, now);
+  const n = Math.max(...partsOf(w, getRecord(w, 'content', c.id)).map((p) => Number(p.part) || 0)) + 1;
+  const base = (c.workingTitle || '').replace(/\s*[-–·]\s*Part \d+$/i, '');
+  const keep = ['contentType', 'categoryId', 'series', 'episode', 'audience', 'tags', 'centralMessage', 'ideaIds', 'projectIds', 'thoughtIds'];
+  const fields = Object.fromEntries(keep.filter((k) => c[k] !== undefined).map((k) => [k, Array.isArray(c[k]) ? [...c[k]] : c[k]]));
+  const status = ws.config.statuses.content[0] || '';
+  return createRecord(w, 'content', { ...fields, workingTitle: `${base} - Part ${n}`, status, partGroup: group, part: n, captures: [] }, now);
+}
+
+/** Where a video sits in its category: the Nth (by creation) of how many. */
+export function categoryPlace(ws, c) {
+  if (!c.categoryId) return null;
+  const list = liveContent(ws).filter((x) => x.categoryId === c.categoryId).sort((a, b) => (a.created < b.created ? -1 : 1));
+  return { n: list.findIndex((x) => x.id === c.id) + 1, of: list.length };
+}
+
+/* -------------------------------------------------------- audience looks */
+
+/** One look per audience: the same layout and type, its own two colours. */
+export const DEFAULT_LOOK = { main: '#1f2d3d', accent: '#2f6e94' };
+export const lookFor = (ws, audience) => (audience && ws.config.looks?.[audience]) || null;

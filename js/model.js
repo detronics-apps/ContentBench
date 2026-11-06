@@ -75,6 +75,7 @@ export function blankConfig() {
     tags: [],
     series: [],
     audiences: [],
+    looks: {},                 // { [audience]: { main, accent } } - a video's colours follow its audience
     brand: { colors: '', fonts: '', visualNotes: '' },
     voice: { tone: '', communication: '', hookStyles: '' },
     aiInstructions: '',

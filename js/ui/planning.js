@@ -360,6 +360,30 @@ export const sectionOf = (mod) => SECTIONS.find((s) => s.owns.includes(mod)) || 
 const TAB_FOR = { content: 'plan', create: 'plan', tasks: 'production', outputs: 'releases', planner: 'releases', publications: 'releases', feedback: 'performance', references: 'assets' };
 export const tabFor = (mod) => TAB_FOR[mod] || mod;
 
+const tabLabel = (id) => SECTIONS.flatMap((s) => s.tabs).find(([t]) => t === id)?.[1] || null;
+const MAKING = ['Capturing', 'Editing', 'Review', 'In Production'];
+
+/** The logical page one step up from here, for the bottom Back button; null when that is Home. */
+export function backFor(route) {
+  if (route.mod === 'home' || route.mod === 'section') return null;
+  if (route.a) {
+    const ws = currentWs();
+    if (route.mod === 'outputs') {
+      const o = ws.records.outputs.find((x) => x.id === route.a);
+      if (o?.contentId) return { href: `#/content/${o.contentId}/outputs`, label: 'The video' };
+    }
+    if (route.mod === 'content') {
+      const c = ws.records.content.find((x) => x.id === route.a);
+      const tab = c && MAKING.includes(c.status) ? 'production' : c?.status === 'Ready' ? 'releases' : 'plan';
+      return { href: `#/${tab}`, label: tabLabel(tab) };
+    }
+    const tab = tabFor(route.mod);
+    if (tabLabel(tab)) return { href: `#/${tab}`, label: tabLabel(tab) };
+  }
+  const sec = sectionOf(route.mod);
+  return sec && sec.tabs.length > 1 ? { href: `#/section/${sec.id}`, label: sec.name } : null;
+}
+
 /** One line per section saying what is waiting there right now. */
 function sectionNote(id, ws) {
   const live = (t) => ws.records[t].filter((r) => !r.archived);

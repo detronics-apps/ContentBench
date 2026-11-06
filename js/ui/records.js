@@ -3,7 +3,7 @@
 
 import { el } from './dom.js';
 import * as M from '../model.js';
-import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule } from '../content.js';
+import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule, seriesLabel } from '../content.js';
 import { progress, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
 import { projectForecast } from '../process.js';
 import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS } from '../releases.js';
@@ -61,6 +61,7 @@ function rowFor(type, r, ws) {
       r.archived ? badge('Archived') : null,
       r.status ? badge(r.status, 'status') : null,
       catDot(ws, r.categoryId),
+      type === 'content' && seriesLabel(ws, r) ? el('span', { class: 'small series-tag', text: seriesLabel(ws, r) }) : null,
       out !== null ? el('span', { class: 'small muted', text: `${out} output${out === 1 ? '' : 's'}` }) : null,
       r.contentType ? el('span', { class: 'small muted', text: r.contentType }) : null,
       r.assetType ? el('span', { class: 'small muted', text: r.assetType }) : null,

@@ -17,7 +17,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.4.0';
+export const APP_VERSION = '0.5.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - the essentials of each record. Nothing hidden is cleared.',
@@ -274,6 +274,13 @@ export function render() {
   paintSync();
   renderNotices(dom.notices, notices(), render);
   dom.page.replaceChildren(page(route));
+  // Big buttons at the bottom: one step back, and home. The breadcrumb up top only shows where you are.
+  const back = Pl.backFor(route);
+  dom.pagenav.hidden = route.mod === 'home';
+  dom.pagenav.replaceChildren(...(route.mod === 'home' ? [] : [
+    back ? el('a', { class: 'btn pagenav__btn pagenav__back', href: back.href, 'data-field': 'nav.back', 'aria-label': `Back to ${back.label}` }, [el('span', { 'aria-hidden': 'true', text: '← ' }), back.label]) : null,
+    el('a', { class: 'btn pagenav__btn', href: '#/home', 'data-field': 'nav.homeBottom' }, [el('span', { 'aria-hidden': 'true', text: '⌂ ' }), 'Home']),
+  ]));
   dom.tagList.replaceChildren(...currentWs().config.tags.map((t) => el('option', { value: t })));
   buildSidebar(route);
   paintChrome();
@@ -330,7 +337,8 @@ function init() {
   dom.notices = el('div', { class: 'notices-host' });
   dom.syncbar = el('div', { class: 'syncbar-host', hidden: true });
   dom.page = el('div', { class: 'page' });
-  dom.viewport = el('section', { class: 'viewport' }, [dom.tabs, dom.syncbar, dom.notices, dom.page]);
+  dom.pagenav = el('nav', { class: 'pagenav', 'aria-label': 'Back and home' });
+  dom.viewport = el('section', { class: 'viewport' }, [dom.tabs, dom.syncbar, dom.notices, dom.page, dom.pagenav]);
   dom.sidebar = el('aside', { class: 'sidebar', 'aria-label': 'Tools' });
   dom.tagList = el('datalist', { id: 'dl-tags' });
   document.body.append(buildHeader(), buildModebar(), el('main', { class: 'app-main' }, [dom.viewport, dom.sidebar]), buildFooter(), dom.tagList);

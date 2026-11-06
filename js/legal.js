@@ -23,6 +23,7 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
+  ['0.5.0', 'Big Back and Home buttons at the bottom of every page; series numbers and parts (Grind my Gears #5 · Part 2 of 3); a colour look per audience.'],
   ['0.4.0', 'Home as big section blocks (Dashboard, Planning, Content, Library, Settings, How to use); inside a section, only its own tabs.'],
   ['0.3.1', 'Videos forecast one at a time so today holds one task; today follows your local date.'],
   ['0.3.0', 'Hub home with Planning and Content sides; thoughts, idea scorecard and project stages; forward forecasts that never pile up; capture list with exact folders and folder checking; release rhythm and backlog; your private folder.'],
