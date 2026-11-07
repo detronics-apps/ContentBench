@@ -66,9 +66,9 @@ export function contentPackage(ws, contentId, now = new Date().toISOString()) {
     section('Source ideas', list(ideas.map((i) => `${i.title} (${i.id}) - original input: "${i.rawInput || ''}"`))),
     section('Projects', list(projects.map((p) => `${p.title} (${p.id})`)))) || `# ${c.workingTitle}\n`);
   put('Master_Concept.md', doc('Master concept', section('Central message', c.centralMessage),
-    section('Viewer promise', c.viewerPromise), section('Concept', c.masterConcept)));
+    section('Viewer promise', c.viewerPromise), section('Why it is made this way', c.reasoning), section('Concept', c.masterConcept)));
   put('Story_and_Structure.md', doc('Story and structure', storyText(c.story)));
-  put('Script_or_Talking_Points.md', doc(c.scriptFormat || 'Script', c.script && `${c.script}\n`,
+  put('Script_or_Talking_Points.md', doc(c.scriptFormat || 'Script', section('How to say it (vibe and rules)', c.delivery), c.script && `${c.script}\n`,
     section('Hooks', c.hooks), section('Re-hooks', c.rehooks), section('Ending', c.ending), section('Call to action', c.cta)));
   put('Research_and_References.md', doc('Research and references', section('Notes', c.researchNotes),
     section('Claims to verify', c.claimsToVerify), section('Counterarguments', c.counterarguments),

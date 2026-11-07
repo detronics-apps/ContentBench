@@ -17,7 +17,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.6.0';
+export const APP_VERSION = '0.6.1';
 
 const LEVEL_TEXT = {
   simple: 'Simple - the essentials of each record. Nothing hidden is cleared.',
@@ -197,6 +197,7 @@ function exportPanel(cur) {
         download(new Blob([zip(pkg.files)], { type: 'application/zip' }), `${pkg.root}.zip`);
       }, 'primary', { 'data-field': 'export.zip' }),
       button('Copy assistant brief', () => copyText(assistantBrief(ws, c.id), 'Brief copied'), '', { 'data-field': 'export.brief' }),
+      button('Download brief (.md)', () => download(new Blob([assistantBrief(ws, c.id)], { type: 'text/markdown' }), `${slug(c.workingTitle)}_brief.md`), '', { 'data-field': 'export.md', title: 'Everything about this video in one Markdown file - to paste into another chat or AI' }),
     ]) : null,
     el('div', { class: 'row' }, [button('Export workspace (.json)', () => download(new Blob([M.exportWorkspace(ws)], { type: 'application/json' }),
       `ContentBench_${slug(ws.name)}_${M.todayIso()}.json`), '', { 'data-field': 'export.ws' })]),

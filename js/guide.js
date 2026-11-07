@@ -155,6 +155,7 @@ export const FEATURES = [
   ['Quick capture', 'Sidebar → Quick capture', 'Jot an idea from any screen without leaving it.'],
   ['Related records', 'Sidebar → Related', 'Jump between an idea, its content and its outputs in both directions.'],
   ['Master drift', 'Output → notice', 'Shows which master fields changed since an output copied them.'],
+  ['Brief in one file', 'Sidebar → Export', 'Download brief (.md): the whole video - plan, talking points, reasoning, claims, visuals - in one Markdown file for another chat or AI.'],
   ['Content package', 'Sidebar → Export', 'A zip of Markdown files an outsider can read without guessing.'],
   ['Board view', 'Content Library → Board', 'Content grouped by status.'],
   ['Remove samples', 'Settings → Workspace', 'Strips every example record, keeping your own.'],

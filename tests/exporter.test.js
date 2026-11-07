@@ -35,3 +35,10 @@ test('the example package has one folder per output and an index naming every fi
   assert.ok(!files.some((f) => /undefined|\[object/.test(f.text)), 'no leaked internals');
   assert.ok(assistantBrief(ws, c.id).includes('Master concept'));
 });
+
+test('the brief carries how to say it and why it is made this way', () => {
+  const { ws, record } = createRecord(blankWorkspace('T'), 'content', { workingTitle: 'X', delivery: 'Talk to one person.', reasoning: 'Human hook first.' });
+  const brief = assistantBrief(ws, record.id);
+  assert.match(brief, /How to say it \(vibe and rules\)\n\nTalk to one person\./);
+  assert.match(brief, /Why it is made this way\n\nHuman hook first\./);
+});

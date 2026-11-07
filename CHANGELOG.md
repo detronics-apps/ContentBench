@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+- **Download brief (.md)** in Sidebar → Export: everything about a video in one Markdown file, to paste
+  into another chat or AI for review. The brief and the package now include *How to say it* and
+  *Why it is made this way*.
+
 ## 0.6.0
 
 - **Teleprompter** (a video → Production, or under its story blocks): full screen, notes on the left and
