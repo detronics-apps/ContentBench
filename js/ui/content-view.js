@@ -13,6 +13,7 @@ import { recordForm, linkEditor, button, card, emptyState, confirmDialog, badge,
 import { detailHeader, recordActions, backlinks, go, createAndOpen } from './records.js';
 import { assistantPanel } from './assistant.js';
 import { examplePlatforms, exampleStories, exampleWorkflows } from '../seed.js';
+import { openPrompter } from './prompter.js';
 
 const patch = (type, id) => (p, render) => commitWs((w) => M.updateRecord(w, type, id, p), { render });
 const link = (type, id) => (field, target, on) => commitWs((w) => M.setLink(w, type, id, field, target, on));
@@ -74,14 +75,15 @@ export function storyEditor(type, record, ws) {
           button('Repeat', () => setStory((s) => W.instanceBlocks.repeat(s, b.id)), 'ghost'),
           button('×', () => setStory((s) => W.instanceBlocks.remove(s, b.id)), 'ghost', { 'aria-label': `Remove ${b.name}` }),
         ]),
-        b.purpose ? el('p', { class: 'small muted', text: b.purpose }) : null,
-        ta('script', 'Talking points or script'),
+        ta('purpose', 'Purpose - why this block is here', 2),
+        ta('script', 'Talking points (start a line with » to read it word for word, - to talk around it)', 5),
         adv ? el('div', { class: 'two' }, [ta('visual', 'Visual requirements', 2), ta('transition', 'Transition', 2)]) : null,
         adv ? el('div', { class: 'two' }, [ta('assets', 'Supporting assets', 2), ta('references', 'References', 2)]) : null,
         adv ? ta('notes', 'Recording / editing notes', 2) : null,
       ]);
     }),
-    el('div', { class: 'row' }, [button('Add block', () => setStory((s) => W.instanceBlocks.add(s, {}))),
+    el('div', { class: 'row' }, [button('Teleprompter', () => openPrompter(type, M.getRecord(currentWs(), type, record.id)), 'primary', { 'data-field': `${type}.prompter`, title: 'Full screen: your notes, where you should be, what comes next' }),
+      button('Add block', () => setStory((s) => W.instanceBlocks.add(s, {}))),
       button('Save as a new template (variant)', saveVariant, '', { title: 'Keep this structure to test it on other videos. The original template is untouched.' })]),
     el('details', { class: 'more' }, [el('summary', { text: 'Use a different structure' }), chooser]),
   ]);
@@ -221,6 +223,17 @@ function productionCaptures(c, ws) {
   ]);
 }
 
+function prompterCard(c) {
+  const blocks = c.story?.blocks || [];
+  return card('Record', [
+    el('p', { class: 'small muted', text: blocks.length
+      ? `The teleprompter runs your ${blocks.length} story blocks full screen: the notes, the line the pace says you should be on, what comes next and what is on screen. Pause any time; it saves where each block began, for the edit.`
+      : 'Fill in the Story & timeline blocks first - the teleprompter reads those.' }),
+    blocks.length ? button('Open the teleprompter', () => openPrompter('content', M.getRecord(currentWs(), 'content', c.id)), 'primary', { 'data-field': 'prod.prompter' })
+      : button('Story & timeline', () => go(`#/content/${c.id}/story`)),
+  ]);
+}
+
 function readyCard(c, ws) {
   const outs = ws.records.outputs.filter((o) => o.contentId === c.id && !o.archived);
   const ready = c.status === 'Ready';
@@ -321,7 +334,7 @@ export function contentEditor(id, section = 'overview') {
     capture: () => el('div', { class: 'stack' }, [captureSection(c, ws), card('Assets', [linkEditor('content', c, ws, link('content', id), { only: ['assetIds'] }),
       button('New asset', () => { let made; commitWs((w) => { const r = M.createRecord(w, 'assets', { name: 'New asset', status: w.config.statuses.assets[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'assetIds', made.id, true); }, { render: false }); go(href('assets', made.id)); })])]),
     outputs: () => outputsSection(c, ws),
-    production: () => el('div', { class: 'stack' }, [workflowPanel('content', c, ws), productionCaptures(c, ws), readyCard(c, ws)]),
+    production: () => el('div', { class: 'stack' }, [prompterCard(c), workflowPanel('content', c, ws), productionCaptures(c, ws), readyCard(c, ws)]),
     publishing: () => publishingSection(c, ws),
     performance: () => performanceSection(c, ws),
     history: () => historySection(c),

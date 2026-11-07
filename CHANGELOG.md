@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.0
+
+- **Teleprompter** (a video → Production, or under its story blocks): full screen, notes on the left and
+  next up / on screen now / running order on the right. The line the pace says you should be on is
+  highlighted; a bar shows the time left in the block and warns when the words won't fit the time at a
+  calm ~150 words a minute. Space pauses (your recording keeps running), → and ← move between blocks
+  (a clicker's Page Down / Page Up too), auto-advance can wait for you instead. At the end it lists where
+  each block began in the recording - the cut points - and saves them to the recording notes.
+  The clock runs on a timer, so it keeps time while your recording app covers the window.
+- Story blocks: a line starting » is read word for word, a line starting - is a talking point. The
+  block's purpose (why it is there) is now editable on the video.
+- New fields: **How to say it (vibe and rules)** on Script, shown before the teleprompter starts, and
+  **Why it is made this way** on Concept.
+
 ## 0.5.0
 
 - Every page ends with big **Back** and **Home** buttons (44 px, 52 px and full width on a phone). Back goes one logical step up: a video to its list, a tab to its section, a section to home. The breadcrumb at the top stays as the "where am I".

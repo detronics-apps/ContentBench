@@ -7,6 +7,7 @@ export const SEARCH_ALIASES = {
   'platform output': ['tiktok', 'youtube', 'instagram', 'reel', 'short', 'carousel', 'version', 'adaptation', 'cut'],
   workflow: ['process', 'steps', 'pipeline', 'checklist', 'stages'],
   storytelling: ['structure', 'hook', 'outline', 'narrative', 'beats', 'blocks'],
+  teleprompter: ['prompter', 'autocue', 'record', 'recording', 'read', 'notes', 'pace', 'cue'],
   workspace: ['profile', 'channel', 'account', 'brand', 'start over', 'reset', 'backup'],
   export: ['download', 'zip', 'package', 'share', 'send', 'backup', 'claude', 'assistant'],
   archive: ['hide', 'remove', 'delete', 'restore', 'bin'],
@@ -34,6 +35,12 @@ export function guideMatches(text, q) {
 }
 
 export const HOWTOS = [
+  { id: 'teleprompter', category: 'Recording', title: 'Record with the teleprompter', steps: [
+    'Fill in the video\'s Story & timeline blocks: a purpose, a duration and the talking points. Start a line with » to read it word for word; start it with - to talk around it.',
+    'Production → Open the teleprompter (or the Teleprompter button under the blocks). Put "How to say it" in the Script section and it shows before you start.',
+    'Start your recording, then press Space: 3 seconds to settle, then the hook. The highlighted line is where the pace says you should be; Next up and On screen now sit on the right.',
+    'Space pauses to breathe or think (your recording keeps running), → skips ahead, ← goes back. Auto-advance off makes it wait for you at the end of each block.',
+    'At the end it lists where each block began in your recording - save it to the recording notes as the cut points for the edit.'] },
   { id: 'next-task', category: 'Planning', title: 'Know what to work on next (without catching up)', steps: [
     'Open Home or the Dashboard: "Your next task" is the one thing to focus on.',
     'Finish it, press Done on its step, and the next one takes its place.',
@@ -126,6 +133,9 @@ export const MENTAL_MODEL = [
 ];
 
 export const FEATURES = [
+  ['Teleprompter', 'A video → Production', 'Full screen: your notes, the line you should be on, what comes next and what is on screen. Pause any time; it keeps your cut points.'],
+  ['Read lines and talking points', 'A video → Story & timeline', 'Start a line with » to read it word for word, - to talk around it. Each block also says why it is there.'],
+  ['Why it is made this way', 'A video → Concept', 'The reasoning behind the structure, so the next video copies the thinking, not just the format.'],
   ['Back and Home', 'Bottom of every page', 'Big buttons: one step back to the logical place, or straight home. The breadcrumb up top shows where you are.'],
   ['Series numbers and parts', 'A video → Overview', 'Pick a series and it takes the next number; Add part splits one topic into Part 1, 2, 3 under the same number.'],
   ['A look per audience', 'Settings → A look per audience', 'Same look and feel, its own colours - so a niche video tells viewers what to expect.'],

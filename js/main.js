@@ -17,7 +17,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.6.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - the essentials of each record. Nothing hidden is cleared.',
