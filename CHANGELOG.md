@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.3
+
+- **Restart** in the teleprompter (or the R key), once a take has started: back to the top with the notes on
+  screen and nothing moving, the clocks at zero and the take's cut points cleared - no closing and reopening.
+
 ## 0.8.2
 
 - Pressing **Start** in the teleprompter gives a **3-2-1** first - time to hit record in Audacity - shown in the

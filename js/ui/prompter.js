@@ -32,6 +32,7 @@ export function openPrompter(type, record) {
     el('span', { class: 'pr-rundown__needle' })]);
   const clock = el('span', { class: 'pr-clock' });
   const recClock = el('span', { class: 'pr-clock pr-clock--rec', title: 'Time since the hook started, pauses included - the length of your recording' });
+  const restartBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'data-field': 'pr.restart', title: 'Start the whole take again from the top (R)', on: { click: () => restart() } }, ['Restart']);
   const playBtn = el('button', { class: 'btn primary', type: 'button', 'data-field': 'pr.play', on: { click: () => toggle() } });
   const autoBtn = el('button', { class: 'btn', type: 'button', 'aria-pressed': 'true', 'data-field': 'pr.auto',
     title: 'On: moves to the next block when its time is up. Off: waits for you to press →.', on: { click: () => { auto = !auto; autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, ['Auto-advance: on']);
@@ -54,6 +55,7 @@ export function openPrompter(type, record) {
         playBtn,
         btn('▶', () => jump(1), { 'aria-label': 'Next block (→)', title: 'Next block (→)', 'data-field': 'pr.next' }),
         autoBtn,
+        restartBtn,
         btn('A−', () => zoom(-0.1), { 'aria-label': 'Smaller text' }),
         btn('A+', () => zoom(0.1), { 'aria-label': 'Larger text' }),
         btn('Full screen', () => fullscreen(), { title: 'F' }),
@@ -64,7 +66,7 @@ export function openPrompter(type, record) {
       el('h3', { class: 'pr-h', text: 'Next up' }), nextPane,
       el('h3', { class: 'pr-h', text: 'On screen now' }), screenPane,
       el('h3', { class: 'pr-h', text: 'Running order' }), list])]),
-    el('footer', { class: 'pr-keys small' }, ['Space start / pause · → next · ← back · click a block in the running order to go there · F full screen · Esc close. A clicker works too (Page Down / Page Up). The red clock counts time since you pressed Start, pauses included - like your recording.']),
+    el('footer', { class: 'pr-keys small' }, ['Space start / pause · → next · ← back · R restart the take · click a block in the running order to go there · F full screen · Esc close. A clicker works too (Page Down / Page Up). The red clock counts time since you pressed Start, pauses included - like your recording.']),
     banner, sheet,
   ]);
 
@@ -109,6 +111,7 @@ export function openPrompter(type, record) {
     clock.textContent = `${fmt(t)} / ${fmt(plan.total)}`;
     recClock.textContent = started ? `● ${fmt(recTime())}` : '';
     playBtn.textContent = running ? 'Pause' : started ? 'Continue' : 'Start';
+    restartBtn.hidden = !started && !countTo;
   }
 
   function loop() {
@@ -142,6 +145,16 @@ export function openPrompter(type, record) {
     running = !running;
     banner.hidden = running;
     if (!running) { banner.className = 'pr-banner pr-banner--pause'; banner.textContent = 'Paused - take a breath, read ahead. Space to carry on.'; }
+  }
+  /** Throw the take away and go back to the top: the notes on screen, nothing moving, the cut points cleared. */
+  function restart() {
+    if (done) return;
+    running = false; started = false; countTo = 0; rec0 = 0; t = 0;
+    marks.length = 0;
+    banner.hidden = true;
+    root.classList.add('is-preview');
+    shownBlock = -1; last = now(); tick();
+    toast('Back to the top. Restart your recording too, then press Start.');
   }
   function jump(d) {
     if (done) return;
@@ -184,6 +197,7 @@ export function openPrompter(type, record) {
     else if (k === 'ArrowRight' || k === 'PageDown') jump(1);
     else if (k === 'ArrowLeft' || k === 'PageUp') jump(-1);
     else if (k === 'f' || k === 'F') fullscreen();
+    else if (k === 'r' || k === 'R') restart();
     else if (k === '+' || k === '=') zoom(0.1);
     else if (k === '-') zoom(-0.1);
     else if (k === 'Escape' && !document.fullscreenElement) close();
