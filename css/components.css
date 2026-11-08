@@ -414,3 +414,12 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .pr-delivery { white-space: pre-line; }
 .pr-take { white-space: pre-wrap; font-family: var(--font-mono); background: var(--panel-2); padding: var(--space-3); border-radius: var(--radius-sm); }
 @media (max-width: 760px) { .pr-split { grid-template-columns: 1fr; } .pr-side { border-left: 0; border-top: 1px solid var(--border); } .pr-now { padding: var(--space-4); } }
+
+/* ---- beyond video: categories x kinds */
+.extras-scroll { overflow-x: auto; }
+.extras { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 760px; }
+.extras th, .extras td { border-bottom: 1px solid var(--border); padding: var(--space-2); text-align: left; vertical-align: top; }
+.extras thead th { position: sticky; top: 0; background: var(--panel); white-space: nowrap; }
+.extras tbody th { white-space: nowrap; font-weight: 600; }
+.extras__item { margin-bottom: 4px; }
+.extras .cat__dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }

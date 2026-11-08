@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+- **Beyond video** (Content → Beyond video): a grid of your categories against courses, e-books and
+  PDFs, posters, LinkedIn posts and Instagram posts and reels. Each cell lists what exists, with its
+  status and free / paid; + starts a new one in that category (posts get their platform output too).
+  A video with an Instagram or LinkedIn output counts in those columns.
+- Content items can be marked **Free or paid** with a **price** (Advanced).
+- New content types: Course, E-book / PDF, Poster, LinkedIn post, Instagram post (added to older
+  workspaces the first time you start one). New example formats: LinkedIn post, Instagram image post.
+
 ## 0.6.1
 
 - **Download brief (.md)** in Sidebar → Export: everything about a video in one Markdown file, to paste

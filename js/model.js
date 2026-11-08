@@ -91,7 +91,7 @@ export function blankConfig() {
     ideaTypes: ['Topic', 'Question', 'Story', 'Experiment', 'Opinion', 'Tutorial'],
     projectTypes: ['Investigation', 'Build', 'Experiment', 'Series', 'Journey'],
     contentTypes: ['Quick video', 'Short-form video', 'Long-form video', 'Standalone discussion', 'Tutorial',
-      'Documentary', 'Article', 'Carousel', 'Reference sheet'],
+      'Documentary', 'Article', 'Carousel', 'Reference sheet', 'Course', 'E-book / PDF', 'Poster', 'LinkedIn post', 'Instagram post'],
     preferences: { defaultWorkflowId: '', defaultStoryId: '' },
     thoughtSources: [...DEFAULT_THOUGHT_SOURCES],
     produce: [...DEFAULT_PRODUCE],

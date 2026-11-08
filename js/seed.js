@@ -70,9 +70,11 @@ export function examplePlatforms() {
       formats: [
         { name: 'Reel', aspectRatio: '9:16', resolution: '1080x1920', duration: VERIFY, cover: 'Cover crop also shown 1:1 / 4:5 in grid', safe: vertical },
         { name: 'Carousel', aspectRatio: '4:5', resolution: '1080x1350', duration: 'n/a', checklist: ['Slide 1 works alone'] },
+        { name: 'Image post', aspectRatio: '4:5', resolution: '1080x1350', duration: 'n/a', checklist: ['Readable at phone size'] },
       ] }),
     makePlatform({ name: 'LinkedIn', notes: 'Example profile. Values are placeholders.', metadataFields: ['Post text', 'Hashtags'],
-      formats: [{ name: 'Video', aspectRatio: '1:1 or 4:5', resolution: '1080x1080', duration: VERIFY, safe: { top: 5, bottom: 10, left: 5, right: 5 } }] }),
+      formats: [{ name: 'Video', aspectRatio: '1:1 or 4:5', resolution: '1080x1080', duration: VERIFY, safe: { top: 5, bottom: 10, left: 5, right: 5 } },
+        { name: 'Post (text + image)', aspectRatio: '1:1 or 4:5', resolution: '1080x1350', duration: 'n/a', checklist: ['First two lines work alone'] }] }),
   ];
 }
 

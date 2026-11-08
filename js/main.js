@@ -8,6 +8,7 @@ import * as M from './model.js';
 import { EXPLAIN, ONBOARDING } from './guide.js';
 import { LEGAL, CHANGES } from './legal.js';
 import { contentPackage, assistantBrief, slug } from './exporter.js';
+import { extrasModule } from './ui/extras-view.js';
 import { zip } from './zip.js';
 import { outputLabel } from './content.js';
 import * as R from './ui/records.js';
@@ -17,7 +18,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.6.1';
+export const APP_VERSION = '0.7.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - the essentials of each record. Nothing hidden is cleared.',
@@ -47,6 +48,7 @@ function page(route) {
     case 'projects': return a ? Pl.projectDetail(a) : Pl.projectsModule();
     case 'plan': case 'create': return R.contentPlan();
     case 'production': return R.production();
+    case 'extras': return extrasModule();
     case 'releases': case 'planner': return R.releases();
     case 'library': return R.library();
     case 'content': return contentEditor(a, b);

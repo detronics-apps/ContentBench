@@ -71,6 +71,8 @@ export const FIELDS = {
     f('contentType', 'Content type', 'select', { options: 'contentTypes', section: 'overview' }),
     f('status', 'Status', 'select', { options: 'status', section: 'overview' }),
     f('targetDate', 'Target date', 'date', { section: 'overview' }),
+    f('offer', 'Free or paid', 'select', { options: ['Free', 'Paid', 'Not decided'], section: 'overview', ...adv, hint: 'For courses, e-books, posters and other things that could be sold.' }),
+    f('price', 'Price', 'text', { section: 'overview', ...adv }),
     f('categoryId', 'Primary category', 'select', { options: 'categories', section: 'overview', ...adv }),
     f('series', 'Series', 'select', { options: 'series', section: 'overview', ...adv }),
     f('audience', 'Intended audience', 'select', { options: 'audiences', section: 'overview', ...adv }),

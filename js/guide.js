@@ -7,6 +7,7 @@ export const SEARCH_ALIASES = {
   'platform output': ['tiktok', 'youtube', 'instagram', 'reel', 'short', 'carousel', 'version', 'adaptation', 'cut'],
   workflow: ['process', 'steps', 'pipeline', 'checklist', 'stages'],
   storytelling: ['structure', 'hook', 'outline', 'narrative', 'beats', 'blocks'],
+  'beyond video': ['course', 'ebook', 'e-book', 'pdf', 'poster', 'product', 'sell', 'paid', 'linkedin', 'instagram', 'post', 'image'],
   teleprompter: ['prompter', 'autocue', 'record', 'recording', 'read', 'notes', 'pace', 'cue'],
   workspace: ['profile', 'channel', 'account', 'brand', 'start over', 'reset', 'backup'],
   export: ['download', 'zip', 'package', 'share', 'send', 'backup', 'claude', 'assistant'],
@@ -35,6 +36,11 @@ export function guideMatches(text, q) {
 }
 
 export const HOWTOS = [
+  { id: 'beyond-video', category: 'Content', title: 'Track courses, e-books, posters and social posts', steps: [
+    'Content → Beyond video: your categories down the side, the kinds across the top.',
+    'Press + in a cell to start one in that category - a course, an e-book or PDF, a poster, a LinkedIn or Instagram post. Posts get their platform output straight away.',
+    'Each one is a content item, so it has the same plan, make and release steps as a video. At Advanced level, mark it Free or Paid and give it a price.',
+    'Videos with an Instagram or LinkedIn output count in those columns too, so reels show up without extra work.'] },
   { id: 'teleprompter', category: 'Recording', title: 'Record with the teleprompter', steps: [
     'Fill in the video\'s Story & timeline blocks: a purpose, a duration and the talking points. Start a line with » to read it word for word; start it with - to talk around it.',
     'Production → Open the teleprompter (or the Teleprompter button under the blocks). Put "How to say it" in the Script section and it shows before you start.',
@@ -133,6 +139,7 @@ export const MENTAL_MODEL = [
 ];
 
 export const FEATURES = [
+  ['Beyond video', 'Content → Beyond video', 'Courses, e-books and PDFs, posters, LinkedIn and Instagram posts per category - with a + to start one and free / paid counted.'],
   ['Teleprompter', 'A video → Production', 'Full screen: your notes, the line you should be on, what comes next and what is on screen. Pause any time; it keeps your cut points.'],
   ['Read lines and talking points', 'A video → Story & timeline', 'Start a line with » to read it word for word, - to talk around it. Each block also says why it is there.'],
   ['Why it is made this way', 'A video → Concept', 'The reasoning behind the structure, so the next video copies the thinking, not just the format.'],
