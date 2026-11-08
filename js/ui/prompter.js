@@ -173,20 +173,28 @@ export function openPrompter(type, record) {
     const text = takeText(marks, { title, at: new Date().toLocaleString() }) + `\n${fmt(total)}  end`;
     banner.hidden = true;
     sheet.hidden = false;
+    // feedback lives on the sheet itself, next to the buttons, so it cannot be missed
+    const status = el('p', { class: 'small pr-status', role: 'status' });
+    const saveBtn = btn('Save to recording notes', () => {
+      if (saveBtn.disabled) return;
+      commitWs((w) => { const r = M.getRecord(w, noteType, noteId); return M.updateRecord(w, noteType, noteId, { recordingNotes: [r.recordingNotes, text].filter(Boolean).join('\n\n') }); }, { render: false });
+      saveBtn.disabled = true; saveBtn.textContent = 'Saved ✓';
+      status.textContent = 'Saved on this video: step 3 Record → "Recording notes and cut points". Safe to close.';
+    }, { class: 'btn primary', 'data-field': 'pr.save' });
+    const copyBtn = btn('Copy', () => navigator.clipboard?.writeText(text).then(
+      () => { copyBtn.textContent = 'Copied ✓'; status.textContent = 'Copied - paste it wherever you like.'; },
+      () => { status.textContent = 'Could not copy here - select the text above and press Ctrl+C.'; status.classList.add('pr-status--warn'); }));
     sheet.replaceChildren(el('div', { class: 'pr-sheet__box' }, [
       el('h2', { text: 'Take done' }),
       el('p', { text: `${fmt(total)} recorded against ${fmt(plan.total)} planned. Stop your recording.` }),
       el('p', { class: 'small', text: 'Where each block began, counted from the hook - these are your cut points in the edit:' }),
       el('pre', { class: 'pr-take', text }),
       el('div', { class: 'row' }, [
-        btn('Save to recording notes', () => {
-          commitWs((w) => { const r = M.getRecord(w, noteType, noteId); return M.updateRecord(w, noteType, noteId, { recordingNotes: [r.recordingNotes, text].filter(Boolean).join('\n\n') }); }, { render: false });
-          toast('Saved under Production → Recording notes.');
-        }, { class: 'btn primary', 'data-field': 'pr.save' }),
-        btn('Copy', () => navigator.clipboard?.writeText(text).then(() => toast('Copied.'), () => toast('Could not copy - select the text instead.'))),
+        saveBtn, copyBtn,
         btn('Another take', () => { close(); openPrompter(type, record); }),
         btn('Close', () => close()),
       ]),
+      status,
     ]));
   }
 

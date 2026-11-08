@@ -238,7 +238,7 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .welcome h2 { margin-top: 0; }
 .welcome__steps { padding-left: 1.4em; display: flex; flex-direction: column; gap: var(--space-2); }
 .welcome__steps p { margin: 2px 0 0; }
-.toast { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: var(--space-2) var(--space-4); border-radius: var(--radius); box-shadow: var(--shadow-md); z-index: 400; max-width: calc(100vw - 32px); }
+.toast { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: var(--space-2) var(--space-4); border-radius: var(--radius); box-shadow: var(--shadow-md); z-index: 1100; max-width: calc(100vw - 32px); }
 
 /* --- notices ---------------------------------------------------------- */
 .banner { display: flex; align-items: flex-start; gap: var(--space-2); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); background: var(--panel-2); font-size: 13px; }
@@ -447,3 +447,5 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 /* paused: a slim strip at the bottom, never over the notes you want to read again */
 .pr-banner--pause { top: auto; bottom: 44px; transform: translateX(-50%); padding: var(--space-2) var(--space-4); font-size: 15px; font-weight: 600; background: var(--warn-soft); color: var(--warn); box-shadow: var(--shadow-md); pointer-events: none; }
 .pr-banner--count { font-size: 22px; font-variant-numeric: tabular-nums; }
+.pr-status { margin: var(--space-2) 0 0; color: var(--ok); min-height: 1.2em; }
+.pr-status--warn { color: var(--warn); }

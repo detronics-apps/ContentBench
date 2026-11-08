@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.4
+
+- **Take done** screen: Save and Copy confirm on the screen itself (Saved ✓ / Copied ✓, or how to copy by hand)
+  and say where the notes went - step 3 Record → Recording notes and cut points. Save stores a take once, however
+  often it is clicked (it used to add a copy per click, with its confirmation hidden behind the teleprompter).
+- Messages (toasts) now show above the full-screen teleprompter, e.g. after Restart.
+
 ## 0.8.3
 
 - **Restart** in the teleprompter (or the R key), once a take has started: back to the top with the notes on
