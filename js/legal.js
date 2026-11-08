@@ -23,6 +23,7 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
+  ['0.8.5', 'Teleprompter side panel in time order: How to say it, On screen now, Next up, Running order.'],
   ['0.8.4', 'Take done: Save and Copy now confirm on the screen (Saved ✓ / Copied ✓) and say where the notes went; Save stores the take once, however often it is clicked.'],
   ['0.8.3', 'Restart in the teleprompter (or R): back to the top of the take without closing it.'],
   ['0.8.2', 'A 3-2-1 after you press Start in the teleprompter - time to hit record - shown at the bottom so the notes stay readable.'],

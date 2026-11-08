@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.5
+
+- The teleprompter's right-hand panel reads in time order: How to say it → On screen now → Next up → Running order.
+
 ## 0.8.4
 
 - **Take done** screen: Save and Copy confirm on the screen itself (Saved ✓ / Copied ✓, or how to copy by hand)

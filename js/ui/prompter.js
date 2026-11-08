@@ -63,8 +63,8 @@ export function openPrompter(type, record) {
       ]),
     ]),
     el('div', { class: 'pr-split' }, [nowPane, el('aside', { class: 'pr-side' }, [
-      el('h3', { class: 'pr-h', text: 'Next up' }), nextPane,
       el('h3', { class: 'pr-h', text: 'On screen now' }), screenPane,
+      el('h3', { class: 'pr-h', text: 'Next up' }), nextPane,
       el('h3', { class: 'pr-h', text: 'Running order' }), list])]),
     el('footer', { class: 'pr-keys small' }, ['Space start / pause · → next · ← back · R restart the take · click a block in the running order to go there · F full screen · Esc close. A clicker works too (Page Down / Page Up). The red clock counts time since you pressed Start, pauses included - like your recording.']),
     banner, sheet,
@@ -222,7 +222,7 @@ export function openPrompter(type, record) {
   /* ---- preview first: the notes are on screen, nothing moves until Start */
   sheet.hidden = true;
   root.classList.add('is-preview');
-  if (delivery) nextPane.previousSibling.before(el('div', { class: 'pr-howto' }, [el('h3', { class: 'pr-h', text: 'How to say it' }), el('p', { class: 'pr-delivery', text: delivery })]));
+  if (delivery) screenPane.previousSibling.before(el('div', { class: 'pr-howto' }, [el('h3', { class: 'pr-h', text: 'How to say it' }), el('p', { class: 'pr-delivery', text: delivery })]));
 
   document.body.append(root);
   document.addEventListener('keydown', onKey, true);
