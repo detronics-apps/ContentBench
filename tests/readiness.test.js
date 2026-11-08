@@ -45,3 +45,17 @@ test('old section names land on their step', () => {
   assert.equal(stepOf('nonsense'), 'idea');
   assert.equal(stepOf('results'), 'results');
 });
+
+test('ticks mean finished: Publish is booked until it is out, Results waits for the release', () => {
+  let w = base();
+  const c = createRecord(w, 'content', { workingTitle: 'Speed', contentType: 'Short-form video', viewerPromise: 'x', centralMessage: 'y', categoryId: 'c',
+    story: { blocks: [{ id: 'b1', name: 'Hook', duration: '0:05', script: '» Have you ever?' }] }, recordingNotes: 'Teleprompter take - Speed' });
+  w = createRecord(c.ws, 'outputs', { contentId: c.record.id, platformId: 'p_tt', formatId: 'f1', caption: 'c', scheduledDate: '2026-11-08' }).ws;
+  let r = readiness(w, c.record);
+  assert.deepEqual([r.state.publish, r.state.results, r.state.idea], ['booked', 'later', 'done']);
+  w = { ...w, records: { ...w.records, outputs: w.records.outputs.map((o) => ({ ...o, status: 'Published', publishedDate: '2026-11-08' })) } };
+  r = readiness(w, c.record);
+  assert.equal(r.state.publish, 'done');
+  assert.equal(r.state.results, 'todo');
+  assert.match(r.next.text, /how it did/);
+});

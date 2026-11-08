@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.6
+
+- **A tick means finished.** Publish shows "set - not out yet" until every version is published; Results shows
+  "after release" until the video is out, then asks how it did. Planned feedback records no longer tick Results.
+- The capture list on Record folds away as **Files for the edit: x of y saved**, with one line on what it is for
+  (your voice take, the graphics, the music - each with its own folder) and "Change the list" inside.
+
 ## 0.8.5
 
 - The teleprompter's right-hand panel reads in time order: How to say it → On screen now → Next up → Running order.

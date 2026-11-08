@@ -55,7 +55,16 @@ export function readiness(ws, c) {
     ] : ['Add a platform version (where it goes out)'],
     results: [],
   };
+  // a tick means finished: Publish only once it is out, Results only once there are results
+  const published = outs.length > 0 && outs.every((o) => o.publishedDate || o.status === 'Published');
+  const outIds = new Set(outs.map((o) => o.id));
+  const hasResults = ws.records.feedback.some((f) => f.contentId === c.id || outIds.has(f.outputId))
+    || ws.records.publications.some((x) => outIds.has(x.outputId));
+  if (published && !hasResults) gaps.results.push('Note how it did (feedback or a logged publication)');
   const out = Object.fromEntries(Object.entries(gaps).map(([k, v]) => [k, v.filter(Boolean)]));
+  const state = Object.fromEntries(STEPS.map(([id]) => [id, out[id].length ? 'todo' : 'done']));
+  if (state.publish === 'done' && !published) state.publish = 'booked';
+  if (!published) state.results = 'later';   // planned feedback records don't count before it is out
   const first = STEPS.find(([id]) => out[id].length);
-  return { gaps: out, next: first ? { step: first[0], text: out[first[0]][0] } : null };
+  return { gaps: out, state, next: first ? { step: first[0], text: out[first[0]][0] } : null };
 }

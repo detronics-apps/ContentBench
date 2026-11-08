@@ -369,6 +369,16 @@ function makeCard(c, ws) {
   ]);
 }
 
+/** The capture list, folded away: what has to exist (your voice take, the graphics, music) before the edit can start. */
+function filesForEdit(c, ws) {
+  const prog = K.captureProgress(c.captures || []);
+  return more(`Files for the edit: ${prog.saved} of ${prog.total} saved`, [
+    el('p', { class: 'small muted', text: 'Everything the edit needs besides your words: your voice take, the graphics and the music. Each has a fixed folder in your Drive so Claude finds it. Your part is usually just number 1 - the voice recording; the rest is made in the edit.' }),
+    productionCaptures(c, ws),
+    more('Change the list', [captureSection(c, ws)]),
+  ], !(c.captures || []).length);
+}
+
 const more = (summary, kids, open = false) => el('details', { class: 'more more--card', open }, [el('summary', { text: summary }), ...kids]);
 
 export function contentEditor(id, section = 'idea') {
@@ -381,7 +391,7 @@ export function contentEditor(id, section = 'idea') {
   // choosing a series hands out its next number, for every part at once
   const p = (q, render) => ('series' in q ? commitWs((w) => setSeries(w, id, q.series), { render: true }) : plain(q, render));
   const form = (group) => recordForm('content', c, ws, p, { section: step, group });
-  const { gaps, next } = readiness(ws, c);
+  const { gaps, next, state } = readiness(ws, c);
   const n = STEPS.findIndex(([s]) => s === step);
   const label = (st) => (rec ? st[1] : st[2]);
   const blocks = c.story?.blocks || [];
@@ -401,7 +411,7 @@ export function contentEditor(id, section = 'idea') {
       more(blocks.length ? 'Script text (only if you write one out in full)' : 'Script text', [form('script')], !blocks.length),
       assistantPanel('content', c, ws)],
     record: () => (rec
-      ? [prompterCard(c), productionCaptures(c, ws), more('Edit the capture list', [captureSection(c, ws)], !(c.captures || []).length),
+      ? [prompterCard(c), filesForEdit(c, ws),
         card('', [form()]), workflowPanel('content', c, ws), assets()]
       : [makeCard(c, ws), card('', [form()]), workflowPanel('content', c, ws), assets()]),
     publish: () => [publishOutputs(c, ws), readyCard(c, ws), exportCard(c, ws), more('Log what was published', [publishingSection(c, ws)])],
@@ -413,17 +423,20 @@ export function contentEditor(id, section = 'idea') {
   return el('div', { class: `detail${look ? ' detail--look' : ''}`, style: look ? { '--look-main': look.main, '--look-accent': look.accent } : null }, [
     detailHeader('content', c, [el('a', { href: '#/plan', text: 'Content plan' }), el('a', { href: '#/production', text: 'Production' })]),
     el('nav', { class: 'steps-nav', 'aria-label': 'Steps' }, STEPS.map((st, i) => {
-      const left = gaps[st[0]].length;
-      return el('a', { class: `steps-nav__step${st[0] === step ? ' is-here' : ''}${left ? '' : ' is-done'}`, href: `#/content/${id}/${st[0]}`,
+      const left = gaps[st[0]].length, now = state[st[0]];
+      const sub = now === 'todo' ? `${left} to do` : now === 'booked' ? 'set - not out yet' : now === 'later' ? 'after release' : null;
+      return el('a', { class: `steps-nav__step${st[0] === step ? ' is-here' : ''} is-${now}`, href: `#/content/${id}/${st[0]}`,
         'aria-current': st[0] === step ? 'step' : null, 'data-field': `step.${st[0]}` }, [
-        el('span', { class: 'steps-nav__n', text: left ? String(i + 1) : '✓' }),
+        el('span', { class: 'steps-nav__n', text: now === 'done' ? '✓' : String(i + 1) }),
         el('span', { class: 'steps-nav__label', text: label(st) }),
-        left ? el('span', { class: 'steps-nav__left', text: `${left} to do` }) : null,
+        sub ? el('span', { class: `steps-nav__left${now === 'todo' ? '' : ' steps-nav__left--quiet'}`, text: sub }) : null,
       ]);
     })),
     el('div', { class: 'card step-head' }, [
       el('p', { class: 'step-head__what', text: STEPS[n][3] }),
       here.length ? el('ul', { class: 'step-head__gaps' }, here.map((g) => el('li', { text: g })))
+        : state[step] === 'later' ? el('p', { class: 'small muted', text: 'Nothing to do here until it is out - then note how it did.' })
+        : state[step] === 'booked' ? el('p', { class: 'small muted', text: 'Everything is set; this ticks when it is published.' })
         : el('p', { class: 'small text-ok', text: 'Nothing missing in this step.' }),
       el('div', { class: 'row' }, [
         next && next.step !== step ? el('a', { class: 'btn', href: `#/content/${id}/${next.step}`, 'data-field': 'step.next-gap' }, [`Next to do: ${next.text} →`]) : null,
