@@ -23,7 +23,7 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
-  ['0.7.0', 'Beyond video: courses, e-books and PDFs, posters, LinkedIn and Instagram posts tracked per category, free or paid with a price.'],
+  ['0.7.0', 'Beyond video: courses, e-books and PDFs, posters, LinkedIn and Instagram posts tracked per category, free or paid with a price; a brief for Claude to make each one, carrying the videos it is built from and your brand guide.'],
   ['0.6.1', 'Download a video\'s whole brief as one Markdown file (Sidebar → Export), now including How to say it and Why it is made this way.'],
   ['0.6.0', 'A full-screen teleprompter that paces your talking points, shows what comes next and keeps your cut points; read-word-for-word lines and an editable purpose per story block; "How to say it" and "Why it is made this way" fields.'],
   ['0.5.0', 'Big Back and Home buttons at the bottom of every page; series numbers and parts (Grind my Gears #5 · Part 2 of 3); a colour look per audience.'],

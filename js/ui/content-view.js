@@ -326,7 +326,8 @@ export function contentEditor(id, section = 'overview') {
   const form = recordForm('content', c, ws, p, { section });
   const hasFields = form.querySelector('.field');
   const extra = {
-    overview: () => el('div', { class: 'stack' }, [seriesCard(c, ws), card('Links', [linkEditor('content', c, ws, link('content', id), { only: ['ideaIds', 'projectIds'] }),
+    overview: () => el('div', { class: 'stack' }, [seriesCard(c, ws), card('Links', [linkEditor('content', c, ws, link('content', id), { only: ['ideaIds', 'projectIds', 'sourceIds'] }),
+      el('p', { class: 'small muted', text: 'Content items here are what this one is built from - the videos an e-book sums up, the master a short comes from. The product brief for Claude carries their material.' }),
       el('p', { class: 'small muted', text: 'No project linked means standalone - that is valid.' })])]),
     story: () => storyEditor('content', c, ws),
     research: () => card('References', [linkEditor('content', c, ws, link('content', id), { only: ['referenceIds'] }),

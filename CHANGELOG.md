@@ -7,6 +7,10 @@
   status and free / paid; + starts a new one in that category (posts get their platform output too).
   A video with an Instagram or LinkedIn output counts in those columns.
 - Content items can be marked **Free or paid** with a **price** (Advanced).
+- **Brief for Claude to make it** (Sidebar → Export, on courses, e-books, posters and posts): one Markdown
+  file to upload to Claude - the job for that kind of product, the no-invention rules, the product, its
+  structure, your content and research, the full material of the videos it is **built from** (a new
+  link on the Overview), your brand guide (Settings → Voice and branding) and the graphics to make.
 - New content types: Course, E-book / PDF, Poster, LinkedIn post, Instagram post (added to older
   workspaces the first time you start one). New example formats: LinkedIn post, Instagram image post.
 

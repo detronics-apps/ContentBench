@@ -40,7 +40,8 @@ export const HOWTOS = [
     'Content → Beyond video: your categories down the side, the kinds across the top.',
     'Press + in a cell to start one in that category - a course, an e-book or PDF, a poster, a LinkedIn or Instagram post. Posts get their platform output straight away.',
     'Each one is a content item, so it has the same plan, make and release steps as a video. At Advanced level, mark it Free or Paid and give it a price.',
-    'Videos with an Instagram or LinkedIn output count in those columns too, so reels show up without extra work.'] },
+    'Videos with an Instagram or LinkedIn output count in those columns too, so reels show up without extra work.',
+    'To have Claude make it: on its Overview, link the videos it is built from; fill in your brand under Settings → Voice and branding (Advanced) once; then Sidebar → Export → Brief for Claude to make it, and upload that file to Claude.'] },
   { id: 'teleprompter', category: 'Recording', title: 'Record with the teleprompter', steps: [
     'Fill in the video\'s Story & timeline blocks: a purpose, a duration and the talking points. Start a line with » to read it word for word; start it with - to talk around it.',
     'Production → Open the teleprompter (or the Teleprompter button under the blocks). Put "How to say it" in the Script section and it shows before you start.',

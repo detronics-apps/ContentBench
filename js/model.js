@@ -26,7 +26,7 @@ export const LINKS = {
   thoughts: {},
   ideas: { thoughtIds: 'thoughts', relatedIdeaIds: 'ideas', referenceIds: 'references', assetIds: 'assets' },
   projects: { thoughtIds: 'thoughts', ideaIds: 'ideas', referenceIds: 'references', assetIds: 'assets' },
-  content: { thoughtIds: 'thoughts', ideaIds: 'ideas', projectIds: 'projects', referenceIds: 'references', assetIds: 'assets' },
+  content: { thoughtIds: 'thoughts', ideaIds: 'ideas', projectIds: 'projects', sourceIds: 'content', referenceIds: 'references', assetIds: 'assets' },
   outputs: { contentId: 'content', referenceIds: 'references', assetIds: 'assets' },
   references: {},
   assets: {},

@@ -42,3 +42,18 @@ test('the brief carries how to say it and why it is made this way', () => {
   assert.match(brief, /How to say it \(vibe and rules\)\n\nTalk to one person\./);
   assert.match(brief, /Why it is made this way\n\nHuman hook first\./);
 });
+
+test('product brief: the job for its kind, the rules, the design and the source material it is built from', async () => {
+  const { productBrief } = await import('../js/exporter.js');
+  let w = blankWorkspace({ name: 'T' });
+  w = { ...w, config: { ...w.config, categories: [{ id: 'cat_t', name: 'Thinking', color: '#A18AC8' }], brand: { colors: 'ink and cream', fonts: 'Archivo', visualNotes: '' } } };
+  const src = createRecord(w, 'content', { workingTitle: 'Speed over Truth', centralMessage: 'Speed follows competence.', claimsToVerify: 'the 50% figure' });
+  const p = createRecord(src.ws, 'content', { workingTitle: 'Thinking guide', contentType: 'E-book / PDF', categoryId: 'cat_t', offer: 'Paid', price: 'R99', sourceIds: [src.record.id] });
+  const md = productBrief(p.ws, p.record.id);
+  assert.match(md, /^# Brief: make the E-book \/ PDF "Thinking guide"/);
+  assert.match(md, /designed PDF guide/);
+  assert.match(md, /Never invent facts/);
+  assert.match(md, /Free or paid: Paid - R99/);
+  assert.match(md, /category colour #A18AC8/);
+  assert.match(md, /### Speed over Truth[\s\S]*Speed follows competence\.[\s\S]*do not state as fact/);
+});

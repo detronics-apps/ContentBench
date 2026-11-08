@@ -1,7 +1,7 @@
 // The content package: a folder of Markdown files an outside collaborator or assistant
 // can read without guessing. Only files that have something in them are written.
 
-import { getRecord, related, slug } from './model.js';
+import { getRecord, related, slug, titleOf } from './model.js';
 import { capturePath } from './capture.js';
 import { outputLabel } from './content.js';
 import { progress } from './workflow.js';
@@ -126,4 +126,96 @@ export function assistantBrief(ws, contentId) {
   const { files } = contentPackage(ws, contentId);
   return files.filter((f) => f.path.endsWith('.md') && !f.path.endsWith('README.md'))
     .map((f) => `<!-- ${f.path} -->\n${f.text}`).join('\n\n');
+}
+
+/* ------------------------------------------------- product brief for Claude */
+
+/** What to hand back, per kind of product. Kinds not listed get the e-book spec's general shape. */
+const PRODUCT_SPECS = {
+  'E-book / PDF': [
+    'A designed PDF guide: cover, contents, one chapter per section of the structure below, then a one-page summary and a closing page.',
+    'Make the ideas visible: diagrams, comparisons and frameworks drawn as clean vector graphics (the graphics list below says which), pull quotes for the key lines, a worksheet or checklist page the reader can actually use.',
+    'Page size A4 portrait unless the design guide says otherwise; generous margins; readable on a phone as well as printed.',
+    'Deliver the PDF and its editable source (HTML/CSS or DOCX) so it can be changed later.',
+  ],
+  Poster: [
+    'One idea on one page, readable from two metres: a headline, the idea as a diagram or short list, one line of explanation, the motto small at the bottom.',
+    'Print-ready PDF at A3 and A2 portrait, 300 dpi, 3 mm bleed; plus a 1080 x 1350 PNG for sharing.',
+  ],
+  Course: [
+    'A course outline, not the videos: modules, then lessons; each lesson with its objective, the key points, an exercise and one question that checks understanding.',
+    'Plus a workbook PDF for the first module in the design below, and a one-page course overview to sell or share it.',
+  ],
+  'LinkedIn post': [
+    'Post text: the first two lines work on their own (they show before "see more"), short paragraphs, one idea, a real question at the end; no hashtag wall (three at most).',
+    'One image 1080 x 1350 in the design below that carries the idea without the text.',
+  ],
+  'Instagram post': [
+    'One image (or a carousel of up to 10 slides) 1080 x 1350 in the design below; slide 1 works alone; a caption with the idea in the first line and a real question.',
+  ],
+};
+
+/**
+ * One Markdown file to upload to Claude so it can make the product (e-book / PDF, poster, course, post):
+ * the job, the rules, the product, its structure and content, the source material it is built from,
+ * the design guide and the graphics to make.
+ */
+export function productBrief(ws, contentId) {
+  const c = getRecord(ws, 'content', contentId);
+  if (!c) throw new Error(`productBrief: no content "${contentId}"`);
+  const kind = c.contentType || 'E-book / PDF';
+  const cat = ws.config.categories.find((x) => x.id === c.categoryId);
+  const out = related(ws, 'content', c.id).outgoing;
+  const of = (t) => out.filter((x) => x.type === t).map((x) => x.record);
+  const sources = (c.sourceIds || []).map((id) => getRecord(ws, 'content', id)).filter(Boolean);
+  const kinds = ws.config.captureKinds || [];
+  const graphics = (c.captures || []).filter((cp) => ['graphic', 'screen'].includes(cp.kind) || /graphic|diagram|image/i.test(kinds.find((k) => k.id === cp.kind)?.name || ''));
+  const id = ws.config.identity || {}, brand = ws.config.brand || {}, voice = ws.config.voice || {};
+  const sourceText = (s) => [
+    `### ${titleOf(s)}${s.series ? ` (${s.series}${s.episode ? ` #${s.episode}` : ''})` : ''}`,
+    s.centralMessage && `Central message: ${s.centralMessage}`,
+    s.viewerPromise && `What the viewer gets: ${s.viewerPromise}`,
+    s.story?.blocks?.length ? `\n${storyText(s.story)}` : s.script && `\n${s.script}`,
+    s.researchNotes && `\nResearch notes:\n${s.researchNotes}`,
+    s.claimsToVerify && `\nClaims still to check (do not state as fact):\n${s.claimsToVerify}`,
+    s.counterarguments && `\nCounterarguments and limits:\n${s.counterarguments}`,
+  ].filter(Boolean).join('\n');
+
+  return [
+    `# Brief: make the ${kind} "${titleOf(c)}"`,
+    '',
+    `Exported from ContentBench on ${new Date().toISOString().slice(0, 10)}. Everything you need is in this file; nothing else is coming.`,
+    section('Your job', list(PRODUCT_SPECS[kind] || PRODUCT_SPECS['E-book / PDF'])),
+    section('How to work', list([
+      'Start by replying with the outline and the design direction you plan (page plan, type, colours, the graphics), and wait for my go before building.',
+      ...RULES,
+      'Never invent facts, statistics, quotes, examples or personal experiences. Anything in [square brackets] is a question for me - ask it, don\'t fill it.',
+      'Claims listed as "still to check" are not facts yet: leave them out or mark them, never state them as true.',
+      'Write in my voice (below): one person talking to one reader, practical, honest about trade-offs - not a guru, not a sales page.',
+      ws.config.aiInstructions,
+    ].filter(Boolean))),
+    section('The product', list([`Kind: ${kind}`, cat && `Category: ${cat.name} (colour ${cat.color})`, c.audience && `For: ${c.audience}`,
+      c.offer && `Free or paid: ${c.offer}${c.price ? ` - ${c.price}` : ''}`, c.targetDate && `Wanted by: ${c.targetDate}`, c.status && `Status: ${c.status}`])),
+    section('What the reader gets', c.viewerPromise),
+    section('The central idea', c.centralMessage),
+    section('Brief', c.brief),
+    section('Why it is made this way', c.reasoning),
+    section('Structure (sections, in order, with what each is for)', storyText(c.story)),
+    section('Content so far (my notes and talking points)', c.script),
+    section('How to say it', c.delivery),
+    section('Research notes', c.researchNotes),
+    section('Claims still to check', c.claimsToVerify),
+    section('Counterarguments and limits (include them - the balance is the point)', c.counterarguments),
+    section('References', list(of('references').map(refLine))),
+    section('Built from (source material)', sources.map(sourceText).join('\n\n')),
+    section('Design', [
+      cat && `Main colour: the category colour ${cat.color} (${cat.name}), used boldly.`,
+      brand.colors && `Colours: ${brand.colors}`, brand.fonts && `Type: ${brand.fonts}`, brand.visualNotes && `\n${brand.visualNotes}`,
+    ].filter(Boolean).join('\n')),
+    section('Graphics to make', [c.visualPlan, list(graphics.map((g) => g.what))].filter(Boolean).join('\n\n')),
+    section('Assets I have (ask me for the files)', list(of('assets').map(assetLine))),
+    section('Who I am (for the voice and the closing page)', list([id.channelName && `Name: ${id.channelName}`, id.tagline && `Tagline: ${id.tagline}`,
+      id.philosophy && `Philosophy: ${id.philosophy}`, id.principles && `Principles: ${id.principles}`, id.editorialGuidelines && `Editorial rules: ${id.editorialGuidelines}`,
+      voice.tone && `Tone: ${voice.tone}`, voice.communication && `Communication: ${voice.communication}`].filter(Boolean))),
+  ].filter(Boolean).join('\n');
 }

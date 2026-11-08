@@ -7,7 +7,8 @@ import { store, ws as currentWs, onChange, saveUi, commitApp, refresh } from './
 import * as M from './model.js';
 import { EXPLAIN, ONBOARDING } from './guide.js';
 import { LEGAL, CHANGES } from './legal.js';
-import { contentPackage, assistantBrief, slug } from './exporter.js';
+import { contentPackage, assistantBrief, productBrief, slug } from './exporter.js';
+import { EXTRA_TYPES } from './extras.js';
 import { extrasModule } from './ui/extras-view.js';
 import { zip } from './zip.js';
 import { outputLabel } from './content.js';
@@ -199,6 +200,7 @@ function exportPanel(cur) {
         download(new Blob([zip(pkg.files)], { type: 'application/zip' }), `${pkg.root}.zip`);
       }, 'primary', { 'data-field': 'export.zip' }),
       button('Copy assistant brief', () => copyText(assistantBrief(ws, c.id), 'Brief copied'), '', { 'data-field': 'export.brief' }),
+      EXTRA_TYPES.includes(c.contentType) ? button('Brief for Claude to make it (.md)', () => download(new Blob([productBrief(ws, c.id)], { type: 'text/markdown' }), `${slug(c.workingTitle)}_make-it.md`), 'primary', { 'data-field': 'export.product', title: 'Upload to Claude: the job, the rules, the structure, your content and sources, the design and the graphics - it makes the product' }) : null,
       button('Download brief (.md)', () => download(new Blob([assistantBrief(ws, c.id)], { type: 'text/markdown' }), `${slug(c.workingTitle)}_brief.md`), '', { 'data-field': 'export.md', title: 'Everything about this video in one Markdown file - to paste into another chat or AI' }),
     ]) : null,
     el('div', { class: 'row' }, [button('Export workspace (.json)', () => download(new Blob([M.exportWorkspace(ws)], { type: 'application/json' }),
