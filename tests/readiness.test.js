@@ -21,7 +21,7 @@ test('a fresh video: every step says what is missing, and next is the first one'
 test('a ready video has no gaps; outputs need a caption and a date', () => {
   let w = base();
   const c = createRecord(w, 'content', { workingTitle: 'Speed', contentType: 'Short-form video', viewerPromise: 'x', centralMessage: 'y', categoryId: 'c',
-    story: { blocks: [{ id: 'b1', name: 'Hook', duration: '0:05', script: '» Have you ever?' }] }, recordingNotes: 'Teleprompter take - Speed' });
+    story: { blocks: [{ id: 'b1', name: 'Hook', duration: '0:05', script: '» Have you ever?' }] }, recordingNotes: 'Teleprompter take - Speed', finalVideo: 'speed.mp4', status: 'Ready' });
   w = createRecord(c.ws, 'outputs', { contentId: c.record.id, platformId: 'p_tt', formatId: 'f1', caption: '' }).ws;
   let r = readiness(w, c.record);
   assert.deepEqual(r.gaps.publish, ['Caption for TikTok Short', 'Release date for TikTok Short']);
@@ -49,7 +49,7 @@ test('old section names land on their step', () => {
 test('ticks mean finished: Publish is booked until it is out, Results waits for the release', () => {
   let w = base();
   const c = createRecord(w, 'content', { workingTitle: 'Speed', contentType: 'Short-form video', viewerPromise: 'x', centralMessage: 'y', categoryId: 'c',
-    story: { blocks: [{ id: 'b1', name: 'Hook', duration: '0:05', script: '» Have you ever?' }] }, recordingNotes: 'Teleprompter take - Speed' });
+    story: { blocks: [{ id: 'b1', name: 'Hook', duration: '0:05', script: '» Have you ever?' }] }, recordingNotes: 'Teleprompter take - Speed', finalVideo: 'speed.mp4', status: 'Ready' });
   w = createRecord(c.ws, 'outputs', { contentId: c.record.id, platformId: 'p_tt', formatId: 'f1', caption: 'c', scheduledDate: '2026-11-08' }).ws;
   let r = readiness(w, c.record);
   assert.deepEqual([r.state.publish, r.state.results, r.state.idea], ['booked', 'later', 'done']);
@@ -58,4 +58,20 @@ test('ticks mean finished: Publish is booked until it is out, Results waits for 
   assert.equal(r.state.publish, 'done');
   assert.equal(r.state.results, 'todo');
   assert.match(r.next.text, /how it did/);
+});
+
+test('the edit step asks for the recording, then the finished video; the prompt carries the take and the shapes', async () => {
+  const { editPrompt } = await import('../js/readiness.js');
+  let w = { ...base(), platforms: [{ id: 'p_tt', name: 'TikTok', formats: [{ id: 'f1', name: 'Short', aspectRatio: '9:16' }] }] };
+  const c = createRecord(w, 'content', { workingTitle: 'Intro', contentType: 'Short-form video', recordingNotes: 'Teleprompter take - Intro (11/8/2026, 3:55:40 AM)\n0:00  Hook',
+    captures: [{ id: 'k1', n: 1, kind: 'main', what: 'Voice', status: 'needed' }] });
+  w = createRecord(c.ws, 'outputs', { contentId: c.record.id, platformId: 'p_tt', formatId: 'f1' }).ws;
+  const { gaps } = readiness(w, c.record);
+  assert.match(gaps.edit[0], /recording in its folder/);
+  assert.match(gaps.edit[1], /prompt for Claude/);
+  const p = editPrompt(w, c.record);
+  assert.match(p, /faceless-video skill to edit "Intro"/);
+  assert.match(p, /latest teleprompter take.*3:55:40 AM/);
+  assert.match(p, /vertical \(9:16\)/);
+  assert.match(p, /02_Footage\/Main/);
 });

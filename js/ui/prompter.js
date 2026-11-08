@@ -4,7 +4,7 @@
 import { el, toast } from './dom.js';
 import { commitWs, ws as currentWs } from './store.js';
 import * as M from '../model.js';
-import { prompterPlan, positionAt, paceNote, takeText } from '../prompter.js';
+import { prompterPlan, positionAt, paceNote, takeText, withLatestTake } from '../prompter.js';
 import { formatSeconds as fmt } from '../workflow.js';
 
 const SIZE_KEY = 'content-bench-prompter-size';
@@ -194,9 +194,9 @@ export function openPrompter(type, record) {
     const status = el('p', { class: 'small pr-status', role: 'status' });
     const saveBtn = btn('Save to recording notes', () => {
       if (saveBtn.disabled) return;
-      commitWs((w) => { const r = M.getRecord(w, noteType, noteId); return M.updateRecord(w, noteType, noteId, { recordingNotes: [r.recordingNotes, text].filter(Boolean).join('\n\n') }); }, { render: false });
+      commitWs((w) => { const r = M.getRecord(w, noteType, noteId); return M.updateRecord(w, noteType, noteId, { recordingNotes: withLatestTake(r.recordingNotes, text) }); }, { render: false });
       saveBtn.disabled = true; saveBtn.textContent = 'Saved ✓';
-      status.textContent = 'Saved on this video: step 3 Record → "Recording notes and cut points". Safe to close.';
+      status.textContent = 'Saved on this video (Record step → "Recording notes and cut points"). It replaces any earlier take - this one is used for the edit. Safe to close.';
     }, { class: 'btn primary', 'data-field': 'pr.save' });
     const copyBtn = btn('Copy', () => navigator.clipboard?.writeText(text).then(
       () => { copyBtn.textContent = 'Copied ✓'; status.textContent = 'Copied - paste it wherever you like.'; },

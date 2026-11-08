@@ -425,7 +425,7 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .extras .cat__dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 
 /* ---- a content item's five steps */
-.steps-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-3) 0; }
+.steps-nav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-3) 0; }
 .steps-nav__step { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--text); text-decoration: none; min-height: 44px; }
 .steps-nav__step:hover { border-color: var(--border-strong); }
 .steps-nav__step.is-here { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
@@ -440,7 +440,7 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .more--card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); padding: var(--space-2) var(--space-3); }
 .more--card > summary { cursor: pointer; font-weight: 600; padding: var(--space-1) 0; }
 .publish-out .field { margin-top: var(--space-2); }
-@media (max-width: 640px) { .steps-nav { grid-template-columns: repeat(5, minmax(56px, 1fr)); overflow-x: auto; } .steps-nav__left { display: none; } }
+@media (max-width: 640px) { .steps-nav { grid-template-columns: repeat(6, minmax(52px, 1fr)); overflow-x: auto; } .steps-nav__left { display: none; } }
 .pr-list li { cursor: pointer; }
 .pr-list li:hover { color: var(--text); }
 .prompter.is-preview .pr-left { color: var(--accent-strong); font-family: var(--font); }
@@ -463,3 +463,5 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 /* a line can be tapped to say "I am on this one" - show it */
 .pr-line:hover { background: var(--panel-3); border-left-color: var(--border-strong); }
 .pr-line.is-now:hover { background: var(--accent-soft); border-left-color: var(--accent-strong); }
+.path-box { display: inline-block; padding: 4px 8px; border-radius: var(--radius-sm); background: var(--panel-2); word-break: break-all; }
+.prompt-box { white-space: pre-wrap; font-family: var(--font-mono); font-size: 13px; background: var(--panel-2); border: 1px solid var(--border); padding: var(--space-3); border-radius: var(--radius-sm); }

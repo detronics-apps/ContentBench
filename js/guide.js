@@ -36,18 +36,19 @@ export function guideMatches(text, q) {
 }
 
 export const HOWTOS = [
-  { id: 'five-steps', category: 'Content', title: 'Take a video from idea to published', steps: [
+  { id: 'six-steps', category: 'Content', title: 'Take a video from idea to published', steps: [
     '1 Idea: the title, category, who it is for, what they get, the central idea and why it is made this way. Link what it is built from.',
     '2 Card: pick a structure; its blocks are the script - talking points, what is on screen and why each block is there. Hook ideas, research and the look sit below.',
-    '3 Record: open the teleprompter and record; tick off what else needs capturing. (For an e-book or poster this step is Make: a brief for Claude makes it.)',
-    '4 Publish: every platform version on one page - title, caption, hashtags and release date - then the exports.',
-    '5 Results: how it did, feedback, notes. The step bar always shows what is still missing; press "Next to do" to jump straight there.'] },
+    '3 Record: open the teleprompter and record; save the take. (For an e-book or poster this step is Make: a brief for Claude makes it.)',
+    '4 Edit: save the recording in the folder it shows, copy the prompt for Claude into a new Claude Code session - it cuts the retakes, renders the video and puts it back here. Watch it, then Mark ready to release.',
+    '5 Publish: every platform version on one page - title, caption, hashtags and release date - then the exports.',
+    '6 Results: how it did, feedback, notes. The step bar always shows what is still missing; press "Next to do" to jump straight there.'] },
   { id: 'beyond-video', category: 'Content', title: 'Track courses, e-books, posters and social posts', steps: [
     'Content → Beyond video: your categories down the side, the kinds across the top.',
     'Press + in a cell to start one in that category - a course, an e-book or PDF, a poster, a LinkedIn or Instagram post. Posts get their platform output straight away.',
     'Each one is a content item, so it has the same plan, make and release steps as a video. At Advanced level, mark it Free or Paid and give it a price.',
     'Videos with an Instagram or LinkedIn output count in those columns too, so reels show up without extra work.',
-    'To have Claude make it: on its Idea step, link the videos it is built from (Built from); fill in your brand under Settings → Voice and branding (Advanced) once; then step 3 Make → Brief for Claude to make it, and upload that file to Claude.'] },
+    'To have Claude make it: on its Idea step, link the videos it is built from (Built from); fill in your brand under Settings → Voice and branding (Advanced) once; then step 3 Make → Brief for Claude to make it, and upload that file to Claude. Step 4 Review takes the finished file.'] },
   { id: 'teleprompter', category: 'Recording', title: 'Record with the teleprompter', steps: [
     'On the video\'s Card step, fill in the blocks: a purpose, a duration, the talking points and what is on screen. Start a line with » to read it word for word; start it with - to talk around it.',
     'Step 3 Record → Open the teleprompter (or the Teleprompter button under the blocks). "How to say it" at the top of the Card step shows before you start.',
@@ -60,7 +61,7 @@ export const HOWTOS = [
     'If you do not finish something, nothing turns red: tomorrow it is still the next task, and every date after it moves out by itself.'] },
   { id: 'release-dates', category: 'Releases', title: 'Release on a rhythm (for example every Saturday)', steps: [
     'Platforms → TikTok → Release rhythm: switch it on and pick the days.',
-    'When a video is finished, its Publish step → Mark ready to release. Its platform versions join the backlog.',
+    'When a video is finished, its Edit step → Mark ready to release. Its platform versions join the backlog.',
     'Releases → Release rhythm shows the open slots and the next in line; press Book to give them dates.',
     'Each platform runs on its own days. Drag any chip on the calendar to change a date.'] },
   { id: 'timeline', category: 'Story', title: 'Lay out the video as a timeline and test a variant', steps: [
@@ -146,8 +147,9 @@ export const MENTAL_MODEL = [
 ];
 
 export const FEATURES = [
-  ['Five steps per video', 'Any video or product', 'Idea → Card → Record → Publish → Results along the top, each with a tick or what is still to do, and a button to the next gap.'],
-  ['Every platform on one page', 'A video → 4 Publish', 'Title, caption, hashtags, date and status for TikTok, YouTube, Instagram and the rest, side by side.'],
+  ['Six steps per video', 'Any video or product', 'Idea → Card → Record → Edit → Publish → Results along the top, each with a tick or what is still to do, and a button to the next gap.'],
+  ['Edit with Claude', 'A video → 4 Edit', 'The folder your recording goes in and a ready-made prompt to paste into Claude Code; the finished video comes back here.'],
+  ['Every platform on one page', 'A video → 5 Publish', 'Title, caption, hashtags, date and status for TikTok, YouTube, Instagram and the rest, side by side.'],
   ['Beyond video', 'Content → Beyond video', 'Courses, e-books and PDFs, posters, LinkedIn and Instagram posts per category - with a + to start one and free / paid counted.'],
   ['Teleprompter', 'A video → 3 Record', 'Full screen: your notes, the line you should be on, what comes next and what is on screen. Pause any time; it keeps your cut points.'],
   ['Read lines and talking points', 'A video → 2 Card', 'Start a line with » to read it word for word, - to talk around it. Each block also says why it is there.'],
@@ -181,7 +183,7 @@ export const FEATURES = [
 
 /** The first-run story: numbered starting actions, each a link into the app. */
 export const ONBOARDING = [
-  { title: 'Five steps per video', text: 'Every video walks Idea → Card → Record → Publish → Results. The bar at the top shows what is missing and takes you to it.', href: '#/plan' },
+  { title: 'Six steps per video', text: 'Every video walks Idea → Card → Record → Edit → Publish → Results. The bar at the top shows what is missing and takes you to it.', href: '#/plan' },
   { title: 'Drop a thought', text: 'Home has a box for it. Seconds, no form. Weigh it up later - or never.', href: '#/thoughts' },
   { title: 'Grow the good ones', text: 'A thought becomes an idea (about an hour), an idea becomes a project (days). Every question is optional.', href: '#/projects' },
   { title: 'Plan a video, then make it', text: 'Any thought, idea or project can become videos: story, what to capture and where each file goes.', href: '#/plan' },
@@ -196,8 +198,8 @@ export const EXPLAIN = {
   thoughts: ['Seconds each, no limit', 'Drop thoughts in as they come. Not all of them have merit - the Passport questions help you weigh them up, when you feel like it.'],
   ideas: ['About an hour each', 'Who has the problem, what could solve it, what it could produce. The scorecard is there if it helps; skip any of it.'],
   projects: ['Days each, a folder that fills up', 'A project moves through stages, forwards or back. Its done-by date is a forecast from today, using your own times once it has them. It can produce videos at any stage, even if it fails.'],
-  plan: ['Five steps per video', 'Idea, Card, Record, Publish, Results. Each step on a video shows what is still missing and takes you to the next thing to do.'],
-  create: ['Five steps per video', 'Idea, Card, Record, Publish, Results - each shows what is still missing.'],
+  plan: ['Six steps per video', 'Idea, Card, Record, Edit, Publish, Results. Each step on a video shows what is still missing and takes you to the next thing to do.'],
+  create: ['Six steps per video', 'Idea, Card, Record, Edit, Publish, Results - each shows what is still missing.'],
   content: ['Plan it, then make it', 'The Plan tabs are the inputs; the Make tabs are production, publishing and what happened after.'],
   outputs: ['An adaptation that remembers its source', 'This output copied its master when it was made. When the master changes, you are told which fields, and you choose per field.'],
   production: ['Go and make it', 'Each capture has an exact folder. Save the file there and Check folder finds it. When it is done, mark it ready - it joins the release backlog.'],

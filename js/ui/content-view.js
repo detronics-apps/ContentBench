@@ -2,7 +2,7 @@
 
 import { el, toast, download } from './dom.js';
 import * as M from '../model.js';
-import { STEPS, stepOf, readiness, isRecorded } from '../readiness.js';
+import { STEPS, stepOf, readiness, isRecorded, editPrompt, recordingFolder } from '../readiness.js';
 import { contentPackage, assistantBrief, productBrief, slug } from '../exporter.js';
 import { EXTRA_TYPES } from '../extras.js';
 import { zip } from '../zip.js';
@@ -369,6 +369,20 @@ function makeCard(c, ws) {
   ]);
 }
 
+/** After recording: where the file goes, the prompt that starts the edit, what happens next. */
+function editCard(c, ws) {
+  const where = `${sync.name || 'your private folder'}/${recordingFolder(ws, c)}`;
+  const prompt = editPrompt(ws, c);
+  return card('Edit with Claude', [
+    el('p', { class: 'small', text: '1. Export your recording from Audacity as a WAV and save it in this folder:' }),
+    el('div', { class: 'row' }, [el('code', { class: 'path-box', text: where }), button('Copy folder', () => copyText(where, 'Folder copied'), 'small', { 'data-field': 'edit.folder' })]),
+    el('p', { class: 'small', text: '2. Start a new session in Claude Code and paste this - put the file name where it says [file name]:' }),
+    el('pre', { class: 'prompt-box', text: prompt }),
+    button('Copy the prompt for Claude', () => copyText(prompt, 'Prompt copied - paste it into a new Claude Code session'), 'primary', { 'data-field': 'edit.prompt' }),
+    el('p', { class: 'small muted', text: '3. Claude shows you the cut list, renders the video and puts its path below as the finished video. Watch it - then Mark ready to release.' }),
+  ]);
+}
+
 /** The capture list, folded away: what has to exist (your voice take, the graphics, music) before the edit can start. */
 function filesForEdit(c, ws) {
   const prog = K.captureProgress(c.captures || []);
@@ -411,10 +425,10 @@ export function contentEditor(id, section = 'idea') {
       more(blocks.length ? 'Script text (only if you write one out in full)' : 'Script text', [form('script')], !blocks.length),
       assistantPanel('content', c, ws)],
     record: () => (rec
-      ? [prompterCard(c), filesForEdit(c, ws),
-        card('', [form()]), workflowPanel('content', c, ws), assets()]
+      ? [prompterCard(c), card('', [form()]), workflowPanel('content', c, ws), assets()]
       : [makeCard(c, ws), card('', [form()]), workflowPanel('content', c, ws), assets()]),
-    publish: () => [publishOutputs(c, ws), readyCard(c, ws), exportCard(c, ws), more('Log what was published', [publishingSection(c, ws)])],
+    edit: () => (rec ? [editCard(c, ws), filesForEdit(c, ws), card('', [form()]), readyCard(c, ws)] : [card('', [form()]), readyCard(c, ws)]),
+    publish: () => [publishOutputs(c, ws), exportCard(c, ws), more('Log what was published', [publishingSection(c, ws)])],
     results: () => [performanceSection(c, ws), card('', [form()]), historySection(c), backlinks('content', id, ws), card('', [recordActions('content', c, '#/library')])],
   }[step];
 

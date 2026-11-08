@@ -101,8 +101,10 @@ export const FIELDS = {
     f('music', 'Music selection', 'textarea', { section: 'record', rows: 2, kinds: 'recorded' }),
     f('recordingNotes', 'Recording notes and cut points', 'textarea', { section: 'record', hint: 'The teleprompter saves the cut points of each take here.' }),
     f('productionNotes', 'Production instructions', 'textarea', { section: 'record' }),
-    f('editingNotes', 'Editing notes', 'textarea', { section: 'record', ...adv }),
-    f('reviewStatus', 'Review and approval', 'select', { options: ['Not reviewed', 'Changes needed', 'Approved'], section: 'record', ...adv }),
+    // 4 Edit (or Review)
+    f('finalVideo', 'Finished video (file path or link)', 'text', { section: 'edit', hint: 'Where the edited video is. Claude fills this in when it renders.' }),
+    f('editingNotes', 'Editing notes', 'textarea', { section: 'edit' }),
+    f('reviewStatus', 'Review and approval', 'select', { options: ['Not reviewed', 'Changes needed', 'Approved'], section: 'edit', ...adv }),
     // 5 Results
     f('notes', 'Notes', 'textarea', { section: 'results' }),
   ],
@@ -170,8 +172,8 @@ export const FIELDS = {
 };
 
 /** The content item's sections, in the order the work runs: plan (inputs), then make. */
-/** The five steps of a content item (its tabs). Labels and the gaps per step live in readiness.js. */
-export const CONTENT_SECTIONS = [['idea', 'Idea'], ['card', 'Card'], ['record', 'Record'], ['publish', 'Publish'], ['results', 'Results']];
+/** The six steps of a content item (its tabs). Labels and the gaps per step live in readiness.js. */
+export const CONTENT_SECTIONS = [['idea', 'Idea'], ['card', 'Card'], ['record', 'Record'], ['edit', 'Edit'], ['publish', 'Publish'], ['results', 'Results']];
 
 /** The field a record's title lives in. */
 export const TITLE_FIELD = { thoughts: 'text', ideas: 'title', projects: 'title', content: 'workingTitle', outputs: 'title',

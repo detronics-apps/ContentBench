@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0
+
+- **Edit** is its own step: Idea → Card → Record → **Edit** → Publish → Results (for e-books and posters: Review).
+  It shows the folder your recording goes in (with Copy), **Copy the prompt for Claude** - the sentence that starts an
+  editing session in Claude Code, with the title, the folder, the latest take and the shapes to render filled in - the
+  files for the edit, the **Finished video** field and **Mark ready to release** (moved here from Publish).
+  Its to-do list: the recording in its folder, then the finished video, then watch it and mark it ready.
+- Saving a teleprompter take **replaces the earlier take** (other notes in that field stay), so the latest is the one
+  used for the edit.
+
 ## 0.8.9
 
 - Teleprompter: **▲ Line / Line ▼** right beside Start/Pause move the highlight one line back or on (across blocks too) - or tap

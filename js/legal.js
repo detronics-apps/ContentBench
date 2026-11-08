@@ -23,6 +23,7 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
+  ['0.9.0', 'An Edit step between Record and Publish: the folder your recording goes in, a ready prompt for Claude Code, the finished video and Mark ready. Saving a teleprompter take now replaces the earlier one.'],
   ['0.8.9', 'Teleprompter: ▲ Line / Line ▼ beside Pause move the highlight one line, to stay matched to what you are saying; ◀ Block / Block ▶ jump a block. Catch up is gone - line stepping replaces it.'],
   ['0.8.8', 'Teleprompter: every action is a labelled on-screen button (keys are only extra shortcuts); on a phone the notes get the room.'],
   ['0.8.7', 'Teleprompter: Catch up (C) holds the notes while you keep talking; click a line to say "I am here"; the notes wait at the end of each block by default (Auto-advance off, remembered).'],

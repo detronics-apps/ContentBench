@@ -76,3 +76,9 @@ export function takeText(marks, { title = '', at = '' } = {}) {
   const rows = marks.map((m) => `${formatSeconds(m.at)}  ${m.name}${m.planned != null ? `  (plan ${formatSeconds(m.planned)})` : ''}`);
   return [head, ...rows].join('\n');
 }
+
+/** Recording notes with this take as the only take: earlier takes go, anything else written there stays. */
+export function withLatestTake(notes, take) {
+  const kept = String(notes || '').split('\n\n').filter((x) => x.trim() && !x.startsWith('Teleprompter take'));
+  return [...kept, take].join('\n\n');
+}

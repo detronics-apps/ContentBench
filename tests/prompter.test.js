@@ -37,3 +37,10 @@ test('take text lists each block start in the recording', () => {
   assert.equal(takeText([{ at: 0, name: 'Hook', planned: 0 }, { at: 7.4, name: 'Invite', planned: 6 }], { title: 'X' }),
     'Teleprompter take - X\n0:00  Hook  (plan 0:00)\n0:07  Invite  (plan 0:06)');
 });
+
+test('a saved take replaces earlier takes and keeps other notes', async () => {
+  const { withLatestTake } = await import('../js/prompter.js');
+  const notes = 'Mic close.\n\nTeleprompter take - X (1)\n0:00  A\n\nTeleprompter take - X (2)\n0:00  A';
+  assert.equal(withLatestTake(notes, 'Teleprompter take - X (3)\n0:00  A'), 'Mic close.\n\nTeleprompter take - X (3)\n0:00  A');
+  assert.equal(withLatestTake('', 'Teleprompter take - Y'), 'Teleprompter take - Y');
+});
