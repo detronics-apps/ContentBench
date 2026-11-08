@@ -87,7 +87,7 @@ export function openPrompter(type, record) {
       el('div', { class: 'pr-progress' }, [el('span', { class: 'pr-progress__fill' })]),
       el('div', { class: 'pr-left small' }),
       pace ? el('p', { class: 'pr-pace small', text: pace }) : null,
-      el('ol', { class: 'pr-lines' }, b.lines.map((l) => el('li', { class: `pr-line pr-line--${l.kind}`, title: 'I am here', on: { click: () => { if (!done) { t = b.start + l.at; last = now(); tick(); } } } }, [
+      el('ol', { class: 'pr-lines' }, b.lines.map((l) => el('li', { class: `pr-line pr-line--${l.kind}`, title: 'Tap: I am on this line', on: { click: () => { if (!done) { t = b.start + l.at; last = now(); tick(); } } } }, [
         l.kind === 'read' ? el('span', { class: 'pr-tag', text: 'READ' }) : null, l.text]))),
       b.notes ? el('p', { class: 'pr-notes small', text: b.notes }) : null,
     ].filter(Boolean));   // replaceChildren would print a null as the text "null"
@@ -110,7 +110,7 @@ export function openPrompter(type, record) {
     nowPane.querySelectorAll('.pr-line').forEach((li, j) => { li.classList.toggle('is-now', j === pos.line); li.classList.toggle('is-past', j < pos.line); });
     nowPane.querySelector('.pr-progress__fill').style.width = `${Math.min(100, pos.progress * 100)}%`;
     const over = !auto && t >= b.start + b.seconds - 0.05;
-    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. Look ahead with the Line and Block buttons or the running order. Press Start, then hit record during the 3-2-1 (${fmt(b.seconds)} for this block).`
+    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. Look ahead with the Line and Block buttons or the running order; while you talk, tap the line you are on to keep the highlight there. Press Start, then hit record during the 3-2-1 (${fmt(b.seconds)} for this block).`
       : over ? 'Time is up - press Block ▶ when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
     root.classList.toggle('is-over', over);
     bar.lastChild.style.left = `${(t / plan.total) * 100}%`;

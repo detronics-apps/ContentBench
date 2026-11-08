@@ -460,3 +460,6 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
   .pr-side { max-height: 24vh; padding: var(--space-2) var(--space-3); }
   .pr-keys { display: none; }
 }
+/* a line can be tapped to say "I am on this one" - show it */
+.pr-line:hover { background: var(--panel-3); border-left-color: var(--border-strong); }
+.pr-line.is-now:hover { background: var(--accent-soft); border-left-color: var(--accent-strong); }
