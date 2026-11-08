@@ -23,7 +23,7 @@ export function openPrompter(type, record) {
   const [noteType, noteId] = type === 'outputs' && record.contentId ? ['content', record.contentId] : [type, record.id];
   const delivery = M.getRecord(currentWs(), noteType, noteId)?.delivery || '';
   let t = 0;                 // position in the plan, seconds - moves only while running
-  let running = false, auto = readAuto(), started = false, done = false, holding = false;
+  let running = false, auto = readAuto(), started = false, done = false;
   let rec0 = 0, last = 0, timer = 0, countTo = 0, shownBlock = -1, size = readSize();
   const marks = [];          // where each block began in the recording
 
@@ -39,10 +39,7 @@ export function openPrompter(type, record) {
   const restartBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'data-field': 'pr.restart', title: 'Start the whole take again from the top (keyboard: R)', on: { click: () => restart() } }, ['Restart']);
   const playBtn = el('button', { class: 'btn primary', type: 'button', 'data-field': 'pr.play', on: { click: () => toggle() } });
   const autoBtn = el('button', { class: 'btn', type: 'button', 'aria-pressed': String(auto), 'data-field': 'pr.auto',
-    title: 'On: moves to the next block when its time is up. Off: waits at the end of the block until you press Next.', on: { click: () => { auto = !auto; saveAuto(auto); autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, [auto ? 'Auto-advance: on' : 'Auto-advance: off']);
-  // catch up: you are still talking, the notes just wait for you - not a pause, no message over the notes
-  const catchBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'aria-pressed': 'false', 'data-field': 'pr.catch',
-    title: 'Hold the notes while you keep talking - press again when you are there (keyboard: C)', on: { click: () => catchUp() } }, ['Catch up']);
+    title: 'On: moves to the next block when its time is up. Off: waits at the end of the block until you press Block ▶.', on: { click: () => { auto = !auto; saveAuto(auto); autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, [auto ? 'Auto-advance: on' : 'Auto-advance: off']);
   const btn = (text, fn, attrs = {}) => el('button', { class: 'btn', type: 'button', on: { click: fn }, ...attrs }, [text]);
 
   const nowPane = el('section', { class: 'pr-now', 'aria-live': 'polite' });
@@ -58,10 +55,11 @@ export function openPrompter(type, record) {
       el('strong', { class: 'pr-title', text: title }),
       bar, clock, recClock,
       el('div', { class: 'pr-controls' }, [
-        btn('◀ Back', () => jump(-1), { title: 'Back to the start of this block, or the one before (keyboard: ←)' }),
+        btn('◀ Block', () => jump(-1), { title: 'Back to the start of this block, or the one before (keyboard: ←)' }),
+        btn('▲ Line', () => lineStep(-1), { title: 'One line back - you are still on the line above (keyboard: ↑)', 'data-field': 'pr.lineup' }),
         playBtn,
-        catchBtn,
-        btn('Next ▶', () => jump(1), { title: 'Next block (keyboard: →)', 'data-field': 'pr.next' }),
+        btn('Line ▼', () => lineStep(1), { title: 'One line on - you are already on the next line (keyboard: ↓)', 'data-field': 'pr.linedown' }),
+        btn('Block ▶', () => jump(1), { title: 'Next block (keyboard: →)', 'data-field': 'pr.next' }),
         autoBtn,
         restartBtn,
         btn('A−', () => zoom(-0.1), { 'aria-label': 'Smaller text' }),
@@ -74,7 +72,7 @@ export function openPrompter(type, record) {
       el('h3', { class: 'pr-h', text: 'On screen now' }), screenPane,
       el('h3', { class: 'pr-h', text: 'Next up' }), nextPane,
       el('h3', { class: 'pr-h', text: 'Running order' }), list])]),
-    el('footer', { class: 'pr-keys small' }, ['Tap a line to say "I am here"; tap a block in the running order to go there. The red clock counts time since you pressed Start, pauses included - like your recording. With a keyboard or clicker you can also use: Space start/pause · C catch up · ← → back/next · R restart · F full screen · Esc close.']),
+    el('footer', { class: 'pr-keys small' }, ['Tap a line to say "I am here"; tap a block in the running order to go there. The red clock counts time since you pressed Start, pauses included - like your recording. With a keyboard or clicker you can also use: Space start/pause · ↑ ↓ one line · ← → one block · R restart · F full screen · Esc close.']),
     banner, sheet,
   ]);
 
@@ -112,16 +110,13 @@ export function openPrompter(type, record) {
     nowPane.querySelectorAll('.pr-line').forEach((li, j) => { li.classList.toggle('is-now', j === pos.line); li.classList.toggle('is-past', j < pos.line); });
     nowPane.querySelector('.pr-progress__fill').style.width = `${Math.min(100, pos.progress * 100)}%`;
     const over = !auto && t >= b.start + b.seconds - 0.05;
-    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. Look ahead with Next / Back or the running order. Press Start, then hit record during the 3-2-1 (${fmt(b.seconds)} for this block).`
-      : over ? 'Time is up - press Next when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
+    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. Look ahead with the Line and Block buttons or the running order. Press Start, then hit record during the 3-2-1 (${fmt(b.seconds)} for this block).`
+      : over ? 'Time is up - press Block ▶ when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
     root.classList.toggle('is-over', over);
     bar.lastChild.style.left = `${(t / plan.total) * 100}%`;
     clock.textContent = `${fmt(t)} / ${fmt(plan.total)}`;
     recClock.textContent = started ? `● ${fmt(recTime())}` : '';
     playBtn.textContent = running ? 'Pause' : started ? 'Continue' : 'Start';
-    catchBtn.hidden = !started || !running;
-    catchBtn.setAttribute('aria-pressed', String(holding));
-    catchBtn.textContent = holding ? 'Caught up' : 'Catch up';
     restartBtn.hidden = !started && !countTo;
   }
 
@@ -131,7 +126,7 @@ export function openPrompter(type, record) {
       const left = Math.ceil(countTo - n);
       if (left > 0) { banner.hidden = false; banner.className = 'pr-banner pr-banner--pause pr-banner--count'; banner.textContent = `Start recording - ${left}`; }
       else { countTo = 0; banner.hidden = true; beginTake(); }
-    } else if (running && !holding) {
+    } else if (running) {
       let next = t + (n - last);
       const b = plan.blocks[positionAt(plan, t).block];
       if (!auto && b) next = Math.min(next, b.start + b.seconds - 0.01);   // hold at the end of the block
@@ -153,22 +148,25 @@ export function openPrompter(type, record) {
   function toggle() {
     if (done) return;
     if (!started) { if (!countTo) countTo = now() + 3; return; }   // the notes stay put during the countdown
-    running = !running; holding = false;
+    running = !running;
     banner.hidden = running;
     if (!running) { banner.className = 'pr-banner pr-banner--pause'; banner.textContent = 'Paused - take a breath, read ahead. Press Continue to carry on.'; }
   }
-  /** Hold the notes while you are still talking; again to let them run on. */
-  function catchUp() {
-    if (!started || !running) return;
-    holding = !holding;
-    banner.hidden = !holding;
-    if (holding) { banner.className = 'pr-banner pr-banner--catch'; banner.textContent = 'Catching up - the notes wait for you. Press Caught up when you are there.'; }
+  /** One line back or forward - keep the highlight on the line you are actually saying; it carries on from there. */
+  function lineStep(d) {
+    if (done) return;
+    const pos = positionAt(plan, Math.min(t, plan.total - 0.001));
+    const bi = pos.block, b = plan.blocks[bi], li = Math.max(0, pos.line) + d;
+    if (li >= 0 && li < b.lines.length) t = b.start + b.lines[li].at + 0.01;
+    else if (li < 0 && bi > 0) { const pb = plan.blocks[bi - 1]; t = pb.start + (pb.lines.at(-1)?.at || 0) + 0.01; }
+    else if (li >= b.lines.length && bi + 1 < plan.blocks.length) t = plan.blocks[bi + 1].start + 0.01;
+    else t = d < 0 ? b.start : t;
     last = now(); tick();
   }
   /** Throw the take away and go back to the top: the notes on screen, nothing moving, the cut points cleared. */
   function restart() {
     if (done) return;
-    running = false; started = false; holding = false; countTo = 0; rec0 = 0; t = 0;
+    running = false; started = false; countTo = 0; rec0 = 0; t = 0;
     marks.length = 0;
     banner.hidden = true;
     root.classList.add('is-preview');
@@ -225,7 +223,8 @@ export function openPrompter(type, record) {
     else if (k === 'ArrowLeft' || k === 'PageUp') jump(-1);
     else if (k === 'f' || k === 'F') fullscreen();
     else if (k === 'r' || k === 'R') restart();
-    else if (k === 'c' || k === 'C') catchUp();
+    else if (k === 'ArrowUp') lineStep(-1);
+    else if (k === 'ArrowDown') lineStep(1);
     else if (k === '+' || k === '=') zoom(0.1);
     else if (k === '-') zoom(-0.1);
     else if (k === 'Escape' && !document.fullscreenElement) close();

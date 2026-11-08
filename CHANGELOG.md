@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.9
+
+- Teleprompter: **▲ Line / Line ▼** right beside Start/Pause move the highlight one line back or on (across blocks too), so
+  it matches the line you are actually saying; the pace carries on from there. **◀ Block / Block ▶** sit outside them.
+  Keyboard extras: ↑ ↓ for a line, ← → for a block.
+- **Catch up** is removed - stepping a line back does the same job, more precisely.
+
 ## 0.8.8
 
 - Teleprompter: every action is a labelled button (Back, Next, Pause/Continue, Catch up, Restart...); hints name the
