@@ -10,6 +10,10 @@ import { formatSeconds as fmt } from '../workflow.js';
 const SIZE_KEY = 'content-bench-prompter-size';
 const readSize = () => { try { return Number(localStorage.getItem(SIZE_KEY)) || 1; } catch { return 1; } };
 const saveSize = (v) => { try { localStorage.setItem(SIZE_KEY, String(v)); } catch { /* a preference only */ } };
+const AUTO_KEY = 'content-bench-prompter-auto';
+// off by default: the notes wait at the end of a block until you press → (you never get overtaken mid-thought)
+const readAuto = () => { try { return localStorage.getItem(AUTO_KEY) === 'on'; } catch { return false; } };
+const saveAuto = (v) => { try { localStorage.setItem(AUTO_KEY, v ? 'on' : 'off'); } catch { /* a preference only */ } };
 
 export function openPrompter(type, record) {
   const plan = prompterPlan(record.story?.blocks || []);
@@ -19,7 +23,7 @@ export function openPrompter(type, record) {
   const [noteType, noteId] = type === 'outputs' && record.contentId ? ['content', record.contentId] : [type, record.id];
   const delivery = M.getRecord(currentWs(), noteType, noteId)?.delivery || '';
   let t = 0;                 // position in the plan, seconds - moves only while running
-  let running = false, auto = true, started = false, done = false;
+  let running = false, auto = readAuto(), started = false, done = false, holding = false;
   let rec0 = 0, last = 0, timer = 0, countTo = 0, shownBlock = -1, size = readSize();
   const marks = [];          // where each block began in the recording
 
@@ -34,8 +38,11 @@ export function openPrompter(type, record) {
   const recClock = el('span', { class: 'pr-clock pr-clock--rec', title: 'Time since the hook started, pauses included - the length of your recording' });
   const restartBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'data-field': 'pr.restart', title: 'Start the whole take again from the top (R)', on: { click: () => restart() } }, ['Restart']);
   const playBtn = el('button', { class: 'btn primary', type: 'button', 'data-field': 'pr.play', on: { click: () => toggle() } });
-  const autoBtn = el('button', { class: 'btn', type: 'button', 'aria-pressed': 'true', 'data-field': 'pr.auto',
-    title: 'On: moves to the next block when its time is up. Off: waits for you to press →.', on: { click: () => { auto = !auto; autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, ['Auto-advance: on']);
+  const autoBtn = el('button', { class: 'btn', type: 'button', 'aria-pressed': String(auto), 'data-field': 'pr.auto',
+    title: 'On: moves to the next block when its time is up. Off: waits at the end of the block for you to press →.', on: { click: () => { auto = !auto; saveAuto(auto); autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, [auto ? 'Auto-advance: on' : 'Auto-advance: off']);
+  // catch up: you are still talking, the notes just wait for you - not a pause, no message over the notes
+  const catchBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'aria-pressed': 'false', 'data-field': 'pr.catch',
+    title: 'Hold the notes while you keep talking - press again (or C) when you are there', on: { click: () => catchUp() } }, ['Catch up']);
   const btn = (text, fn, attrs = {}) => el('button', { class: 'btn', type: 'button', on: { click: fn }, ...attrs }, [text]);
 
   const nowPane = el('section', { class: 'pr-now', 'aria-live': 'polite' });
@@ -53,6 +60,7 @@ export function openPrompter(type, record) {
       el('div', { class: 'pr-controls' }, [
         btn('◀', () => jump(-1), { 'aria-label': 'Previous block (←)', title: 'Previous block (←)' }),
         playBtn,
+        catchBtn,
         btn('▶', () => jump(1), { 'aria-label': 'Next block (→)', title: 'Next block (→)', 'data-field': 'pr.next' }),
         autoBtn,
         restartBtn,
@@ -66,7 +74,7 @@ export function openPrompter(type, record) {
       el('h3', { class: 'pr-h', text: 'On screen now' }), screenPane,
       el('h3', { class: 'pr-h', text: 'Next up' }), nextPane,
       el('h3', { class: 'pr-h', text: 'Running order' }), list])]),
-    el('footer', { class: 'pr-keys small' }, ['Space start / pause · → next · ← back · R restart the take · click a block in the running order to go there · F full screen · Esc close. A clicker works too (Page Down / Page Up). The red clock counts time since you pressed Start, pauses included - like your recording.']),
+    el('footer', { class: 'pr-keys small' }, ['Space start / pause · C catch up (notes wait, you keep talking) · click a line: I am here · → next · ← back · R restart the take · click a block in the running order to go there · F full screen · Esc close. A clicker works too (Page Down / Page Up). The red clock counts time since you pressed Start, pauses included - like your recording.']),
     banner, sheet,
   ]);
 
@@ -81,7 +89,7 @@ export function openPrompter(type, record) {
       el('div', { class: 'pr-progress' }, [el('span', { class: 'pr-progress__fill' })]),
       el('div', { class: 'pr-left small' }),
       pace ? el('p', { class: 'pr-pace small', text: pace }) : null,
-      el('ol', { class: 'pr-lines' }, b.lines.map((l) => el('li', { class: `pr-line pr-line--${l.kind}` }, [
+      el('ol', { class: 'pr-lines' }, b.lines.map((l) => el('li', { class: `pr-line pr-line--${l.kind}`, title: 'I am here', on: { click: () => { if (!done) { t = b.start + l.at; last = now(); tick(); } } } }, [
         l.kind === 'read' ? el('span', { class: 'pr-tag', text: 'READ' }) : null, l.text]))),
       b.notes ? el('p', { class: 'pr-notes small', text: b.notes }) : null,
     ].filter(Boolean));   // replaceChildren would print a null as the text "null"
@@ -111,6 +119,9 @@ export function openPrompter(type, record) {
     clock.textContent = `${fmt(t)} / ${fmt(plan.total)}`;
     recClock.textContent = started ? `● ${fmt(recTime())}` : '';
     playBtn.textContent = running ? 'Pause' : started ? 'Continue' : 'Start';
+    catchBtn.hidden = !started || !running;
+    catchBtn.setAttribute('aria-pressed', String(holding));
+    catchBtn.textContent = holding ? 'Caught up' : 'Catch up';
     restartBtn.hidden = !started && !countTo;
   }
 
@@ -120,7 +131,7 @@ export function openPrompter(type, record) {
       const left = Math.ceil(countTo - n);
       if (left > 0) { banner.hidden = false; banner.className = 'pr-banner pr-banner--pause pr-banner--count'; banner.textContent = `Start recording - ${left}`; }
       else { countTo = 0; banner.hidden = true; beginTake(); }
-    } else if (running) {
+    } else if (running && !holding) {
       let next = t + (n - last);
       const b = plan.blocks[positionAt(plan, t).block];
       if (!auto && b) next = Math.min(next, b.start + b.seconds - 0.01);   // hold at the end of the block
@@ -142,14 +153,22 @@ export function openPrompter(type, record) {
   function toggle() {
     if (done) return;
     if (!started) { if (!countTo) countTo = now() + 3; return; }   // the notes stay put during the countdown
-    running = !running;
+    running = !running; holding = false;
     banner.hidden = running;
     if (!running) { banner.className = 'pr-banner pr-banner--pause'; banner.textContent = 'Paused - take a breath, read ahead. Space to carry on.'; }
+  }
+  /** Hold the notes while you are still talking; again to let them run on. */
+  function catchUp() {
+    if (!started || !running) return;
+    holding = !holding;
+    banner.hidden = !holding;
+    if (holding) { banner.className = 'pr-banner pr-banner--catch'; banner.textContent = 'Catching up - the notes wait for you. Press C (or Caught up) when you are there.'; }
+    last = now(); tick();
   }
   /** Throw the take away and go back to the top: the notes on screen, nothing moving, the cut points cleared. */
   function restart() {
     if (done) return;
-    running = false; started = false; countTo = 0; rec0 = 0; t = 0;
+    running = false; started = false; holding = false; countTo = 0; rec0 = 0; t = 0;
     marks.length = 0;
     banner.hidden = true;
     root.classList.add('is-preview');
@@ -206,6 +225,7 @@ export function openPrompter(type, record) {
     else if (k === 'ArrowLeft' || k === 'PageUp') jump(-1);
     else if (k === 'f' || k === 'F') fullscreen();
     else if (k === 'r' || k === 'R') restart();
+    else if (k === 'c' || k === 'C') catchUp();
     else if (k === '+' || k === '=') zoom(0.1);
     else if (k === '-') zoom(-0.1);
     else if (k === 'Escape' && !document.fullscreenElement) close();

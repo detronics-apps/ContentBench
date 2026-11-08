@@ -23,6 +23,7 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
+  ['0.8.7', 'Teleprompter: Catch up (C) holds the notes while you keep talking; click a line to say "I am here"; the notes wait at the end of each block by default (Auto-advance off, remembered).'],
   ['0.8.6', 'A tick means finished: Publish shows "set - not out yet" until it is published, Results shows "after release" until there are results. The capture list folds away as "Files for the edit" with a line on what it is for.'],
   ['0.8.5', 'Teleprompter side panel in time order: How to say it, On screen now, Next up, Running order.'],
   ['0.8.4', 'Take done: Save and Copy now confirm on the screen (Saved ✓ / Copied ✓) and say where the notes went; Save stores the take once, however often it is clicked.'],

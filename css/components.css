@@ -450,3 +450,7 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .pr-banner--count { font-size: 22px; font-variant-numeric: tabular-nums; }
 .pr-status { margin: var(--space-2) 0 0; color: var(--ok); min-height: 1.2em; }
 .pr-status--warn { color: var(--warn); }
+/* catching up: quiet, at the bottom - you are still talking */
+.pr-banner--catch { top: auto; bottom: 44px; transform: translateX(-50%); padding: var(--space-2) var(--space-4); font-size: 15px; font-weight: 600; background: var(--accent-soft); color: var(--accent-strong); box-shadow: var(--shadow-md); pointer-events: none; }
+.pr-controls .btn[data-field="pr.catch"][aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.pr-line { cursor: pointer; }

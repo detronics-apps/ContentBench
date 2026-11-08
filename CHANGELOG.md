@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.7
+
+- **Catch up** in the teleprompter (button or C): the notes wait while you keep talking - not a pause, no message
+  over the notes, just a quiet strip at the bottom. Press it again when you are there. The recording clock runs on.
+- **Click a line** to tell the teleprompter "I am here".
+- **Auto-advance is off by default** (and remembered): the notes wait at the end of each block until you press →,
+  so they never run into the next section while you are still talking.
+
 ## 0.8.6
 
 - **A tick means finished.** Publish shows "set - not out yet" until every version is published; Results shows
