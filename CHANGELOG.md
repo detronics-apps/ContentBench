@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.2
+
+- Teleprompter: **✎ beside every line** rewords it on the spot. The take pauses, you type how you actually want to say
+  it, and **Save line** (or Enter) writes it to the card - a READ line stays a READ line - so the next take reads it that
+  way. Esc or Cancel leaves it as it was.
+
 ## 0.9.1
 
 - A long video now lists the **shorts cut from it** (under Series & parts), each one linked. A short counts when it names

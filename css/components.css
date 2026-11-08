@@ -395,6 +395,10 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .pr-line--note { color: var(--text-dim); font-style: italic; font-size: .85em; }
 .pr-line--read { font-size: 1.35em; font-weight: 700; border-left-color: var(--accent); }
 .pr-line.is-past { opacity: .4; }
+/* the reword button: quiet until you're on the line or pointing at it, always reachable by tap */
+.pr-edit { float: right; margin-left: var(--space-2); padding: 0 .5em; font-size: .7rem; line-height: 1.8; opacity: .45; font-weight: 400; }
+.pr-line:hover .pr-edit, .pr-line.is-now .pr-edit, .pr-edit:focus-visible { opacity: 1; }
+.pr-edit__box { width: 100%; font: inherit; font-size: 1em; margin-bottom: var(--space-2); }
 .pr-line.is-now { background: var(--accent-soft); border-left-color: var(--accent-strong); }
 .pr-tag { display: inline-block; margin-right: var(--space-2); padding: 1px 6px; border-radius: 4px; background: var(--accent); color: var(--accent-ink); font-size: .55em; vertical-align: middle; letter-spacing: .05em; }
 .pr-notes { margin-top: var(--space-4); color: var(--text-dim); }

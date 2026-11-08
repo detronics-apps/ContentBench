@@ -70,6 +70,19 @@ export function paceNote(seg) {
   return '';
 }
 
+/**
+ * A block's script with its `index`-th line (as parseLines counts them) reworded.
+ * The line keeps its marker (» read, - talk), so it stays the same kind on the teleprompter.
+ */
+export function replaceLine(script = '', index, text) {
+  let n = -1;
+  return String(script).split('\n').map((raw) => {
+    if (!raw.trim() || ++n !== index) return raw;
+    const mark = raw.match(/^\s*(»\s*|[-*•]\s+)/)?.[0] ?? '';
+    return mark + String(text).replace(/\s*\n\s*/g, ' ').trim();
+  }).join('\n');
+}
+
 /** A take's block starts, as text for the recording notes - where to cut in the edit. */
 export function takeText(marks, { title = '', at = '' } = {}) {
   const head = `Teleprompter take${title ? ` - ${title}` : ''}${at ? ` (${at})` : ''}`;

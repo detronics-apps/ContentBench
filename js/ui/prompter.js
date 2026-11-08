@@ -2,9 +2,9 @@
 // what comes next, and a pace to keep. It never listens to you - the clock and your keys move it.
 
 import { el, toast } from './dom.js';
-import { commitWs, ws as currentWs } from './store.js';
+import { commitWs, refresh, ws as currentWs } from './store.js';
 import * as M from '../model.js';
-import { prompterPlan, positionAt, paceNote, takeText, withLatestTake } from '../prompter.js';
+import { prompterPlan, positionAt, paceNote, takeText, withLatestTake, replaceLine } from '../prompter.js';
 import { formatSeconds as fmt } from '../workflow.js';
 
 const SIZE_KEY = 'content-bench-prompter-size';
@@ -23,7 +23,7 @@ export function openPrompter(type, record) {
   const [noteType, noteId] = type === 'outputs' && record.contentId ? ['content', record.contentId] : [type, record.id];
   const delivery = M.getRecord(currentWs(), noteType, noteId)?.delivery || '';
   let t = 0;                 // position in the plan, seconds - moves only while running
-  let running = false, auto = readAuto(), started = false, done = false;
+  let running = false, auto = readAuto(), started = false, done = false, edited = false;
   let rec0 = 0, last = 0, timer = 0, countTo = 0, shownBlock = -1, size = readSize();
   const marks = [];          // where each block began in the recording
 
@@ -87,8 +87,10 @@ export function openPrompter(type, record) {
       el('div', { class: 'pr-progress' }, [el('span', { class: 'pr-progress__fill' })]),
       el('div', { class: 'pr-left small' }),
       pace ? el('p', { class: 'pr-pace small', text: pace }) : null,
-      el('ol', { class: 'pr-lines' }, b.lines.map((l) => el('li', { class: `pr-line pr-line--${l.kind}`, title: 'Tap: I am on this line', on: { click: () => { if (!done) { t = b.start + l.at; last = now(); tick(); } } } }, [
-        l.kind === 'read' ? el('span', { class: 'pr-tag', text: 'READ' }) : null, l.text]))),
+      el('ol', { class: 'pr-lines' }, b.lines.map((l, j) => el('li', { class: `pr-line pr-line--${l.kind}`, title: 'Tap: I am on this line', on: { click: () => { if (!done) { t = b.start + l.at; last = now(); tick(); } } } }, [
+        l.kind === 'read' ? el('span', { class: 'pr-tag', text: 'READ' }) : null, el('span', { class: 'pr-line__text', text: l.text }),
+        el('button', { class: 'btn pr-edit', type: 'button', 'aria-label': 'Reword this line', title: 'Reword this line - it pauses, and saves to the card',
+          'data-field': 'pr.editLine', on: { click: (e) => { e.stopPropagation(); editLine(i, j, e.currentTarget.closest('li')); } } }, ['✎'])]))),
       b.notes ? el('p', { class: 'pr-notes small', text: b.notes }) : null,
     ].filter(Boolean));   // replaceChildren would print a null as the text "null"
     const n = plan.blocks[i + 1];
@@ -163,6 +165,40 @@ export function openPrompter(type, record) {
     else t = d < 0 ? b.start : t;
     last = now(); tick();
   }
+  /**
+   * Reword one line right here: the take pauses, the line opens as text, Save writes it to the card's block
+   * (same marker, so a READ line stays a READ line) and the teleprompter shows it at once.
+   */
+  function editLine(bi, li, row) {
+    if (done || row.querySelector('textarea')) return;
+    if (running) toggle();
+    const line = plan.blocks[bi].lines[li];
+    const box = el('textarea', { class: 'input pr-edit__box', rows: 3, 'data-field': 'pr.editBox' });
+    box.value = line.text;
+    const save = () => {
+      const text = box.value.replace(/\s*\n\s*/g, ' ').trim();
+      if (!text || text === line.text) return showBlock(bi);
+      const blockId = plan.blocks[bi].id;
+      commitWs((w) => {
+        const r = M.getRecord(w, type, record.id);
+        const blocks = (r?.story?.blocks || []).map((x) => (x.id === blockId ? { ...x, script: replaceLine(x.script, li, text) } : x));
+        return M.updateRecord(w, type, record.id, { story: { ...r.story, blocks } });
+      }, { render: false });
+      line.text = text; edited = true;
+      showBlock(bi); tick();
+      toast('Line saved to the card.');
+    };
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); showBlock(bi); tick(); }
+    });
+    row.replaceChildren(box, el('div', { class: 'row' }, [
+      btn('Save line', save, { class: 'btn primary', 'data-field': 'pr.saveLine' }),
+      btn('Cancel', () => { showBlock(bi); tick(); }),
+      el('span', { class: 'small muted', text: 'Saved to the card, so the next take reads it this way.' })]));
+    box.focus(); box.select();
+  }
+
   /** Throw the take away and go back to the top: the notes on screen, nothing moving, the cut points cleared. */
   function restart() {
     if (done) return;
@@ -236,6 +272,7 @@ export function openPrompter(type, record) {
     document.removeEventListener('keydown', onKey, true);
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     root.remove();
+    if (edited) refresh();   // the card behind still shows the old wording - redraw it so nothing overwrites the edit
   }
 
   /* ---- preview first: the notes are on screen, nothing moves until Start */

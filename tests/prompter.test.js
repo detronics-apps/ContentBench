@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLines, prompterPlan, positionAt, paceNote, takeText } from '../js/prompter.js';
+import { parseLines, prompterPlan, positionAt, paceNote, takeText, replaceLine } from '../js/prompter.js';
+
+test('rewording a line keeps its marker and leaves the other lines alone', () => {
+  const s = '» Read this.\n\n- talk point\nnote here';
+  assert.equal(replaceLine(s, 0, 'Say it like this.'), '» Say it like this.\n\n- talk point\nnote here');
+  assert.equal(replaceLine(s, 1, 'new point\nsecond bit'), '» Read this.\n\n- new point second bit\nnote here');
+  assert.equal(replaceLine(s, 2, 'new note'), '» Read this.\n\n- talk point\nnew note');
+  assert.deepEqual(parseLines(replaceLine(s, 0, 'X')).map((l) => l.kind), ['read', 'talk', 'note']);
+});
 
 test('lines: » is read, - is talked, the rest are notes', () => {
   assert.deepEqual(parseLines('» Have you ever?\n- a point\n\nPause here').map((l) => l.kind), ['read', 'talk', 'note']);

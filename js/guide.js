@@ -54,6 +54,7 @@ export const HOWTOS = [
     'Step 3 Record → Open the teleprompter (or the Teleprompter button under the blocks). "How to say it" at the top of the Card step shows before you start.',
     'It opens on your notes and nothing moves: read through, look ahead with → / ← or by clicking a block in the running order. Press Start (Space), hit record in Audacity during the 3-2-1, and begin talking when it ends. The highlighted line is where the pace says you should be; Next up and On screen now sit on the right.',
     'Pause when you stop to breathe or think. Is the highlight a line ahead of you (or behind)? ▲ Line and Line ▼, right next to Pause, move it one line - or tap the line you are on. ◀ Block and Block ▶ jump a whole block. Botched the start? Restart. The notes wait at the end of each block until you press Block ▶ (switch Auto-advance on to let them run on).',
+    'Found a better way to say a line? Press ✎ beside it: the take pauses, you type the new wording, and Save line (or Enter) puts it on the card - a READ line stays a READ line. Then retake from there.',
     'At the end it lists where each block began in your recording - save it to the recording notes as the cut points for the edit.'] },
   { id: 'next-task', category: 'Planning', title: 'Know what to work on next (without catching up)', steps: [
     'Open Home or the Dashboard: "Your next task" is the one thing to focus on.',
