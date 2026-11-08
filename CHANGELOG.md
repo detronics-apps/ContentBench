@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.0
+
+- **Five steps per video** instead of twelve sections: **Idea** (what it is, who for, what they get, why it is
+  made this way, what it is built from) → **Card** (the blocks are the script: talking points, what is on screen
+  and why each block is there; hook ideas, research and the look folded below) → **Record** (teleprompter,
+  captures, workflow; for e-books, posters and posts this is **Make**, with the brief for Claude) → **Publish**
+  (every platform version on one page - title, caption, hashtags, date, status - plus all the exports) →
+  **Results**.
+- Each step shows **what is still missing** (no hook line, blocks without talking points, a caption or release
+  date per platform...), the step bar shows a tick or a count, and "Next to do" jumps to the first gap.
+- The basics are no longer hidden at Simple: category, audience, claims to check, recording notes, free or paid.
+  Free / paid and price show only on products; lighting, sound and music only on recorded pieces.
+- What is on screen is part of every block at every level. Old links to sections (story, outputs, production...)
+  land on the matching step.
+
 ## 0.7.0
 
 - **Beyond video** (Content → Beyond video): a grid of your categories against courses, e-books and

@@ -1,15 +1,18 @@
 // The content item editor (its twelve sections) and the platform output editor.
 
-import { el, toast } from './dom.js';
+import { el, toast, download } from './dom.js';
 import * as M from '../model.js';
-import { CONTENT_SECTIONS } from '../schema.js';
+import { STEPS, stepOf, readiness, isRecorded } from '../readiness.js';
+import { contentPackage, assistantBrief, productBrief, slug } from '../exporter.js';
+import { EXTRA_TYPES } from '../extras.js';
+import { zip } from '../zip.js';
 import * as W from '../workflow.js';
 import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule,
   setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor } from '../content.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
 import { store, ws as currentWs, commitWs } from './store.js';
-import { recordForm, linkEditor, button, card, emptyState, confirmDialog, badge, recordLink, href, checkbox, timelineBar } from './forms.js';
+import { recordForm, linkEditor, button, card, emptyState, confirmDialog, badge, recordLink, href, checkbox, timelineBar, copyText } from './forms.js';
 import { detailHeader, recordActions, backlinks, go, createAndOpen } from './records.js';
 import { assistantPanel } from './assistant.js';
 import { examplePlatforms, exampleStories, exampleWorkflows } from '../seed.js';
@@ -43,7 +46,7 @@ export function storyEditor(type, record, ws) {
     : emptyState('No storytelling templates', 'Create one under Templates, or add the examples.', [
       button('Add example structures', () => commitWs((w) => ({ ...w, stories: [...w.stories, ...exampleStories()] }))),
       button('Templates', () => go('#/templates'))]);
-  if (!story) return card('Story and structure', [el('p', { class: 'muted', text: 'Pick a structure to fill in. It is copied here, so editing the template later never changes this item.' }), chooser]);
+  if (!story) return card('Blocks - the script', [el('p', { class: 'muted', text: 'Pick a structure to fill in. Its blocks are the script: talking points, what is on screen and why each block is there. It is copied here, so editing the template later never changes this item.' }), chooser]);
   const adv = store.ui.level !== 'simple';
   const tpl = ws.stories.find((s) => s.id === story.templateId);
   const tplTotal = tpl ? W.timeline(tpl.blocks).total : null;
@@ -55,7 +58,7 @@ export function storyEditor(type, record, ws) {
     commitWs((w) => ({ ...w, stories: [...w.stories, t] }), { render: false });
     toast(`Saved as template "${name}". Rename or edit it under Templates.`);
   };
-  return card('Story and structure', [
+  return card('Blocks - the script', [
     el('p', { class: 'small muted', text: `From "${story.templateName}" v${story.templateVersion}. These blocks are this item's own - add, remove, reorder or repeat them freely; the template stays as it is.` }),
     timelineBar(story.blocks, { label: 'This video', against: tplTotal || null }),
     tpl ? timelineBar(tpl.blocks, { label: `Template "${tpl.name}" v${tpl.version}${ws.config.preferences.defaultStoryId === tpl.id ? ' (default)' : ''}` }) : null,
@@ -77,7 +80,8 @@ export function storyEditor(type, record, ws) {
         ]),
         ta('purpose', 'Purpose - why this block is here', 2),
         ta('script', 'Talking points (start a line with » to read it word for word, - to talk around it)', 5),
-        adv ? el('div', { class: 'two' }, [ta('visual', 'Visual requirements', 2), ta('transition', 'Transition', 2)]) : null,
+        ta('visual', 'On screen (and what the character does)', 2),
+        adv ? ta('transition', 'Transition', 2) : null,
         adv ? el('div', { class: 'two' }, [ta('assets', 'Supporting assets', 2), ta('references', 'References', 2)]) : null,
         adv ? ta('notes', 'Recording / editing notes', 2) : null,
       ]);
@@ -219,7 +223,7 @@ function productionCaptures(c, ws) {
         cp.status === 'saved' ? badge('found', 'ok')
           : checkbox('saved', cp.status === 'marked', (on) => mark(cp, on), `prod.${cp.id}.mark`),
       ]);
-    })) : el('p', { class: 'muted' }, ['No captures listed. Add them under ', el('a', { href: `#/content/${c.id}/capture`, text: 'Shots & sound' }), '.']),
+    })) : el('p', { class: 'muted' }, ['No captures listed. Add them under ', 'the capture list below.']),
   ]);
 }
 
@@ -228,9 +232,9 @@ function prompterCard(c) {
   return card('Record', [
     el('p', { class: 'small muted', text: blocks.length
       ? `The teleprompter runs your ${blocks.length} story blocks full screen: the notes, the line the pace says you should be on, what comes next and what is on screen. Pause any time; it saves where each block began, for the edit.`
-      : 'Fill in the Story & timeline blocks first - the teleprompter reads those.' }),
+      : 'Fill in the blocks on the Card step first - the teleprompter reads those.' }),
     blocks.length ? button('Open the teleprompter', () => openPrompter('content', M.getRecord(currentWs(), 'content', c.id)), 'primary', { 'data-field': 'prod.prompter' })
-      : button('Story & timeline', () => go(`#/content/${c.id}/story`)),
+      : button('Go to the Card', () => go(`#/content/${c.id}/card`)),
   ]);
 }
 
@@ -315,43 +319,119 @@ function historySection(c) {
 
 /* ----------------------------------------------------------- content page */
 
-export function contentEditor(id, section = 'overview') {
+/** Every platform version on one page: title, caption, hashtags, date and status, edited in place. */
+function publishOutputs(c, ws) {
+  const outs = ws.records.outputs.filter((o) => o.contentId === c.id && !o.archived);
+  const set = (o, k, render = false) => (e) => commitWs((w) => M.updateRecord(w, 'outputs', o.id, { [k]: e.target.value }), { render });
+  const field = (label, control) => el('label', { class: 'field' }, [el('span', { class: 'field__label', text: label }), control]);
+  const create = outputsSection(c, ws).querySelector('.newout, .empty');
+  return card('Where it goes out', [
+    el('p', { class: 'muted small', text: 'One version per platform and format. Each starts from this item and can be rewritten without touching it.' }),
+    ...outs.map((o) => el('div', { class: 'block publish-out' }, [
+      el('div', { class: 'row' }, [el('strong', { text: outputLabel(ws, o) }), badge(o.status || 'no status', 'status'),
+        masterDrift(o, c).length ? badge('master changed', 'warn') : null, el('span', { class: 'row__push' }),
+        el('a', { class: 'small', href: href('outputs', o.id), text: 'Open the full version page' })]),
+      el('div', { class: 'two' }, [
+        field('Title', el('input', { class: 'input', value: o.title || '', 'data-field': `pub.${o.id}.title`, on: { change: set(o, 'title') } })),
+        el('div', { class: 'two' }, [
+          field('Release date', el('input', { class: 'input', type: 'date', value: o.scheduledDate || '', 'data-field': `pub.${o.id}.date`, on: { change: set(o, 'scheduledDate', true) } })),
+          field('Status', el('select', { class: 'input', 'data-field': `pub.${o.id}.status`, on: { change: set(o, 'status', true) } },
+            ws.config.statuses.outputs.map((x) => el('option', { value: x, text: x, selected: x === o.status })))),
+        ]),
+      ]),
+      field('Caption / description', el('textarea', { class: 'input', rows: 4, value: o.caption || '', 'data-field': `pub.${o.id}.caption`, on: { change: set(o, 'caption') } })),
+      field('Hashtags / tags', el('input', { class: 'input', value: o.hashtags || '', 'data-field': `pub.${o.id}.hashtags`, on: { change: set(o, 'hashtags') } })),
+    ])),
+    !outs.length ? el('p', { class: 'muted', text: 'No platform versions yet.' }) : null,
+    create,
+  ]);
+}
+
+/** Every way to take this item out of the app, in one place. */
+function exportCard(c, ws) {
+  const product = EXTRA_TYPES.includes(c.contentType);
+  return card('Export', [
+    el('p', { class: 'muted small', text: 'Files download to this device. Nothing is uploaded.' }),
+    el('div', { class: 'row' }, [
+      product ? button('Brief for Claude to make it (.md)', () => download(new Blob([productBrief(ws, c.id)], { type: 'text/markdown' }), `${slug(c.workingTitle)}_make-it.md`), 'primary', { 'data-field': 'step.export.product' }) : null,
+      button('Download brief (.md)', () => download(new Blob([assistantBrief(ws, c.id)], { type: 'text/markdown' }), `${slug(c.workingTitle)}_brief.md`), product ? '' : 'primary', { 'data-field': 'step.export.md' }),
+      button('Copy brief', () => copyText(assistantBrief(ws, c.id), 'Brief copied')),
+      button('Package (.zip)', () => { const pkg = contentPackage(ws, c.id); download(new Blob([zip(pkg.files)], { type: 'application/zip' }), `${pkg.root}.zip`); }),
+    ]),
+  ]);
+}
+
+/** For items that are made rather than recorded: Claude makes it from the brief. */
+function makeCard(c, ws) {
+  return card('Make it', [
+    el('p', { class: 'small muted', text: 'Download the brief, upload it to Claude, and it proposes the outline and design before it builds. It carries the blocks, your notes and research, the videos this is built from (Idea step → Built from), your brand (Settings → Voice and branding) and the graphics to make.' }),
+    button('Brief for Claude to make it (.md)', () => download(new Blob([productBrief(ws, c.id)], { type: 'text/markdown' }), `${slug(c.workingTitle)}_make-it.md`), 'primary', { 'data-field': 'make.brief' }),
+  ]);
+}
+
+const more = (summary, kids, open = false) => el('details', { class: 'more more--card', open }, [el('summary', { text: summary }), ...kids]);
+
+export function contentEditor(id, section = 'idea') {
   const ws = currentWs();
   const c = M.getRecord(ws, 'content', id);
   if (!c) return emptyState('Not found', 'This content item no longer exists.', [button('Content library', () => go('#/library'))]);
-  if (!CONTENT_SECTIONS.some(([s]) => s === section)) section = 'overview';
+  const step = stepOf(section);
+  const rec = isRecorded(c);
   const plain = patch('content', id);
   // choosing a series hands out its next number, for every part at once
   const p = (q, render) => ('series' in q ? commitWs((w) => setSeries(w, id, q.series), { render: true }) : plain(q, render));
-  const form = recordForm('content', c, ws, p, { section });
-  const hasFields = form.querySelector('.field');
-  const extra = {
-    overview: () => el('div', { class: 'stack' }, [seriesCard(c, ws), card('Links', [linkEditor('content', c, ws, link('content', id), { only: ['ideaIds', 'projectIds', 'sourceIds'] }),
-      el('p', { class: 'small muted', text: 'Content items here are what this one is built from - the videos an e-book sums up, the master a short comes from. The product brief for Claude carries their material.' }),
-      el('p', { class: 'small muted', text: 'No project linked means standalone - that is valid.' })])]),
-    story: () => storyEditor('content', c, ws),
-    research: () => card('References', [linkEditor('content', c, ws, link('content', id), { only: ['referenceIds'] }),
-      button('New reference', () => { let made; commitWs((w) => { const r = M.createRecord(w, 'references', { title: 'New reference', status: w.config.statuses.references[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'referenceIds', made.id, true); }, { render: false }); go(href('references', made.id)); })]),
-    capture: () => el('div', { class: 'stack' }, [captureSection(c, ws), card('Assets', [linkEditor('content', c, ws, link('content', id), { only: ['assetIds'] }),
-      button('New asset', () => { let made; commitWs((w) => { const r = M.createRecord(w, 'assets', { name: 'New asset', status: w.config.statuses.assets[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'assetIds', made.id, true); }, { render: false }); go(href('assets', made.id)); })])]),
-    outputs: () => outputsSection(c, ws),
-    production: () => el('div', { class: 'stack' }, [prompterCard(c), workflowPanel('content', c, ws), productionCaptures(c, ws), readyCard(c, ws)]),
-    publishing: () => publishingSection(c, ws),
-    performance: () => performanceSection(c, ws),
-    history: () => historySection(c),
-  }[section];
+  const form = (group) => recordForm('content', c, ws, p, { section: step, group });
+  const { gaps, next } = readiness(ws, c);
+  const n = STEPS.findIndex(([s]) => s === step);
+  const label = (st) => (rec ? st[1] : st[2]);
+  const blocks = c.story?.blocks || [];
+  const addRef = () => { let made; commitWs((w) => { const r = M.createRecord(w, 'references', { title: 'New reference', status: w.config.statuses.references[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'referenceIds', made.id, true); }, { render: false }); go(href('references', made.id)); };
+  const addAsset = () => { let made; commitWs((w) => { const r = M.createRecord(w, 'assets', { name: 'New asset', status: w.config.statuses.assets[0] }); made = r.record; return M.setLink(r.ws, 'content', id, 'assetIds', made.id, true); }, { render: false }); go(href('assets', made.id)); };
+  const assets = () => card('Assets', [linkEditor('content', c, ws, link('content', id), { only: ['assetIds'] }), button('New asset', addAsset, 'small')]);
+
+  const body = {
+    idea: () => [card('', [form()]), seriesCard(c, ws),
+      card('Built from and links', [linkEditor('content', c, ws, link('content', id), { only: ['sourceIds', 'ideaIds', 'projectIds'] }),
+        el('p', { class: 'small muted', text: 'Built from: the videos an e-book sums up, or the master a short comes from - their material goes into the briefs. No project linked means standalone, which is fine.' })]),
+      assistantPanel('content', c, ws)],
+    card: () => [card('', [form()]), storyEditor('content', c, ws),
+      more('Hook ideas, alternatives and the ending', [form('hooks')]),
+      more('Research and claims to check', [form('research'), linkEditor('content', c, ws, link('content', id), { only: ['referenceIds'] }), button('New reference', addRef, 'small')], !!c.claimsToVerify),
+      more('Overall look and visual notes', [form('look')]),
+      more(blocks.length ? 'Script text (only if you write one out in full)' : 'Script text', [form('script')], !blocks.length),
+      assistantPanel('content', c, ws)],
+    record: () => (rec
+      ? [prompterCard(c), productionCaptures(c, ws), more('Edit the capture list', [captureSection(c, ws)], !(c.captures || []).length),
+        card('', [form()]), workflowPanel('content', c, ws), assets()]
+      : [makeCard(c, ws), card('', [form()]), workflowPanel('content', c, ws), assets()]),
+    publish: () => [publishOutputs(c, ws), readyCard(c, ws), exportCard(c, ws), more('Log what was published', [publishingSection(c, ws)])],
+    results: () => [performanceSection(c, ws), card('', [form()]), historySection(c), backlinks('content', id, ws), card('', [recordActions('content', c, '#/library')])],
+  }[step];
+
+  const here = gaps[step];
   const look = lookFor(ws, c.audience);
   return el('div', { class: `detail${look ? ' detail--look' : ''}`, style: look ? { '--look-main': look.main, '--look-accent': look.accent } : null }, [
     detailHeader('content', c, [el('a', { href: '#/plan', text: 'Content plan' }), el('a', { href: '#/production', text: 'Production' })]),
-    el('nav', { class: 'subtabs subtabs--grouped', 'aria-label': 'Content sections' }, [['plan', 'Plan'], ['make', 'Make']].map(([g, gl]) => el('div', { class: 'subtabs__group' }, [
-      el('span', { class: 'subtabs__label', text: gl }),
-      ...CONTENT_SECTIONS.filter((x) => x[2] === g).map(([s, label]) =>
-        el('a', { class: `subtab ${s === section ? 'subtab--active' : ''}`, href: `#/content/${id}/${s}`, text: label, 'aria-current': s === section ? 'page' : null }))]))),
-    hasFields ? card('', [form]) : null,
-    extra ? extra() : null,
-    ['overview', 'history'].includes(section) ? backlinks('content', id, ws) : null,
-    ['concept', 'script', 'hooks', 'research', 'overview'].includes(section) ? assistantPanel('content', c, ws) : null,
-    section === 'history' || section === 'overview' ? card('', [recordActions('content', c, '#/library')]) : null,
+    el('nav', { class: 'steps-nav', 'aria-label': 'Steps' }, STEPS.map((st, i) => {
+      const left = gaps[st[0]].length;
+      return el('a', { class: `steps-nav__step${st[0] === step ? ' is-here' : ''}${left ? '' : ' is-done'}`, href: `#/content/${id}/${st[0]}`,
+        'aria-current': st[0] === step ? 'step' : null, 'data-field': `step.${st[0]}` }, [
+        el('span', { class: 'steps-nav__n', text: left ? String(i + 1) : '✓' }),
+        el('span', { class: 'steps-nav__label', text: label(st) }),
+        left ? el('span', { class: 'steps-nav__left', text: `${left} to do` }) : null,
+      ]);
+    })),
+    el('div', { class: 'card step-head' }, [
+      el('p', { class: 'step-head__what', text: STEPS[n][3] }),
+      here.length ? el('ul', { class: 'step-head__gaps' }, here.map((g) => el('li', { text: g })))
+        : el('p', { class: 'small text-ok', text: 'Nothing missing in this step.' }),
+      el('div', { class: 'row' }, [
+        next && next.step !== step ? el('a', { class: 'btn', href: `#/content/${id}/${next.step}`, 'data-field': 'step.next-gap' }, [`Next to do: ${next.text} →`]) : null,
+        !here.length && n < STEPS.length - 1 ? el('a', { class: 'btn btn-primary', href: `#/content/${id}/${STEPS[n + 1][0]}`, 'data-field': 'step.next' }, [`Next step: ${label(STEPS[n + 1])} →`]) : null,
+        !next ? el('span', { class: 'small text-ok', text: 'Everything is in place.' }) : null,
+      ]),
+    ]),
+    ...body().filter(Boolean),
   ]);
 }
 

@@ -1,6 +1,8 @@
 // Generic building blocks: the schema-driven record form, link editor, list editors,
 // dialogs. Nothing here knows what a "video" is - it renders whatever schema.js says.
 
+import { EXTRA_TYPES } from '../extras.js';
+import { isRecorded } from '../readiness.js';
 import { el, clear, toast } from './dom.js';
 import { FIELDS, optionsFor, visibleFields } from '../schema.js';
 import { LINKS, TYPE_LABEL, titleOf, getRecord } from '../model.js';
@@ -56,9 +58,11 @@ function control(type, fdef, record, ws, onPatch) {
 }
 
 /** The form for one record, at the reader's detail level, optionally one content section. */
-export function recordForm(type, record, ws, onPatch, { section } = {}) {
-  const fields = visibleFields(type, store.ui.level, section);
-  const hidden = (section ? FIELDS[type].filter((x) => x.section === section) : FIELDS[type]).length - fields.length;
+export function recordForm(type, record, ws, onPatch, { section, group } = {}) {
+  // a field can belong to a small group inside its section, and to one kind of item only
+  const fits = (x) => (x.group || '') === (group || '') && (!x.kinds || (x.kinds === 'product' ? EXTRA_TYPES.includes(record.contentType) : isRecorded(record)));
+  const fields = visibleFields(type, store.ui.level, section).filter(fits);
+  const hidden = (section ? FIELDS[type].filter((x) => x.section === section) : FIELDS[type]).filter(fits).length - fields.length;
   return el('div', { class: 'form' }, [
     ...fields.map((f) => el(f.type === 'multi' ? 'div' : 'label', { class: `field ${f.ai ? 'field--ai' : ''}` }, [
       el('span', { class: 'field__label' }, [f.label, f.ai ? badge('AI - not your words', 'ai') : null]),

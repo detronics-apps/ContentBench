@@ -23,6 +23,7 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
+  ['0.8.0', 'Every video and product now walks five steps - Idea, Card, Record, Publish, Results - with what is still missing shown on each and a button to the next gap. All platform versions edit on one page; the blocks are the script; the basics are no longer hidden at Simple.'],
   ['0.7.0', 'Beyond video: courses, e-books and PDFs, posters, LinkedIn and Instagram posts tracked per category, free or paid with a price; a brief for Claude to make each one, carrying the videos it is built from and your brand guide.'],
   ['0.6.1', 'Download a video\'s whole brief as one Markdown file (Sidebar → Export), now including How to say it and Why it is made this way.'],
   ['0.6.0', 'A full-screen teleprompter that paces your talking points, shows what comes next and keeps your cut points; read-word-for-word lines and an editable purpose per story block; "How to say it" and "Why it is made this way" fields.'],
