@@ -20,7 +20,7 @@ export function openPrompter(type, record) {
   const delivery = M.getRecord(currentWs(), noteType, noteId)?.delivery || '';
   let t = 0;                 // position in the plan, seconds - moves only while running
   let running = false, auto = true, started = false, done = false;
-  let rec0 = 0, last = 0, timer = 0, shownBlock = -1, size = readSize();
+  let rec0 = 0, last = 0, timer = 0, countTo = 0, shownBlock = -1, size = readSize();
   const marks = [];          // where each block began in the recording
 
   const now = () => performance.now() / 1000;
@@ -102,7 +102,7 @@ export function openPrompter(type, record) {
     nowPane.querySelectorAll('.pr-line').forEach((li, j) => { li.classList.toggle('is-now', j === pos.line); li.classList.toggle('is-past', j < pos.line); });
     nowPane.querySelector('.pr-progress__fill').style.width = `${Math.min(100, pos.progress * 100)}%`;
     const over = !auto && t >= b.start + b.seconds - 0.05;
-    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. → / ← or the running order to look ahead. Press Start when you begin talking (${fmt(b.seconds)} for this block).`
+    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. → / ← or the running order to look ahead. Press Start, then hit record during the 3-2-1 (${fmt(b.seconds)} for this block).`
       : over ? 'Time is up - press → when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
     root.classList.toggle('is-over', over);
     bar.lastChild.style.left = `${(t / plan.total) * 100}%`;
@@ -113,7 +113,11 @@ export function openPrompter(type, record) {
 
   function loop() {
     const n = now();
-    if (running) {
+    if (countTo) {   // 3-2-1 after Start, time to hit record in Audacity; shown at the bottom so the notes stay readable
+      const left = Math.ceil(countTo - n);
+      if (left > 0) { banner.hidden = false; banner.className = 'pr-banner pr-banner--pause pr-banner--count'; banner.textContent = `Start recording - ${left}`; }
+      else { countTo = 0; banner.hidden = true; beginTake(); }
+    } else if (running) {
       let next = t + (n - last);
       const b = plan.blocks[positionAt(plan, t).block];
       if (!auto && b) next = Math.min(next, b.start + b.seconds - 0.01);   // hold at the end of the block
@@ -123,16 +127,18 @@ export function openPrompter(type, record) {
     if (!done) tick();
   }
 
+  /** The take begins: the clock runs from the block on screen. */
+  function beginTake() {
+    const b = plan.blocks[positionAt(plan, t).block];
+    t = b.start; started = true; running = true; rec0 = now(); last = rec0;
+    marks.push({ at: 0, name: b.name, planned: b.start });
+    root.classList.remove('is-preview');
+  }
+
   /* ---- controls */
   function toggle() {
     if (done) return;
-    if (!started) {   // the clock starts now, from the block on screen - you begin talking when you press it
-      const b = plan.blocks[positionAt(plan, t).block];
-      t = b.start; started = true; running = true; rec0 = now(); last = rec0;
-      marks.push({ at: 0, name: b.name, planned: b.start });
-      root.classList.remove('is-preview');
-      return;
-    }
+    if (!started) { if (!countTo) countTo = now() + 3; return; }   // the notes stay put during the countdown
     running = !running;
     banner.hidden = running;
     if (!running) { banner.className = 'pr-banner pr-banner--pause'; banner.textContent = 'Paused - take a breath, read ahead. Space to carry on.'; }

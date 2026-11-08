@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.2
+
+- Pressing **Start** in the teleprompter gives a **3-2-1** first - time to hit record in Audacity - shown in the
+  bottom strip so the notes stay readable. Opening it still shows the notes with nothing moving.
+
 ## 0.8.1
 
 - The teleprompter opens on your notes and **nothing moves until you press Start** - no 3-2-1. Read through

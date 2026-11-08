@@ -446,3 +446,4 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .pr-howto { margin-bottom: var(--space-3); }
 /* paused: a slim strip at the bottom, never over the notes you want to read again */
 .pr-banner--pause { top: auto; bottom: 44px; transform: translateX(-50%); padding: var(--space-2) var(--space-4); font-size: 15px; font-weight: 600; background: var(--warn-soft); color: var(--warn); box-shadow: var(--shadow-md); pointer-events: none; }
+.pr-banner--count { font-size: 22px; font-variant-numeric: tabular-nums; }
