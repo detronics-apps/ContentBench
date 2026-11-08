@@ -8,7 +8,7 @@ import { EXTRA_TYPES } from '../extras.js';
 import { zip } from '../zip.js';
 import * as W from '../workflow.js';
 import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule,
-  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor } from '../content.js';
+  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom } from '../content.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
 import { store, ws as currentWs, commitWs } from './store.js';
@@ -468,6 +468,7 @@ function seriesCard(c, ws) {
   const label = seriesLabel(ws, c);
   const parts = partsOf(ws, c);
   const place = categoryPlace(ws, c);
+  const cuts = madeFrom(ws, c);
   const cat = ws.config.categories.find((x) => x.id === c.categoryId);
   const look = lookFor(ws, c.audience);
   const seriesSel = el('select', { class: 'input input--inline', 'data-field': 'content.seriesPick',
@@ -484,6 +485,8 @@ function seriesCard(c, ws) {
     !ws.config.series.length ? el('p', { class: 'small muted' }, ['Add your series in ', el('a', { href: '#/settings', text: 'Settings' }), '; each one keeps its own count.']) : null,
     place ? el('p', { class: 'small muted', text: `Video ${place.n} of ${place.of} in ${cat?.name || 'this category'}.` }) : null,
     parts.length > 1 ? el('ol', { class: 'parts' }, parts.map((x) => el('li', {}, [x.id === c.id ? el('strong', { text: x.workingTitle }) : el('a', { href: `#/content/${x.id}`, text: x.workingTitle }), ' ', badge(x.status || '-', 'status')]))) : null,
+    cuts.length ? el('p', { class: 'small', text: `Cut into ${cuts.length} short${cuts.length > 1 ? 's' : ''}:` }) : null,
+    cuts.length ? el('ol', { class: 'parts' }, cuts.map((x) => el('li', {}, [el('a', { href: `#/content/${x.id}`, text: x.workingTitle }), ' ', badge(x.status || '-', 'status')]))) : null,
     el('div', { class: 'row' }, [button('Add part', () => {
       let made; commitWs((w) => { const r = addPart(w, c.id); made = r.record; return r.ws; }, { render: false }); go(`#/content/${made.id}`);
     }, '', { 'data-field': 'content.addPart', title: 'Split this topic into another part under the same series number' }),

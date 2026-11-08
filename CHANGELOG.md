@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1
+
+- A long video now lists the **shorts cut from it** (under Series & parts), each one linked. A short counts when it names
+  the long video under **Built from**.
+
 ## 0.9.0
 
 - **Edit** is its own step: Idea → Card → Record → **Edit** → Publish → Results (for e-books and posters: Review).

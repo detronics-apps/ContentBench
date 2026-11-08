@@ -236,6 +236,10 @@ export function partsOf(ws, c) {
   return liveContent(ws).filter((x) => x.partGroup === c.partGroup).sort((a, b) => (Number(a.part) || 0) - (Number(b.part) || 0));
 }
 
+/** Videos cut from this one (they name it under "Built from"), in part order. */
+export const madeFrom = (ws, c) => liveContent(ws).filter((x) => (x.sourceIds || []).includes(c.id))
+  .sort((a, b) => (Number(a.part) || 0) - (Number(b.part) || 0));
+
 /** "Grind my Gears #5 · Part 2 of 3", or '' for a standalone video. */
 export function seriesLabel(ws, c) {
   const parts = partsOf(ws, c);

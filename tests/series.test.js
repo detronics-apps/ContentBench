@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blankWorkspace, createRecord, getRecord } from '../js/model.js';
-import { nextEpisode, setSeries, addPart, partsOf, seriesLabel, setEpisode, categoryPlace, lookFor } from '../js/content.js';
+import { nextEpisode, setSeries, addPart, partsOf, seriesLabel, setEpisode, categoryPlace, lookFor, madeFrom } from '../js/content.js';
+
+test('a long video lists the shorts cut from it, in part order', () => {
+  const ws = { records: { content: [{ id: 'm' }, { id: 'b', sourceIds: ['m'], part: 2 }, { id: 'a', sourceIds: ['m'], part: 1 }, { id: 'x', sourceIds: ['m'], archived: true }, { id: 'o' }] } };
+  assert.deepEqual(madeFrom(ws, { id: 'm' }).map((x) => x.id), ['a', 'b']);
+  assert.deepEqual(madeFrom(ws, { id: 'o' }), []);
+});
 
 const NOW = '2026-11-06T10:00:00.000Z';
 function ws() {
