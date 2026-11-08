@@ -440,3 +440,9 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .more--card > summary { cursor: pointer; font-weight: 600; padding: var(--space-1) 0; }
 .publish-out .field { margin-top: var(--space-2); }
 @media (max-width: 640px) { .steps-nav { grid-template-columns: repeat(5, minmax(56px, 1fr)); overflow-x: auto; } .steps-nav__left { display: none; } }
+.pr-list li { cursor: pointer; }
+.pr-list li:hover { color: var(--text); }
+.prompter.is-preview .pr-left { color: var(--accent-strong); font-family: var(--font); }
+.pr-howto { margin-bottom: var(--space-3); }
+/* paused: a slim strip at the bottom, never over the notes you want to read again */
+.pr-banner--pause { top: auto; bottom: 44px; transform: translateX(-50%); padding: var(--space-2) var(--space-4); font-size: 15px; font-weight: 600; background: var(--warn-soft); color: var(--warn); box-shadow: var(--shadow-md); pointer-events: none; }

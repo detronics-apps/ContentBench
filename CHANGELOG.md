@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.1
+
+- The teleprompter opens on your notes and **nothing moves until you press Start** - no 3-2-1. Read through
+  first; look ahead with → / ← or by clicking a block in the running order; Start begins the clock at once,
+  from the block on screen. "How to say it" sits at the top of the right-hand panel.
+- **Paused** now shows as a slim strip at the bottom of the screen, so the notes stay readable while you
+  catch your breath and read ahead.
+
 ## 0.8.0
 
 - **Five steps per video** instead of twelve sections: **Idea** (what it is, who for, what they get, why it is

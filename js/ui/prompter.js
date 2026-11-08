@@ -20,7 +20,7 @@ export function openPrompter(type, record) {
   const delivery = M.getRecord(currentWs(), noteType, noteId)?.delivery || '';
   let t = 0;                 // position in the plan, seconds - moves only while running
   let running = false, auto = true, started = false, done = false;
-  let rec0 = 0, last = 0, timer = 0, countTo = 0, shownBlock = -1, size = readSize();
+  let rec0 = 0, last = 0, timer = 0, shownBlock = -1, size = readSize();
   const marks = [];          // where each block began in the recording
 
   const now = () => performance.now() / 1000;
@@ -40,7 +40,7 @@ export function openPrompter(type, record) {
   const nowPane = el('section', { class: 'pr-now', 'aria-live': 'polite' });
   const nextPane = el('div', { class: 'pr-next' });
   const screenPane = el('div', { class: 'pr-screen' });
-  const list = el('ol', { class: 'pr-list' }, plan.blocks.map((b, i) => el('li', { 'data-i': i }, [
+  const list = el('ol', { class: 'pr-list' }, plan.blocks.map((b, i) => el('li', { 'data-i': i, title: 'Go to this block', on: { click: () => { if (!done) { t = b.start; last = now(); tick(); } } } }, [
     el('span', { class: 'pr-list__t', text: fmt(b.start) }), ` ${b.name}`])));
   const banner = el('div', { class: 'pr-banner', hidden: true });
   const sheet = el('div', { class: 'pr-sheet' });
@@ -64,7 +64,7 @@ export function openPrompter(type, record) {
       el('h3', { class: 'pr-h', text: 'Next up' }), nextPane,
       el('h3', { class: 'pr-h', text: 'On screen now' }), screenPane,
       el('h3', { class: 'pr-h', text: 'Running order' }), list])]),
-    el('footer', { class: 'pr-keys small' }, ['Space start / pause · → next · ← back · F full screen · Esc close. A clicker works too (it sends Page Down / Page Up).']),
+    el('footer', { class: 'pr-keys small' }, ['Space start / pause · → next · ← back · click a block in the running order to go there · F full screen · Esc close. A clicker works too (Page Down / Page Up). The red clock counts time since you pressed Start, pauses included - like your recording.']),
     banner, sheet,
   ]);
 
@@ -102,7 +102,8 @@ export function openPrompter(type, record) {
     nowPane.querySelectorAll('.pr-line').forEach((li, j) => { li.classList.toggle('is-now', j === pos.line); li.classList.toggle('is-past', j < pos.line); });
     nowPane.querySelector('.pr-progress__fill').style.width = `${Math.min(100, pos.progress * 100)}%`;
     const over = !auto && t >= b.start + b.seconds - 0.05;
-    nowPane.querySelector('.pr-left').textContent = over ? 'Time is up - press → when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
+    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. → / ← or the running order to look ahead. Press Start when you begin talking (${fmt(b.seconds)} for this block).`
+      : over ? 'Time is up - press → when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
     root.classList.toggle('is-over', over);
     bar.lastChild.style.left = `${(t / plan.total) * 100}%`;
     clock.textContent = `${fmt(t)} / ${fmt(plan.total)}`;
@@ -112,11 +113,7 @@ export function openPrompter(type, record) {
 
   function loop() {
     const n = now();
-    if (countTo) {
-      const left = Math.ceil(countTo - n);
-      if (left > 0) { banner.hidden = false; banner.textContent = String(left); banner.className = 'pr-banner pr-banner--count'; }
-      else { countTo = 0; banner.hidden = true; started = true; running = true; rec0 = n; last = n; marks.push({ at: 0, name: plan.blocks[0].name, planned: 0 }); }
-    } else if (running) {
+    if (running) {
       let next = t + (n - last);
       const b = plan.blocks[positionAt(plan, t).block];
       if (!auto && b) next = Math.min(next, b.start + b.seconds - 0.01);   // hold at the end of the block
@@ -129,11 +126,16 @@ export function openPrompter(type, record) {
   /* ---- controls */
   function toggle() {
     if (done) return;
-    sheet.hidden = true;
-    if (!started) { if (!countTo) countTo = now() + 3; return; }
+    if (!started) {   // the clock starts now, from the block on screen - you begin talking when you press it
+      const b = plan.blocks[positionAt(plan, t).block];
+      t = b.start; started = true; running = true; rec0 = now(); last = rec0;
+      marks.push({ at: 0, name: b.name, planned: b.start });
+      root.classList.remove('is-preview');
+      return;
+    }
     running = !running;
     banner.hidden = running;
-    if (!running) { banner.className = 'pr-banner pr-banner--pause'; banner.textContent = 'Paused - take a breath. Space to carry on.'; }
+    if (!running) { banner.className = 'pr-banner pr-banner--pause'; banner.textContent = 'Paused - take a breath, read ahead. Space to carry on.'; }
   }
   function jump(d) {
     if (done) return;
@@ -189,14 +191,10 @@ export function openPrompter(type, record) {
     root.remove();
   }
 
-  /* ---- the start sheet: how to say it, before the clock runs */
-  sheet.append(el('div', { class: 'pr-sheet__box' }, [
-    el('h2', { text: title }),
-    el('p', { text: `${plan.blocks.length} blocks · about ${fmt(plan.total)}. Lines marked READ are said word for word; everything else is a point to talk around in your own words.` }),
-    delivery ? el('div', {}, [el('h3', { class: 'pr-h', text: 'How to say it' }), el('p', { class: 'pr-delivery', text: delivery })]) : null,
-    el('p', { class: 'small', text: 'Start your recording, then press Start (or Space): 3 seconds to settle, then the hook. The highlighted line is where the pace says you should be. Pause any time to breathe or think - your recording keeps running, so pauses are easy to cut.' }),
-    el('div', { class: 'row' }, [btn('Start', () => toggle(), { class: 'btn primary', 'data-field': 'pr.start' }), btn('Close', () => close())]),
-  ]));
+  /* ---- preview first: the notes are on screen, nothing moves until Start */
+  sheet.hidden = true;
+  root.classList.add('is-preview');
+  if (delivery) nextPane.previousSibling.before(el('div', { class: 'pr-howto' }, [el('h3', { class: 'pr-h', text: 'How to say it' }), el('p', { class: 'pr-delivery', text: delivery })]));
 
   document.body.append(root);
   document.addEventListener('keydown', onKey, true);
