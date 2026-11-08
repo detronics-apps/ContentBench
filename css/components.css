@@ -454,3 +454,12 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .pr-banner--catch { top: auto; bottom: 44px; transform: translateX(-50%); padding: var(--space-2) var(--space-4); font-size: 15px; font-weight: 600; background: var(--accent-soft); color: var(--accent-strong); box-shadow: var(--shadow-md); pointer-events: none; }
 .pr-controls .btn[data-field="pr.catch"][aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .pr-line { cursor: pointer; }
+/* phone: the notes get the room - compact buttons, a short side panel, no shortcut footer (there is no keyboard) */
+@media (max-width: 760px) {
+  .pr-bar { gap: var(--space-2); padding: var(--space-2); }
+  .pr-controls { gap: 4px; }
+  .pr-controls .btn { padding: 6px 10px; font-size: 13px; min-height: 36px; }
+  .pr-split { grid-template-rows: minmax(0, 1fr) auto; }
+  .pr-side { max-height: 24vh; padding: var(--space-2) var(--space-3); }
+  .pr-keys { display: none; }
+}

@@ -23,6 +23,7 @@ export const LEGAL = {
 
 /** Shown behind the footer's What's new - never in the welcome. */
 export const CHANGES = [
+  ['0.8.8', 'Teleprompter: every action is a labelled on-screen button (keys are only extra shortcuts); on a phone the notes get the room.'],
   ['0.8.7', 'Teleprompter: Catch up (C) holds the notes while you keep talking; click a line to say "I am here"; the notes wait at the end of each block by default (Auto-advance off, remembered).'],
   ['0.8.6', 'A tick means finished: Publish shows "set - not out yet" until it is published, Results shows "after release" until there are results. The capture list folds away as "Files for the edit" with a line on what it is for.'],
   ['0.8.5', 'Teleprompter side panel in time order: How to say it, On screen now, Next up, Running order.'],

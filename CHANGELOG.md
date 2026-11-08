@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.8
+
+- Teleprompter: every action is a labelled button (Back, Next, Pause/Continue, Catch up, Restart...); hints name the
+  buttons, and keyboard keys are listed only as optional shortcuts. On a phone the buttons are compact, the side panel
+  is short and the shortcut footer is hidden, so the notes get the room.
+
 ## 0.8.7
 
 - **Catch up** in the teleprompter (button or C): the notes wait while you keep talking - not a pause, no message

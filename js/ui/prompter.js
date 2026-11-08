@@ -36,13 +36,13 @@ export function openPrompter(type, record) {
     el('span', { class: 'pr-rundown__needle' })]);
   const clock = el('span', { class: 'pr-clock' });
   const recClock = el('span', { class: 'pr-clock pr-clock--rec', title: 'Time since the hook started, pauses included - the length of your recording' });
-  const restartBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'data-field': 'pr.restart', title: 'Start the whole take again from the top (R)', on: { click: () => restart() } }, ['Restart']);
+  const restartBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'data-field': 'pr.restart', title: 'Start the whole take again from the top (keyboard: R)', on: { click: () => restart() } }, ['Restart']);
   const playBtn = el('button', { class: 'btn primary', type: 'button', 'data-field': 'pr.play', on: { click: () => toggle() } });
   const autoBtn = el('button', { class: 'btn', type: 'button', 'aria-pressed': String(auto), 'data-field': 'pr.auto',
-    title: 'On: moves to the next block when its time is up. Off: waits at the end of the block for you to press →.', on: { click: () => { auto = !auto; saveAuto(auto); autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, [auto ? 'Auto-advance: on' : 'Auto-advance: off']);
+    title: 'On: moves to the next block when its time is up. Off: waits at the end of the block until you press Next.', on: { click: () => { auto = !auto; saveAuto(auto); autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, [auto ? 'Auto-advance: on' : 'Auto-advance: off']);
   // catch up: you are still talking, the notes just wait for you - not a pause, no message over the notes
   const catchBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'aria-pressed': 'false', 'data-field': 'pr.catch',
-    title: 'Hold the notes while you keep talking - press again (or C) when you are there', on: { click: () => catchUp() } }, ['Catch up']);
+    title: 'Hold the notes while you keep talking - press again when you are there (keyboard: C)', on: { click: () => catchUp() } }, ['Catch up']);
   const btn = (text, fn, attrs = {}) => el('button', { class: 'btn', type: 'button', on: { click: fn }, ...attrs }, [text]);
 
   const nowPane = el('section', { class: 'pr-now', 'aria-live': 'polite' });
@@ -58,10 +58,10 @@ export function openPrompter(type, record) {
       el('strong', { class: 'pr-title', text: title }),
       bar, clock, recClock,
       el('div', { class: 'pr-controls' }, [
-        btn('◀', () => jump(-1), { 'aria-label': 'Previous block (←)', title: 'Previous block (←)' }),
+        btn('◀ Back', () => jump(-1), { title: 'Back to the start of this block, or the one before (keyboard: ←)' }),
         playBtn,
         catchBtn,
-        btn('▶', () => jump(1), { 'aria-label': 'Next block (→)', title: 'Next block (→)', 'data-field': 'pr.next' }),
+        btn('Next ▶', () => jump(1), { title: 'Next block (keyboard: →)', 'data-field': 'pr.next' }),
         autoBtn,
         restartBtn,
         btn('A−', () => zoom(-0.1), { 'aria-label': 'Smaller text' }),
@@ -74,7 +74,7 @@ export function openPrompter(type, record) {
       el('h3', { class: 'pr-h', text: 'On screen now' }), screenPane,
       el('h3', { class: 'pr-h', text: 'Next up' }), nextPane,
       el('h3', { class: 'pr-h', text: 'Running order' }), list])]),
-    el('footer', { class: 'pr-keys small' }, ['Space start / pause · C catch up (notes wait, you keep talking) · click a line: I am here · → next · ← back · R restart the take · click a block in the running order to go there · F full screen · Esc close. A clicker works too (Page Down / Page Up). The red clock counts time since you pressed Start, pauses included - like your recording.']),
+    el('footer', { class: 'pr-keys small' }, ['Tap a line to say "I am here"; tap a block in the running order to go there. The red clock counts time since you pressed Start, pauses included - like your recording. With a keyboard or clicker you can also use: Space start/pause · C catch up · ← → back/next · R restart · F full screen · Esc close.']),
     banner, sheet,
   ]);
 
@@ -112,8 +112,8 @@ export function openPrompter(type, record) {
     nowPane.querySelectorAll('.pr-line').forEach((li, j) => { li.classList.toggle('is-now', j === pos.line); li.classList.toggle('is-past', j < pos.line); });
     nowPane.querySelector('.pr-progress__fill').style.width = `${Math.min(100, pos.progress * 100)}%`;
     const over = !auto && t >= b.start + b.seconds - 0.05;
-    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. → / ← or the running order to look ahead. Press Start, then hit record during the 3-2-1 (${fmt(b.seconds)} for this block).`
-      : over ? 'Time is up - press → when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
+    nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. Look ahead with Next / Back or the running order. Press Start, then hit record during the 3-2-1 (${fmt(b.seconds)} for this block).`
+      : over ? 'Time is up - press Next when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
     root.classList.toggle('is-over', over);
     bar.lastChild.style.left = `${(t / plan.total) * 100}%`;
     clock.textContent = `${fmt(t)} / ${fmt(plan.total)}`;
@@ -155,14 +155,14 @@ export function openPrompter(type, record) {
     if (!started) { if (!countTo) countTo = now() + 3; return; }   // the notes stay put during the countdown
     running = !running; holding = false;
     banner.hidden = running;
-    if (!running) { banner.className = 'pr-banner pr-banner--pause'; banner.textContent = 'Paused - take a breath, read ahead. Space to carry on.'; }
+    if (!running) { banner.className = 'pr-banner pr-banner--pause'; banner.textContent = 'Paused - take a breath, read ahead. Press Continue to carry on.'; }
   }
   /** Hold the notes while you are still talking; again to let them run on. */
   function catchUp() {
     if (!started || !running) return;
     holding = !holding;
     banner.hidden = !holding;
-    if (holding) { banner.className = 'pr-banner pr-banner--catch'; banner.textContent = 'Catching up - the notes wait for you. Press C (or Caught up) when you are there.'; }
+    if (holding) { banner.className = 'pr-banner pr-banner--catch'; banner.textContent = 'Catching up - the notes wait for you. Press Caught up when you are there.'; }
     last = now(); tick();
   }
   /** Throw the take away and go back to the top: the notes on screen, nothing moving, the cut points cleared. */
