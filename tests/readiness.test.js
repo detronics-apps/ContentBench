@@ -67,7 +67,7 @@ test('the edit step asks for the recording, then the finished video; the prompt 
     captures: [{ id: 'k1', n: 1, kind: 'main', what: 'Voice', status: 'needed' }] });
   w = createRecord(c.ws, 'outputs', { contentId: c.record.id, platformId: 'p_tt', formatId: 'f1' }).ws;
   const { gaps } = readiness(w, c.record);
-  assert.match(gaps.edit[0], /recording in its folder/);
+  assert.match(gaps.edit[0], /export the recording into it/);
   assert.match(gaps.edit[1], /prompt for Claude/);
   const p = editPrompt(w, c.record);
   assert.match(p, /faceless-video skill to edit "Intro"/);

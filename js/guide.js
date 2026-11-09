@@ -40,7 +40,7 @@ export const HOWTOS = [
     '1 Idea: the title, category, who it is for, what they get, the central idea and why it is made this way. Link what it is built from.',
     '2 Card: pick a structure; its blocks are the script - talking points, what is on screen and why each block is there. Hook ideas, research and the look sit below.',
     '3 Record: open the teleprompter and record; save the take. (For an e-book or poster this step is Make: a brief for Claude makes it.)',
-    '4 Edit: save the recording in the folder it shows, copy the prompt for Claude into a new Claude Code session - it cuts the retakes, renders the video and puts it back here. Watch it, then Mark ready to release.',
+    '4 Edit: press Make the folder, export the recording from Audacity into it, then copy the prompt for Claude into a new Claude Code session - it cuts the retakes, renders the video and puts it back here. Watch it, then Mark ready to release.',
     '5 Publish: every platform version on one page - title, caption, hashtags and release date - then the exports.',
     '6 Results: how it did, feedback, notes. The step bar always shows what is still missing; press "Next to do" to jump straight there.'] },
   { id: 'beyond-video', category: 'Content', title: 'Track courses, e-books, posters and social posts', steps: [

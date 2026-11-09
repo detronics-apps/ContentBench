@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.3
+
+- **Edit** step, in the order you do it: 1 **Make the folder** (right there, first), 2 export the recording from Audacity into it -
+  **Check it is there** confirms the file arrived - 3 copy the prompt for Claude, 4 watch the finished video.
+
 ## 0.9.2
 
 - Teleprompter: **✎ beside every line** rewords it on the spot. The take pauses, you type how you actually want to say

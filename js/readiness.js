@@ -52,7 +52,7 @@ export function readiness(ws, c) {
       !['Review', 'Ready', 'Published'].includes(c.status) && !c.finalVideo && 'Make it: download the brief for Claude',
     ],
     edit: rec ? [
-      (c.captures || []).some((x) => x.kind === 'main' && x.status === 'needed') && 'Put the recording in its folder (Files for the edit, number 1)',
+      (c.captures || []).some((x) => x.kind === 'main' && x.status === 'needed') && 'Make the folder and export the recording into it (Edit with Claude, steps 1-2)',
       !c.finalVideo && 'Edit it: copy the prompt for Claude - then the finished video goes here',
       c.finalVideo && !['Ready', 'Published'].includes(c.status) && 'Watch it, then mark it ready to release',
     ] : [

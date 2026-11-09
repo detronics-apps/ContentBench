@@ -373,13 +373,26 @@ function makeCard(c, ws) {
 function editCard(c, ws) {
   const where = `${sync.name || 'your private folder'}/${recordingFolder(ws, c)}`;
   const prompt = editPrompt(ws, c);
+  const live = folderReady();
+  const tree = K.folderTree(capKinds(ws), c);
+  const main = (c.captures || []).find((x) => x.kind === 'main');
   return card('Edit with Claude', [
-    el('p', { class: 'small', text: '1. Export your recording from Audacity as a WAV and save it in this folder:' }),
+    el('p', { class: 'small', text: '1. Make the folder for this video:' }),
     el('div', { class: 'row' }, [el('code', { class: 'path-box', text: where }), button('Copy folder', () => copyText(where, 'Folder copied'), 'small', { 'data-field': 'edit.folder' })]),
-    el('p', { class: 'small', text: '2. Start a new session in Claude Code and paste this - put the file name where it says [file name]:' }),
+    el('div', { class: 'row' }, live
+      ? [button('Make the folder', async () => { await makeFolders(tree); toast(`Folder ready: ${where}`); }, 'primary', { 'data-field': 'edit.mkdirs' }),
+        el('span', { class: 'small muted', text: 'Safe to press again - nothing in it is touched.' })]
+      : [folderSupported()
+        ? el('span', { class: 'small muted' }, ['Create it in your Drive by hand, or connect your folder (', el('a', { href: '#/settings', text: 'Settings' }), ' → Your private folder) and the app makes it for you.'])
+        : button('Download the folder tree (.zip)', () => downloadTree(K.contentFolder(c).split('/').pop(), tree), '', { 'data-field': 'edit.zip' })]),
+    el('p', { class: 'small', text: '2. Export your recording from Audacity as a WAV (File → Export Audio) into that folder.' }),
+    live && main ? el('div', { class: 'row' }, [
+      button('Check it is there', () => checkFolder(c, ws).catch((e) => toast(`Could not read the folder: ${e.message}`)), '', { 'data-field': 'edit.check' }),
+      main.status === 'saved' ? el('span', { class: 'small text-ok', text: `Found: ${main.file}` }) : null]) : null,
+    el('p', { class: 'small', text: '3. Start a new session in Claude Code and paste this - put the file name where it says [file name]:' }),
     el('pre', { class: 'prompt-box', text: prompt }),
     button('Copy the prompt for Claude', () => copyText(prompt, 'Prompt copied - paste it into a new Claude Code session'), 'primary', { 'data-field': 'edit.prompt' }),
-    el('p', { class: 'small muted', text: '3. Claude shows you the cut list, renders the video and puts its path below as the finished video. Watch it - then Mark ready to release.' }),
+    el('p', { class: 'small muted', text: '4. Claude shows you the cut list, renders the video and puts its path below as the finished video. Watch it - then Mark ready to release.' }),
   ]);
 }
 
