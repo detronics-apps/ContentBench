@@ -240,6 +240,39 @@ export function partsOf(ws, c) {
 export const madeFrom = (ws, c) => liveContent(ws).filter((x) => (x.sourceIds || []).includes(c.id))
   .sort((a, b) => (Number(a.part) || 0) - (Number(b.part) || 0));
 
+/**
+ * A video's family: the full video and the shorts cut from it (they name it under Built from), or the parts of one
+ * split topic. { full, parts } - full is null when there is no full video; parts is [] when it stands alone.
+ */
+export function familyOf(ws, c) {
+  const masters = (c.sourceIds || []).map((id) => getRecord(ws, 'content', id)).filter((m) => m && !m.archived);
+  const full = madeFrom(ws, c).length ? c : masters.find((m) => madeFrom(ws, m).some((x) => x.id === c.id)) || null;
+  const parts = full ? madeFrom(ws, full) : partsOf(ws, c).length > 1 ? partsOf(ws, c) : [];
+  return { full, parts };
+}
+
+/** What a new version redoes, and the status the work goes back to. */
+export const REDO = {
+  all: { name: 'The whole recording', status: 'Capturing', step: 'record' },
+  section: { name: 'One section (an opening, an ending...)', status: 'Capturing', step: 'record' },
+  edit: { name: 'Just the edit (same recording)', status: 'Editing', step: 'edit' },
+};
+
+/**
+ * Starts a new version of a finished or published video: the current finished file goes into `versions` (nothing
+ * is lost, and what was published stays on record), then only what is being redone is cleared.
+ * A new recording clears the saved take; an edit-only redo keeps it.
+ */
+export function newVersion(ws, id, what = 'all', note = '', now = nowIso()) {
+  const c = getRecord(ws, 'content', id);
+  if (!c || !REDO[what]) return ws;
+  const versions = [...(c.versions || [])];
+  if (c.finalVideo) versions.push({ n: versions.length + 1, file: c.finalVideo, status: c.status || '', ended: now.slice(0, 10), redo: what, note: String(note).trim() });
+  const notes = what === 'edit' ? c.recordingNotes
+    : String(c.recordingNotes || '').split('\n\n').filter((x) => x.trim() && !x.startsWith('Teleprompter take')).join('\n\n');
+  return updateRecord(ws, 'content', id, { versions, finalVideo: '', recordingNotes: notes, status: REDO[what].status }, now);
+}
+
 /** "Grind my Gears #5 · Part 2 of 3", or '' for a standalone video. */
 export function seriesLabel(ws, c) {
   const parts = partsOf(ws, c);

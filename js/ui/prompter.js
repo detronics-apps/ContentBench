@@ -37,7 +37,7 @@ export function openPrompter(type, record) {
   const clock = el('span', { class: 'pr-clock' });
   const recClock = el('span', { class: 'pr-clock pr-clock--rec', title: 'Time since the hook started, pauses included - the length of your recording' });
   const restartBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'data-field': 'pr.restart', title: 'Start the whole take again from the top (keyboard: R)', on: { click: () => restart() } }, ['Restart']);
-  const playBtn = el('button', { class: 'btn primary', type: 'button', 'data-field': 'pr.play', on: { click: () => toggle() } });
+  const playBtn = el('button', { class: 'btn btn-primary', type: 'button', 'data-field': 'pr.play', on: { click: () => toggle() } });
   const autoBtn = el('button', { class: 'btn', type: 'button', 'aria-pressed': String(auto), 'data-field': 'pr.auto',
     title: 'On: moves to the next block when its time is up. Off: waits at the end of the block until you press Block ▶.', on: { click: () => { auto = !auto; saveAuto(auto); autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, [auto ? 'Auto-advance: on' : 'Auto-advance: off']);
   const btn = (text, fn, attrs = {}) => el('button', { class: 'btn', type: 'button', on: { click: fn }, ...attrs }, [text]);
@@ -193,7 +193,7 @@ export function openPrompter(type, record) {
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); showBlock(bi); tick(); }
     });
     row.replaceChildren(box, el('div', { class: 'row' }, [
-      btn('Save line', save, { class: 'btn primary', 'data-field': 'pr.saveLine' }),
+      btn('Save line', save, { class: 'btn btn-primary', 'data-field': 'pr.saveLine' }),
       btn('Cancel', () => { showBlock(bi); tick(); }),
       el('span', { class: 'small muted', text: 'Saved to the card, so the next take reads it this way.' })]));
     box.focus(); box.select();
@@ -233,7 +233,7 @@ export function openPrompter(type, record) {
       commitWs((w) => { const r = M.getRecord(w, noteType, noteId); return M.updateRecord(w, noteType, noteId, { recordingNotes: withLatestTake(r.recordingNotes, text) }); }, { render: false });
       saveBtn.disabled = true; saveBtn.textContent = 'Saved ✓';
       status.textContent = 'Saved on this video (Record step → "Recording notes and cut points"). It replaces any earlier take - this one is used for the edit. Safe to close.';
-    }, { class: 'btn primary', 'data-field': 'pr.save' });
+    }, { class: 'btn btn-primary', 'data-field': 'pr.save' });
     const copyBtn = btn('Copy', () => navigator.clipboard?.writeText(text).then(
       () => { copyBtn.textContent = 'Copied ✓'; status.textContent = 'Copied - paste it wherever you like.'; },
       () => { status.textContent = 'Could not copy here - select the text above and press Ctrl+C.'; status.classList.add('pr-status--warn'); }));

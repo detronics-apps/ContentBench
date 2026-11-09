@@ -150,6 +150,9 @@ export const MENTAL_MODEL = [
 export const FEATURES = [
   ['Six steps per video', 'Any video or product', 'Idea → Card → Record → Edit → Publish → Results along the top, each with a tick or what is still to do, and a button to the next gap.'],
   ['Edit with Claude', 'A video → 4 Edit', 'The folder your recording goes in and a ready-made prompt to paste into Claude Code; the finished video comes back here.'],
+  ['Review the finished video', 'A video → 4 Edit → Review the finished video', 'Watch it scene by scene: reword the text on a card, untick what you do not want (a pointing arrow, a sound), comment on any moment. One prompt hands it all back to Claude - the timing stays its job.'],
+  ['Make a new version', 'A video → 4 Edit or 6 Results', 'Redo a finished or published video - the whole recording, one section, or just the edit. The old file stays in the versions list.'],
+  ['Full video and its parts', 'The strip under the title', 'Working on:  Full video · Part 1 · Part 2 ... - one tap to switch, on the same step. A short joins the strip when it names the full video under Built from.'],
   ['Every platform on one page', 'A video → 5 Publish', 'Title, caption, hashtags, date and status for TikTok, YouTube, Instagram and the rest, side by side.'],
   ['Beyond video', 'Content → Beyond video', 'Courses, e-books and PDFs, posters, LinkedIn and Instagram posts per category - with a + to start one and free / paid counted.'],
   ['Teleprompter', 'A video → 3 Record', 'Full screen: your notes, the line you should be on, what comes next and what is on screen. Pause any time; it keeps your cut points.'],

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0
+
+- **Review the finished video** (Edit step): open the video and its review file (both in 08_Export) and watch it scene by
+  scene. Reword the text on a card, untick what you don't want - a pointing arrow, a sound effect, an optional line - and
+  comment on any moment (Visual, Words on screen, Sound, Voice, Other). **Copy the prompt for Claude** hands it all back
+  in one go: the exact changes are applied as they are, the comments are worked through, and the timing stays Claude's
+  job. Your review is kept on this device while you work. Nothing is uploaded.
+- **Make a new version** (Edit and Results steps): redo a finished or published video - the whole recording, one section
+  (an opening, an ending), or just the edit. The old finished file goes into the versions list; only what you redo is
+  cleared.
+- **Working on: Full video · Part 1 · Part 2 ...** - a strip under the title of every video in a family, one tap to
+  switch, staying on the same step.
+- Teleprompter: Start, Save and Save line show as the main button again.
+
 ## 0.9.3
 
 - **Edit** step, in the order you do it: 1 **Make the folder** (right there, first), 2 export the recording from Audacity into it -

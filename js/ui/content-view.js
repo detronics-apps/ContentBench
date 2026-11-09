@@ -8,7 +8,8 @@ import { EXTRA_TYPES } from '../extras.js';
 import { zip } from '../zip.js';
 import * as W from '../workflow.js';
 import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule,
-  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom } from '../content.js';
+  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom, familyOf, newVersion, REDO } from '../content.js';
+import { openReview } from './review.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
 import { store, ws as currentWs, commitWs } from './store.js';
@@ -250,6 +251,32 @@ function readyCard(c, ws) {
   ]);
 }
 
+/** Redo a finished (or published) video without losing it: the old file goes into the versions list. */
+function versionCard(c) {
+  const versions = c.versions || [];
+  if (!c.finalVideo && !versions.length) return null;
+  const what = el('select', { class: 'input input--inline', 'data-field': 'ver.what', 'aria-label': 'What you are redoing' },
+    Object.entries(REDO).map(([k, r]) => el('option', { value: k, text: r.name })));
+  const note = el('input', { class: 'input', placeholder: 'Why? e.g. a new opening that meets the viewer where they are', 'data-field': 'ver.note' });
+  const start = () => {
+    const r = REDO[what.value];
+    commitWs((w) => newVersion(w, c.id, what.value, note.value), { render: false });
+    toast(c.finalVideo ? `Version ${versions.length + 1} kept. ${r.name}: start in the ${r.step === 'edit' ? 'Edit' : 'Record'} step.` : `${r.name}: start in the ${r.step === 'edit' ? 'Edit' : 'Record'} step.`);
+    go(`#/content/${c.id}/${r.step}`);
+  };
+  return card('Make a new version', [
+    el('p', { class: 'small muted', text: 'Found something to improve - before or after release? Start a new version. The current finished file is kept in the list below (and what was published stays on record); only what you redo is cleared.' }),
+    el('div', { class: 'row' }, [el('label', { class: 'small' }, ['Redo ', what])]),
+    note,
+    el('div', { class: 'row' }, [button('Start a new version', start, '', { 'data-field': 'ver.start' }),
+      el('span', { class: 'small muted', text: 'A section redo: record just that section; Claude stitches it in.' })]),
+    versions.length ? el('h3', { class: 'small', text: 'Earlier versions' }) : null,
+    versions.length ? el('ol', { class: 'plain stack stack--tight' }, versions.map((v) => el('li', { class: 'small' }, [
+      el('strong', { text: `v${v.n}` }), ` · ${v.status || '-'} until ${v.ended} · redo: ${REDO[v.redo]?.name.toLowerCase() || v.redo}${v.note ? ` - ${v.note}` : ''}`,
+      el('div', {}, [el('code', { class: 'small', text: v.file })])]))) : null,
+  ]);
+}
+
 /* ------------------------------------------------------- outputs section */
 
 function outputsSection(c, ws) {
@@ -392,7 +419,9 @@ function editCard(c, ws) {
     el('p', { class: 'small', text: '3. Start a new session in Claude Code and paste this - put the file name where it says [file name]:' }),
     el('pre', { class: 'prompt-box', text: prompt }),
     button('Copy the prompt for Claude', () => copyText(prompt, 'Prompt copied - paste it into a new Claude Code session'), 'primary', { 'data-field': 'edit.prompt' }),
-    el('p', { class: 'small muted', text: '4. Claude shows you the cut list, renders the video and puts its path below as the finished video. Watch it - then Mark ready to release.' }),
+    el('p', { class: 'small muted', text: '4. Claude shows you the cut list, renders the video and puts its path below as the finished video.' }),
+    el('p', { class: 'small', text: '5. Watch it in Review: reword text on the cards, switch off what you don\'t want (a stray arrow, a sound), comment on any moment - then copy one prompt back to Claude. Happy with it? Mark ready to release.' }),
+    button('Review the finished video', () => openReview(c), c.finalVideo ? 'primary' : '', { 'data-field': 'edit.review' }),
   ]);
 }
 
@@ -440,15 +469,16 @@ export function contentEditor(id, section = 'idea') {
     record: () => (rec
       ? [prompterCard(c), card('', [form()]), workflowPanel('content', c, ws), assets()]
       : [makeCard(c, ws), card('', [form()]), workflowPanel('content', c, ws), assets()]),
-    edit: () => (rec ? [editCard(c, ws), filesForEdit(c, ws), card('', [form()]), readyCard(c, ws)] : [card('', [form()]), readyCard(c, ws)]),
+    edit: () => (rec ? [editCard(c, ws), filesForEdit(c, ws), card('', [form()]), readyCard(c, ws), versionCard(c)] : [card('', [form()]), readyCard(c, ws), versionCard(c)]),
     publish: () => [publishOutputs(c, ws), exportCard(c, ws), more('Log what was published', [publishingSection(c, ws)])],
-    results: () => [performanceSection(c, ws), card('', [form()]), historySection(c), backlinks('content', id, ws), card('', [recordActions('content', c, '#/library')])],
+    results: () => [performanceSection(c, ws), card('', [form()]), versionCard(c), historySection(c), backlinks('content', id, ws), card('', [recordActions('content', c, '#/library')])],
   }[step];
 
   const here = gaps[step];
   const look = lookFor(ws, c.audience);
   return el('div', { class: `detail${look ? ' detail--look' : ''}`, style: look ? { '--look-main': look.main, '--look-accent': look.accent } : null }, [
     detailHeader('content', c, [el('a', { href: '#/plan', text: 'Content plan' }), el('a', { href: '#/production', text: 'Production' })]),
+    familyNav(c, ws, step),
     el('nav', { class: 'steps-nav', 'aria-label': 'Steps' }, STEPS.map((st, i) => {
       const left = gaps[st[0]].length, now = state[st[0]];
       const sub = now === 'todo' ? `${left} to do` : now === 'booked' ? 'set - not out yet' : now === 'later' ? 'after release' : null;
@@ -472,6 +502,19 @@ export function contentEditor(id, section = 'idea') {
       ]),
     ]),
     ...body().filter(Boolean),
+  ]);
+}
+
+/** One tap between the full video and its parts, staying on the same step. */
+function familyNav(c, ws, step) {
+  const { full, parts } = familyOf(ws, c);
+  if (!parts.length) return null;
+  const item = (x, text) => el('a', { class: `family__item${x.id === c.id ? ' is-here' : ''}`, href: `#/content/${x.id}/${step}`,
+    'aria-current': x.id === c.id ? 'page' : null, title: x.workingTitle, 'data-field': `family.${x.id}` }, [text]);
+  return el('nav', { class: 'family', 'aria-label': 'The full video and its parts' }, [
+    el('span', { class: 'small muted family__label', text: 'Working on:' }),
+    full ? item(full, 'Full video') : null,
+    ...parts.map((x, i) => item(x, `Part ${x.part || i + 1}`)),
   ]);
 }
 
