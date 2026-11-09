@@ -261,14 +261,15 @@ export const REDO = {
 /**
  * Starts a new version of a finished or published video: the current finished file goes into `versions` (nothing
  * is lost, and what was published stays on record), then only what is being redone is cleared.
- * A new recording clears the saved take; an edit-only redo keeps it.
+ * A whole new recording clears the saved take; a section or edit-only redo keeps it (the rest still comes from it).
  */
 export function newVersion(ws, id, what = 'all', note = '', now = nowIso()) {
   const c = getRecord(ws, 'content', id);
   if (!c || !REDO[what]) return ws;
   const versions = [...(c.versions || [])];
   if (c.finalVideo) versions.push({ n: versions.length + 1, file: c.finalVideo, status: c.status || '', ended: now.slice(0, 10), redo: what, note: String(note).trim() });
-  const notes = what === 'edit' ? c.recordingNotes
+  // only a whole new recording retires the saved take; a section or an edit still cuts from it
+  const notes = what !== 'all' ? c.recordingNotes
     : String(c.recordingNotes || '').split('\n\n').filter((x) => x.trim() && !x.startsWith('Teleprompter take')).join('\n\n');
   return updateRecord(ws, 'content', id, { versions, finalVideo: '', recordingNotes: notes, status: REDO[what].status }, now);
 }

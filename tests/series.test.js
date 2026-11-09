@@ -24,6 +24,7 @@ test('a new version keeps the old file and clears only what is redone', () => {
   assert.equal(edit.finalVideo, '');
   assert.match(edit.recordingNotes, /Teleprompter take/);
   assert.deepEqual(edit.versions, [{ n: 1, file: 'G:/x/v1.mp4', status: 'Published', ended: '2026-11-10', redo: 'edit', note: 'louder music' }]);
+  assert.match(getRecord(newVersion(w, id, 'section'), 'content', id).recordingNotes, /Teleprompter take/, 'a section redo still cuts from the old take');
   const all = getRecord(newVersion(w, id, 'all'), 'content', id);
   assert.equal(all.status, 'Capturing');
   assert.equal(all.recordingNotes, 'mic far');

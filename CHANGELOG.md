@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.1
+
+- **Make a new version → one section** keeps the saved take: the parts you keep are still cut from it. Only a whole new
+  recording retires the old take.
+
 ## 0.11.0
 
 - **Videos** replaces Content plan and Production: every video in one list, in the order the work runs - **Next to
