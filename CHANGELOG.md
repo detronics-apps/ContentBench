@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.3
+
+- A **full new take** is no longer treated as a delta: its prompt runs every machine step again on the new voice (no
+  tokens, nothing drifts out of sync) and reuses only the scene design, redoing the scenes whose words changed and
+  checking every scene against stills. Section redos and edit-only redos still fix just the delta.
+
 ## 0.11.2
 
 - **New versions fix the delta only.** While a new version is in progress, the Edit step's prompt asks Claude for version

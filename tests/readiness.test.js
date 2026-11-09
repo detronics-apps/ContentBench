@@ -80,6 +80,10 @@ test('the edit step asks for the recording, then the finished video; the prompt 
   assert.match(d, /Version 1 is G:\/x\/v1\.mp4 - keep it/);
   assert.match(d, /What changed: new ending/);
   assert.match(d, /rewrite only that section's scenes/);
-  assert.match(editPrompt(w, { ...v2, versions: [{ ...v2.versions[0], redo: 'all' }] }), /keep the scenes of every section whose words are unchanged/);
+  const full = editPrompt(w, { ...v2, versions: [{ ...v2.versions[0], redo: 'all' }] });
+  assert.match(full, /a full new take, reusing what still fits/);
+  assert.match(full, /Run every step again on the new voice/, 'a new voice reruns the machine steps in full');
+  assert.match(full, /Reuse v1's scene design/);
+  assert.doesNotMatch(full, /fix the delta only/);
   assert.match(editPrompt(w, { ...v2, finalVideo: 'G:/x/v2.mp4' }), /to edit "Intro"/, 'once the new version is done, the prompt is the plain one again');
 });

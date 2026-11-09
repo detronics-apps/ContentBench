@@ -98,10 +98,14 @@ export function editPrompt(ws, c) {
     const what = {
       section: `New recording of just the changed section: my private folder under ${recordingFolder(ws, c)}/ - [file name]. Cut it from its take, splice it into the cleaned voice of v${v.n} at a natural pause with a short crossfade, re-run words and mouth on the joined file, and rewrite only that section's scenes. Every other scene, the cut, the look, the sounds and the music stay as they are.`,
       edit: 'Same recording as before. Change only what is described above; keep the cut, the voice and every other scene.',
-      all: `A new full take: my private folder under ${recordingFolder(ws, c)}/ - [file name]. Work in the existing edit folder: clean the new take, then keep the scenes of every section whose words are unchanged (they re-anchor to the new words) and redo only the scenes of the sections that changed. Keep the look, the sound kit and the music.`,
+      // a new voice changes every word time and mouth shape: the machine steps run again in full (they cost no tokens);
+      // what is reused is the scene design, which is anchored to words and so follows the new pacing by itself
+      all: `A new full take: my private folder under ${recordingFolder(ws, c)}/ - [file name]. Run every step again on the new voice - cut list, clean-up, words and mouth, render - so nothing drifts out of sync. Reuse v${v.n}'s scene design as the starting point: its scenes are anchored to words, so they follow the new pacing; redo the scenes the build reports as broken (an anchor word I no longer say) and those of the sections that changed, and check every scene against stills before rendering - a word said earlier or more often can pin a scene to the wrong moment without an error. Keep the look, the sound kit and the music.`,
     }[v.redo] || '';
     return [
-      `Use the faceless-video skill to make version ${v.n + 1} of "${c.workingTitle}" from ContentBench - fix the delta only, don't redo the video.`,
+      v.redo === 'all'
+        ? `Use the faceless-video skill to make version ${v.n + 1} of "${c.workingTitle}" from ContentBench - a full new take, reusing what still fits.`
+        : `Use the faceless-video skill to make version ${v.n + 1} of "${c.workingTitle}" from ContentBench - fix the delta only, don't redo the video.`,
       `Version ${v.n} is ${v.file} - keep it; render the new one beside it, never overwrite.`,
       `What changed: ${(v.note || '[say what changed]').replace(/([^.!?])$/, '$1.')}`,
       what,
@@ -111,7 +115,7 @@ export function editPrompt(ws, c) {
         if (v.redo === 'section') return takes.length ? [`Recording notes: the first take (${name(takes[0])}) still cuts the parts that stay${takes.length > 1 ? `; the latest (${name(takes.at(-1))}) is the new section` : ''}.`] : [];
         return [];
       })(),
-      `The card in ContentBench is the script to follow. Show me the changed part of the cut list before rendering, then render the ${shape} version and export its review file.`,
+      `The card in ContentBench is the script to follow. Show me ${v.redo === 'all' ? 'the cut list and which scenes you redid' : 'the changed part of the cut list'} before rendering, then render the ${shape} version and export its review file.`,
       'When it is done, put the new path in the Edit step (Finished video) and set the status to Review.',
     ].filter(Boolean).join(' ');
   }
