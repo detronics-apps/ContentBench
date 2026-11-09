@@ -74,4 +74,12 @@ test('the edit step asks for the recording, then the finished video; the prompt 
   assert.match(p, /latest teleprompter take.*3:55:40 AM/);
   assert.match(p, /vertical \(9:16\)/);
   assert.match(p, /02_Footage\/Main/);
+  const v2 = { ...c.record, versions: [{ n: 1, file: 'G:/x/v1.mp4', redo: 'section', note: 'new ending' }], finalVideo: '' };
+  const d = editPrompt(w, v2);
+  assert.match(d, /version 2 of "Intro".*fix the delta only/);
+  assert.match(d, /Version 1 is G:\/x\/v1\.mp4 - keep it/);
+  assert.match(d, /What changed: new ending/);
+  assert.match(d, /rewrite only that section's scenes/);
+  assert.match(editPrompt(w, { ...v2, versions: [{ ...v2.versions[0], redo: 'all' }] }), /keep the scenes of every section whose words are unchanged/);
+  assert.match(editPrompt(w, { ...v2, finalVideo: 'G:/x/v2.mp4' }), /to edit "Intro"/, 'once the new version is done, the prompt is the plain one again');
 });

@@ -51,4 +51,7 @@ test('a saved take replaces earlier takes and keeps other notes', async () => {
   const notes = 'Mic close.\n\nTeleprompter take - X (1)\n0:00  A\n\nTeleprompter take - X (2)\n0:00  A';
   assert.equal(withLatestTake(notes, 'Teleprompter take - X (3)\n0:00  A'), 'Mic close.\n\nTeleprompter take - X (3)\n0:00  A');
   assert.equal(withLatestTake('', 'Teleprompter take - Y'), 'Teleprompter take - Y');
+  // redoing one section: the first take stays (the kept parts are cut from it), later retakes are replaced
+  assert.equal(withLatestTake(notes, 'Teleprompter take - X (3)\n0:00  A', { keepFirst: true }),
+    'Mic close.\n\nTeleprompter take - X (1)\n0:00  A\n\nTeleprompter take - X (3)\n0:00  A');
 });

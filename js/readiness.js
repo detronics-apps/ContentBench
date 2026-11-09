@@ -91,12 +91,36 @@ export function editPrompt(ws, c) {
   const ratio = (o) => ws.platforms.find((p) => p.id === o.platformId)?.formats.find((f) => f.id === o.formatId)?.aspectRatio || '';
   const shapes = [outs.some((o) => /9:16/.test(ratio(o))) && 'vertical (9:16)', outs.some((o) => /16:9/.test(ratio(o))) && 'landscape (16:9)'].filter(Boolean);
   const takes = (c.recordingNotes || '').match(/^Teleprompter take[^\n]*/gm) || [];
+  const shape = (shapes.length ? shapes : ['vertical (9:16)']).join(' and the ');
+  const v = (c.versions || []).at(-1);
+  if (v && !c.finalVideo) {
+    // a new version: fix the delta only, ideally in the chat that made the last one
+    const what = {
+      section: `New recording of just the changed section: my private folder under ${recordingFolder(ws, c)}/ - [file name]. Cut it from its take, splice it into the cleaned voice of v${v.n} at a natural pause with a short crossfade, re-run words and mouth on the joined file, and rewrite only that section's scenes. Every other scene, the cut, the look, the sounds and the music stay as they are.`,
+      edit: 'Same recording as before. Change only what is described above; keep the cut, the voice and every other scene.',
+      all: `A new full take: my private folder under ${recordingFolder(ws, c)}/ - [file name]. Work in the existing edit folder: clean the new take, then keep the scenes of every section whose words are unchanged (they re-anchor to the new words) and redo only the scenes of the sections that changed. Keep the look, the sound kit and the music.`,
+    }[v.redo] || '';
+    return [
+      `Use the faceless-video skill to make version ${v.n + 1} of "${c.workingTitle}" from ContentBench - fix the delta only, don't redo the video.`,
+      `Version ${v.n} is ${v.file} - keep it; render the new one beside it, never overwrite.`,
+      `What changed: ${(v.note || '[say what changed]').replace(/([^.!?])$/, '$1.')}`,
+      what,
+      ...(() => {
+        const name = (t) => t.replace(/^Teleprompter take - /, '');
+        if (v.redo === 'all') return takes.length ? [`The new take's cut points are in its recording notes (${name(takes.at(-1))}).`] : [];
+        if (v.redo === 'section') return takes.length ? [`Recording notes: the first take (${name(takes[0])}) still cuts the parts that stay${takes.length > 1 ? `; the latest (${name(takes.at(-1))}) is the new section` : ''}.`] : [];
+        return [];
+      })(),
+      `The card in ContentBench is the script to follow. Show me the changed part of the cut list before rendering, then render the ${shape} version and export its review file.`,
+      'When it is done, put the new path in the Edit step (Finished video) and set the status to Review.',
+    ].filter(Boolean).join(' ');
+  }
   return [
     `Use the faceless-video skill to edit "${c.workingTitle}" from ContentBench.`,
     `The recording is in my private folder under ${recordingFolder(ws, c)}/ - [file name].`,
     takes.length ? `Use the latest teleprompter take in its recording notes (${takes.at(-1).replace(/^Teleprompter take - /, '')}).` : 'There are no saved cut points; work from the transcript.',
     'Clean up the retakes and pauses and show me the cut list before rendering.',
-    `Then render the ${(shapes.length ? shapes : ['vertical (9:16)']).join(' and the ')} version.`,
+    `Then render the ${shape} version.`,
     'When it is done, put the finished video\'s path in its Edit step (Finished video) and set the status to Review.',
   ].join(' ');
 }

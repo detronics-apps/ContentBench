@@ -419,7 +419,9 @@ function editCard(c, ws) {
     live && main ? el('div', { class: 'row' }, [
       button('Check it is there', () => checkFolder(c, ws).catch((e) => toast(`Could not read the folder: ${e.message}`)), '', { 'data-field': 'edit.check' }),
       main.status === 'saved' ? el('span', { class: 'small text-ok', text: `Found: ${main.file}` }) : null]) : null,
-    el('p', { class: 'small', text: '3. Start a new session in Claude Code and paste this - put the file name where it says [file name]:' }),
+    el('p', { class: 'small', text: (c.versions || []).length && !c.finalVideo
+      ? `3. This is version ${(c.versions.at(-1).n || 0) + 1}: paste this into the Claude Code chat that made version ${c.versions.at(-1).n} (or a new one) - it fixes only what changed. Put the file name where it says [file name]:`
+      : '3. Start a new session in Claude Code and paste this - put the file name where it says [file name]:' }),
     el('pre', { class: 'prompt-box', text: prompt }),
     button('Copy the prompt for Claude', () => copyText(prompt, 'Prompt copied - paste it into a new Claude Code session'), 'primary', { 'data-field': 'edit.prompt' }),
     el('p', { class: 'small muted', text: '4. Claude shows you the cut list, renders the video and puts its path below as the finished video.' }),

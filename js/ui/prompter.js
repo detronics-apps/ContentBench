@@ -230,9 +230,16 @@ export function openPrompter(type, record) {
     const status = el('p', { class: 'small pr-status', role: 'status' });
     const saveBtn = btn('Save to recording notes', () => {
       if (saveBtn.disabled) return;
-      commitWs((w) => { const r = M.getRecord(w, noteType, noteId); return M.updateRecord(w, noteType, noteId, { recordingNotes: withLatestTake(r.recordingNotes, text) }); }, { render: false });
+      let section = false;
+      commitWs((w) => {
+        const r = M.getRecord(w, noteType, noteId);
+        section = r.versions?.at(-1)?.redo === 'section' && !r.finalVideo;   // redoing one section: the first take still cuts the rest
+        return M.updateRecord(w, noteType, noteId, { recordingNotes: withLatestTake(r.recordingNotes, text, { keepFirst: section }) });
+      }, { render: false });
       saveBtn.disabled = true; saveBtn.textContent = 'Saved ✓';
-      status.textContent = 'Saved on this video (Record step → "Recording notes and cut points"). It replaces any earlier take - this one is used for the edit. Safe to close.';
+      status.textContent = section
+        ? 'Saved on this video, after the first take - the parts you keep are still cut from that one, this take is the new section. Safe to close.'
+        : 'Saved on this video (Record step → "Recording notes and cut points"). It replaces any earlier take - this one is used for the edit. Safe to close.';
     }, { class: 'btn btn-primary', 'data-field': 'pr.save' });
     const copyBtn = btn('Copy', () => navigator.clipboard?.writeText(text).then(
       () => { copyBtn.textContent = 'Copied ✓'; status.textContent = 'Copied - paste it wherever you like.'; },

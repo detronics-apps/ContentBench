@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.2
+
+- **New versions fix the delta only.** While a new version is in progress, the Edit step's prompt asks Claude for version
+  N+1: keep version N, change only what you said changed (a new section is spliced in, the other scenes stay; a full
+  retake keeps the scenes of every unchanged section) and render beside the old file. Paste it into the chat that made
+  the last version.
+- Teleprompter: while one section is being redone, Save keeps the first take (the kept parts are cut from it) and adds
+  the new one after it.
+
 ## 0.11.1
 
 - **Make a new version → one section** keeps the saved take: the parts you keep are still cut from it. Only a whole new

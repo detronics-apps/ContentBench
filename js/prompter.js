@@ -90,8 +90,13 @@ export function takeText(marks, { title = '', at = '' } = {}) {
   return [head, ...rows].join('\n');
 }
 
-/** Recording notes with this take as the only take: earlier takes go, anything else written there stays. */
-export function withLatestTake(notes, take) {
-  const kept = String(notes || '').split('\n\n').filter((x) => x.trim() && !x.startsWith('Teleprompter take'));
-  return [...kept, take].join('\n\n');
+/**
+ * Recording notes with this take as the latest take: earlier takes go, anything else written there stays.
+ * keepFirst (a section being redone): the first take stays too - the parts that are kept are still cut from it.
+ */
+export function withLatestTake(notes, take, { keepFirst = false } = {}) {
+  const parts = String(notes || '').split('\n\n').filter((x) => x.trim());
+  const isTake = (x) => x.startsWith('Teleprompter take');
+  const first = keepFirst ? parts.filter(isTake).slice(0, 1) : [];
+  return [...parts.filter((x) => !isTake(x)), ...first, take].join('\n\n');
 }
