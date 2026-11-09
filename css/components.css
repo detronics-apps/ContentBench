@@ -502,3 +502,9 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .family__label { margin-right: var(--space-1); }
 .family__item { padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; text-decoration: none; color: var(--text); background: var(--panel); font-size: .9rem; }
 .family__item.is-here { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--accent-ink); font-weight: 700; }
+
+/* ---- Videos: the release line */
+.release-row { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); }
+.release-row__day { font-family: var(--font-mono); font-size: .85rem; color: var(--text-dim); }
+.release-row__day.is-now { color: var(--accent-strong); font-weight: 700; }
+@media (max-width: 640px) { .release-row { grid-template-columns: 1fr; gap: var(--space-1); } }

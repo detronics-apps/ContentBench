@@ -62,6 +62,51 @@ export function fillSlots(ws, platformId, today, span = 28, now = nowIso()) {
   return out;
 }
 
+/* ------------------------------------------------------- the rolling queue */
+
+const daysBetween = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+
+/**
+ * Plans move on; nothing is ever late. Per platform: when the next release's date has passed without it going out,
+ * that platform's whole queue moves on by the same number of days - the missed one lands today, everything after
+ * keeps its spacing. Returns the same workspace when nothing had to move.
+ */
+export function rollForward(ws, today = todayIso(), now = nowIso()) {
+  let out = ws;
+  const waiting = ws.records.outputs.filter((o) => !o.archived && o.scheduledDate && !released(o));
+  for (const pid of new Set(waiting.map((o) => o.platformId))) {
+    const queue = waiting.filter((o) => o.platformId === pid).sort((a, b) => (a.scheduledDate < b.scheduledDate ? -1 : 1));
+    const d = daysBetween(queue[0].scheduledDate, today);
+    if (d <= 0) continue;
+    for (const o of queue) out = updateRecord(out, 'outputs', o.id, { scheduledDate: addDays(o.scheduledDate, d) }, now);
+  }
+  return out;
+}
+
+/**
+ * It went out: the release is recorded on the day it actually happened. When every platform version of the video is
+ * out, the video itself is Published.
+ */
+export function markReleased(ws, outputId, date = todayIso(), now = nowIso()) {
+  const o = getRecord(ws, 'outputs', outputId);
+  if (!o || released(o)) return ws;
+  const status = ws.config.statuses.outputs.includes('Published') ? 'Published' : o.status;
+  let out = updateRecord(ws, 'outputs', outputId, { publishedDate: date, scheduledDate: date, status }, now);
+  const siblings = out.records.outputs.filter((x) => x.contentId === o.contentId && !x.archived);
+  if (siblings.every(released) && ws.config.statuses.content.includes('Published')) out = updateRecord(out, 'content', o.contentId, { status: 'Published' }, now);
+  return out;
+}
+
+/** What goes out next, in date order: every platform version with a date that is not out yet. */
+export function releaseQueue(ws) {
+  return ws.records.outputs.filter((o) => !o.archived && o.scheduledDate && !released(o))
+    .map((o) => ({ output: o, content: getRecord(ws, 'content', o.contentId), platform: ws.platforms.find((p) => p.id === o.platformId) || null }))
+    .filter((x) => x.content && !x.content.archived)
+    .sort((a, b) => (a.output.scheduledDate < b.output.scheduledDate ? -1 : a.output.scheduledDate > b.output.scheduledDate ? 1 : 0));
+}
+
+export const isReleased = released;
+
 /* ---------------------------------------------------------------- calendar */
 
 /** Release chips: one per platform output, coloured by its content's category. */

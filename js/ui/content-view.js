@@ -10,6 +10,7 @@ import * as W from '../workflow.js';
 import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule,
   setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom, familyOf, newVersion, REDO } from '../content.js';
 import { openReview } from './review.js';
+import { markReleased } from '../releases.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
 import { store, ws as currentWs, commitWs } from './store.js';
@@ -357,6 +358,8 @@ function publishOutputs(c, ws) {
     ...outs.map((o) => el('div', { class: 'block publish-out' }, [
       el('div', { class: 'row' }, [el('strong', { text: outputLabel(ws, o) }), badge(o.status || 'no status', 'status'),
         masterDrift(o, c).length ? badge('master changed', 'warn') : null, el('span', { class: 'row__push' }),
+        o.publishedDate ? el('span', { class: 'small text-ok', text: `Out ${o.publishedDate}` })
+          : button('Released ✓', () => commitWs((w) => markReleased(w, o.id, M.todayIso())), 'small', { 'data-field': `pub.${o.id}.released`, title: 'It went out today - record it on this date' }),
         el('a', { class: 'small', href: href('outputs', o.id), text: 'Open the full version page' })]),
       el('div', { class: 'two' }, [
         field('Title', el('input', { class: 'input', value: o.title || '', 'data-field': `pub.${o.id}.title`, on: { change: set(o, 'title') } })),
@@ -477,7 +480,7 @@ export function contentEditor(id, section = 'idea') {
   const here = gaps[step];
   const look = lookFor(ws, c.audience);
   return el('div', { class: `detail${look ? ' detail--look' : ''}`, style: look ? { '--look-main': look.main, '--look-accent': look.accent } : null }, [
-    detailHeader('content', c, [el('a', { href: '#/plan', text: 'Content plan' }), el('a', { href: '#/production', text: 'Production' })]),
+    detailHeader('content', c, [el('a', { href: '#/plan', text: 'Videos' })]),
     familyNav(c, ws, step),
     el('nav', { class: 'steps-nav', 'aria-label': 'Steps' }, STEPS.map((st, i) => {
       const left = gaps[st[0]].length, now = state[st[0]];

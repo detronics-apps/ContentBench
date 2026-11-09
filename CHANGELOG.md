@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0
+
+- **Videos** replaces Content plan and Production: every video in one list, in the order the work runs - **Next to
+  release** (date, platform and what each still needs), **In the making**, **Being planned**, **Released** and
+  **Parked** - with a search box that finds any of them. A click opens the video at its next to-do.
+- **Plans move on, nothing is late:** when a release day passes without it going out, that platform's whole line moves
+  on by the same number of days - the next one is today, everything after keeps its spacing.
+- **Released ✓** (Videos and each video's Publish step) records the release on the day it actually went out; when every
+  platform version is out, the video is Published.
+- "Carried over" is gone: anything due now just says **now**.
+
 ## 0.10.0
 
 - **Review the finished video** (Edit step): open the video and its review file (both in 08_Export) and watch it scene by

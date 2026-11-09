@@ -325,8 +325,8 @@ export function nextTaskCard(ws) {
   const n = a.next;
   return card('Your next task', [
     n ? el('div', { class: 'next' }, [
-      el('a', { class: 'next__title', href: n.kind === 'step' ? `#/content/${n.id}/production` : href(n.type, n.id), text: n.title }),
-      el('span', { class: 'small muted', text: `${PLAN_KINDS[n.kind]} · ${n.carried ? 'carried over - just carry on' : n.date === today() ? 'today' : longDate(n.date)}` }),
+      el('a', { class: 'next__title', href: n.kind === 'step' ? `#/content/${n.id}` : href(n.type, n.id), text: n.title }),
+      el('span', { class: 'small muted', text: `${PLAN_KINDS[n.kind]} · ${n.carried ? 'now' : n.date === today() ? 'today' : longDate(n.date)}` }),
     ]) : el('p', { class: 'muted', text: 'Nothing lined up. Pick a video or a project and its next step shows here.' }),
     el('p', { class: 'small muted', text: 'Only this one. Anything not finished simply moves out - the dates are counted from today, every day.' }),
   ]);
@@ -342,8 +342,8 @@ export const SECTIONS = [
     tabs: [['dashboard', 'Dashboard']], owns: ['dashboard'] },
   { id: 'planning', name: 'Planning', purpose: 'The inputs: thoughts (seconds), ideas (an hour), projects (days).',
     tabs: [['thoughts', 'Thoughts'], ['ideas', 'Ideas'], ['projects', 'Projects']], owns: ['thoughts', 'ideas', 'projects'] },
-  { id: 'content', name: 'Content', purpose: 'Plan each video, go and make it, release it on a rhythm.',
-    tabs: [['plan', 'Content plan'], ['production', 'Production'], ['releases', 'Releases'], ['performance', 'Performance'], ['extras', 'Beyond video']],
+  { id: 'content', name: 'Content', purpose: 'Every video in one list - what goes out next, what is being made, planned and out - and releasing on a rhythm.',
+    tabs: [['plan', 'Videos'], ['releases', 'Releases'], ['performance', 'Performance'], ['extras', 'Beyond video']],
     owns: ['extras', 'plan', 'create', 'content', 'production', 'tasks', 'releases', 'planner', 'outputs', 'performance', 'feedback', 'publications'] },
   { id: 'library', name: 'Library', purpose: 'Every video, references and assets, templates and platforms.',
     tabs: [['library', 'All videos'], ['assets', 'References & assets'], ['templates', 'Templates'], ['platforms', 'Platforms']],
@@ -357,7 +357,7 @@ export const SECTIONS = [
 export const sectionOf = (mod) => SECTIONS.find((s) => s.owns.includes(mod)) || null;
 
 /** Which tab lights up for a page that is not a tab itself (a video, an output, a task). */
-const TAB_FOR = { content: 'plan', create: 'plan', tasks: 'production', outputs: 'releases', planner: 'releases', publications: 'releases', feedback: 'performance', references: 'assets' };
+const TAB_FOR = { content: 'plan', create: 'plan', tasks: 'plan', production: 'plan', outputs: 'releases', planner: 'releases', publications: 'releases', feedback: 'performance', references: 'assets' };
 export const tabFor = (mod) => TAB_FOR[mod] || mod;
 
 const tabLabel = (id) => SECTIONS.flatMap((s) => s.tabs).find(([t]) => t === id)?.[1] || null;
@@ -374,7 +374,7 @@ export function backFor(route) {
     }
     if (route.mod === 'content') {
       const c = ws.records.content.find((x) => x.id === route.a);
-      const tab = c && MAKING.includes(c.status) ? 'production' : c?.status === 'Ready' ? 'releases' : 'plan';
+      const tab = 'plan';
       return { href: `#/${tab}`, label: tabLabel(tab) };
     }
     const tab = tabFor(route.mod);
@@ -432,7 +432,7 @@ export function sectionPage(id) {
     thoughts: ['Seconds each, no limit.', `${live('thoughts').filter((t) => !t.decision).length} not looked at yet`],
     ideas: ['About an hour each: is there something behind it?', plural(live('ideas').length, 'idea')],
     projects: ['Days each: stages, a forecast, a folder that fills up.', plural(live('projects').length, 'project')],
-    plan: ['Story and timeline, script, shots and sound, platforms.', `${live('content').filter((c) => ['Concept', 'Planning', 'Scripting', ''].includes(c.status || '')).length} being planned`],
+    plan: ['Every video in one list: next to release, in the making, planned, out. Find any of them.', plural(live('content').length, 'video')],
     production: ['Capture each file into its folder, work the steps, mark it ready.', `${live('content').reduce((n, c) => n + captureProgress(c.captures).needed, 0)} captures still needed`],
     releases: ['A rhythm per platform; ready videos fill the open slots.', backlogHealth(ws, today()).map((h) => `${h.platform.name}: ${h.ready} ready`).join(' · ') || 'No rhythm set yet'],
     performance: ['What happened after publishing, and what you learned.', plural(live('feedback').length, 'feedback record')],

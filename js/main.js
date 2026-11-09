@@ -3,7 +3,8 @@
 
 import { el, toast, download } from './ui/dom.js';
 import { captureFocus, restoreFocus, renderNotices } from './ui/patterns.js';
-import { store, ws as currentWs, onChange, saveUi, commitApp, refresh } from './ui/store.js';
+import { store, ws as currentWs, onChange, saveUi, commitApp, commitWs, refresh } from './ui/store.js';
+import { rollForward } from './releases.js';
 import * as M from './model.js';
 import { EXPLAIN, ONBOARDING } from './guide.js';
 import { LEGAL, CHANGES } from './legal.js';
@@ -19,7 +20,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.10.0';
+export const APP_VERSION = '0.11.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - the essentials of each record. Nothing hidden is cleared.',
@@ -47,8 +48,7 @@ function page(route) {
     case 'ideas': return a ? Pl.ideaDetail(a) : R.recordList('ideas', { title: 'Ideas', newFields: { title: 'New idea' },
       intro: 'About an hour each: is there something behind it? Develop a thought into one, or start one directly. An idea can become a project, a video, or be parked.' });
     case 'projects': return a ? Pl.projectDetail(a) : Pl.projectsModule();
-    case 'plan': case 'create': return R.contentPlan();
-    case 'production': return R.production();
+    case 'plan': case 'create': case 'production': return R.videos();
     case 'extras': return extrasModule();
     case 'releases': case 'planner': return R.releases();
     case 'library': return R.library();
@@ -256,6 +256,8 @@ function notices() {
 
 let lastPath = '';
 export function render() {
+  // plans move on: a release day that passed moves its platform's whole line on (releases.js rollForward)
+  if (rollForward(currentWs()) !== currentWs()) { commitWs((w) => rollForward(w), { render: false }); }
   const route = parseRoute();
   const path = `${route.mod}/${route.a}/${route.b}`;
   const moved = path !== lastPath;

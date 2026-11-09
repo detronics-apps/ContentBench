@@ -6,7 +6,8 @@ import * as M from '../model.js';
 import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule, seriesLabel } from '../content.js';
 import { progress, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
 import { projectForecast } from '../process.js';
-import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS } from '../releases.js';
+import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS, releaseQueue, markReleased } from '../releases.js';
+import { readiness } from '../readiness.js';
 import { captureProgress } from '../capture.js';
 import { thoughtCapture, nextTaskCard } from './planning.js';
 import { store, ws as currentWs, commitWs, saveUi, refresh } from './store.js';
@@ -179,8 +180,8 @@ export function dashboard() {
   const today = M.todayIso();
   const a = agenda(plannerEntries(ws, today), today);
   const list = (items, empty) => (items.length ? el('ul', { class: 'plain' }, items) : el('p', { class: 'muted small', text: empty }));
-  const entry = (e) => el('li', {}, [el('span', { class: 'small muted', text: `${e.carried ? 'carried over' : e.date.slice(5)} ` }),
-    el('a', { href: e.kind === 'step' ? `#/content/${e.id}/production` : href(e.type, e.id), text: e.title }),
+  const entry = (e) => el('li', {}, [el('span', { class: 'small muted', text: `${e.carried ? 'now' : e.date.slice(5)} ` }),
+    el('a', { href: e.kind === 'step' ? `#/content/${e.id}` : href(e.type, e.id), text: e.title }),
     el('span', { class: 'small muted', text: ` · ${PLAN_KINDS[e.kind]}` })]);
   const health = backlogHealth(ws, today);
   const fresh = live('thoughts').filter((t) => !t.decision);
@@ -234,58 +235,98 @@ export const assetsModule = () => el('div', { class: 'stack' }, [
   recordList('assets', { title: 'Assets', intro: 'Images, diagrams, footage, audio and other files - by location or URL. Files themselves stay where they are.', newFields: { name: 'New asset' } }),
 ]);
 
-/* ------------------------------------------------------- content plan */
+/* ---------------------------------------------------------------- videos */
 
 const PLAN_STATUSES = ['Concept', 'Planning', 'Scripting'];
+const OUT_STATUSES = ['Published'];
+const SHELF_STATUSES = ['Parked'];
 
-export function contentPlan() {
+/** Where a video's work is: its next to-do step (or the first step), so a click lands on the work. */
+const workHref = (ws, c) => `#/content/${c.id}/${readiness(ws, c).next?.step || 'idea'}`;
+
+function videoRow(ws, c, extra = []) {
+  const next = readiness(ws, c).next;
+  return el('a', { class: 'rowcard', href: workHref(ws, c), 'data-search': `${c.workingTitle} ${c.series || ''}`.toLowerCase() }, [
+    el('span', { class: 'rowcard__title', text: c.workingTitle }),
+    el('span', { class: 'rowcard__meta' }, [
+      c.status ? badge(c.status, 'status') : null,
+      catDot(ws, c.categoryId),
+      seriesLabel(ws, c) ? el('span', { class: 'small series-tag', text: seriesLabel(ws, c) }) : null,
+      ...extra,
+      next ? el('span', { class: 'small muted', text: `next: ${next.text}` }) : null,
+    ]),
+  ]);
+}
+
+const dayLabel = (iso, today) => (iso === today ? 'today' : iso === addDays(today, 1) ? 'tomorrow' : longDate(iso));
+
+/** Every video in one place, in the order the work runs: what goes out next, what is being made, planned, out. */
+export function videos() {
   const ws = currentWs();
-  const live = ws.records.content.filter((c) => !c.archived && (PLAN_STATUSES.includes(c.status) || !c.status));
+  const today = M.todayIso();
+  const all = ws.records.content.filter((c) => !c.archived);
+  const queue = releaseQueue(ws);
+  const queued = new Set(queue.map((x) => x.content.id));
+  const outIds = new Set(all.filter((c) => OUT_STATUSES.includes(c.status)).map((c) => c.id));
+  const making = all.filter((c) => !queued.has(c.id) && !outIds.has(c.id) && !SHELF_STATUSES.includes(c.status) && !PLAN_STATUSES.includes(c.status) && c.status);
+  const planned = all.filter((c) => !queued.has(c.id) && (PLAN_STATUSES.includes(c.status) || !c.status));
+  const lastOut = (c) => ws.records.outputs.filter((o) => o.contentId === c.id && o.publishedDate).map((o) => o.publishedDate).sort().at(-1) || '';
+  const out = all.filter((c) => outIds.has(c.id) && !queued.has(c.id)).sort((a, b) => (lastOut(a) < lastOut(b) ? 1 : -1));
+  const shelf = all.filter((c) => SHELF_STATUSES.includes(c.status) && !queued.has(c.id));
   const quick = ws.workflows.find((w) => /quick/i.test(w.name));
-  return el('div', { class: 'stack' }, [
-    card('Content plan', [
-      el('p', { class: 'muted small', text: 'The inputs for each video: story and timeline, script, shots and sound, platforms. When it is planned, move it to Capturing and it shows under Production.' }),
+
+  const releaseRow = ({ output: o, content: c, platform: p }) => {
+    const next = readiness(ws, c).next;
+    const ready = !next || ['publish', 'results'].includes(next.step);
+    return el('div', { class: 'rowcard release-row', 'data-search': `${c.workingTitle} ${o.title || ''} ${c.series || ''}`.toLowerCase() }, [
+      el('span', { class: `release-row__day${o.scheduledDate <= today ? ' is-now' : ''}`, text: dayLabel(o.scheduledDate, today) }),
+      el('a', { class: 'rowcard__title', href: workHref(ws, c), text: o.title || c.workingTitle }),
+      el('span', { class: 'rowcard__meta' }, [
+        p ? el('strong', { class: 'small', text: p.name }) : null,
+        catDot(ws, c.categoryId),
+        ready ? badge('ready to go out', 'ok') : el('span', { class: 'small', text: `to do: ${next.text}` }),
+        o.scheduledDate <= today ? button('Released ✓', () => commitWs((w) => markReleased(w, o.id, today)), 'small', { 'data-field': `rel.done.${o.id}`, title: 'It went out today - record it on today\'s date' }) : null,
+      ]),
+    ]);
+  };
+  const soon = queue.slice(0, 8), later = queue.slice(8);
+  const lists = el('div', { class: 'stack' }, [
+    card(`Next to release (${queue.length})`, [
+      el('p', { class: 'small muted', text: 'In the order they go out. Missed a day? The whole line moves on by itself - the next one is simply today, and everything after keeps its spacing. Press Released ✓ when it is out.' }),
+      queue.length ? el('div', { class: 'rows' }, soon.map(releaseRow)) : emptyState('Nothing booked', 'Give a finished video a release date in its Publish step, or book the ready ones under Releases.'),
+      later.length ? el('details', { class: 'more' }, [el('summary', { text: `${later.length} more after that` }), el('div', { class: 'rows' }, later.map(releaseRow))]) : null,
+    ]),
+    card(`In the making (${making.length})`, [making.length ? el('div', { class: 'rows' }, making.map((c) => videoRow(ws, c)))
+      : el('p', { class: 'muted small', text: 'Nothing being recorded or edited right now.' })]),
+    card(`Being planned (${planned.length})`, [
       el('div', { class: 'row' }, [
         button('New video', () => createAndOpenContent({ workingTitle: 'Untitled video' }), 'primary', { 'data-field': 'plan.new' }),
         button('New quick video (1-2 days)', () => createAndOpenContent({ workingTitle: 'Quick video', contentType: 'Quick video', ...(quick ? { workflow: instantiateWorkflow(quick) } : {}) }), '', { 'data-field': 'plan.quick' }),
       ]),
+      planned.length ? el('div', { class: 'rows' }, planned.map((c) => videoRow(ws, c))) : el('p', { class: 'muted small', text: 'Start a video here, or from any thought, idea or project.' }),
     ]),
-    card(`Being planned (${live.length})`, [live.length ? el('div', { class: 'rows' }, live.map((c) => rowFor('content', c, ws)))
-      : emptyState('Nothing being planned', 'Start a video here, or from any thought, idea or project.')]),
-    el('p', { class: 'small muted' }, ['Every video, whatever its status: ', el('a', { href: '#/library', text: 'Library' }), '.']),
+    el('details', { class: 'more more--card' }, [el('summary', { text: `Released (${out.length})` }),
+      out.length ? el('div', { class: 'rows' }, out.map((c) => videoRow(ws, c, [lastOut(c) ? el('span', { class: 'small muted', text: `out ${longDate(lastOut(c))}` }) : null]))) : el('p', { class: 'muted small', text: 'Nothing out yet.' })]),
+    shelf.length ? el('details', { class: 'more more--card' }, [el('summary', { text: `Parked (${shelf.length})` }), el('div', { class: 'rows' }, shelf.map((c) => videoRow(ws, c)))]) : null,
+    tasksCard(ws, today),
   ]);
+  const search = el('input', { class: 'input', type: 'search', placeholder: 'Find any video - planned, in the making or already out', 'aria-label': 'Find a video', 'data-field': 'videos.search',
+    on: { input: (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      lists.querySelectorAll('[data-search]').forEach((r) => { r.hidden = !!q && !r.dataset.search.includes(q); });
+      lists.querySelectorAll('details').forEach((d) => { if (q) d.open = true; });
+    } } });
+  return el('div', { class: 'stack' }, [card('', [search]), lists]);
 }
 
-/* ------------------------------------------------------------ production */
-
-const MAKE_STATUSES = ['Capturing', 'Editing', 'Review', 'In Production'];
-
-export function production() {
-  const ws = currentWs();
-  const today = M.todayIso();
-  const live = ws.records.content.filter((c) => !c.archived && MAKE_STATUSES.includes(c.status));
-  const sched = contentSchedule(ws, today);
+function tasksCard(ws, today) {
   const tasks = ws.records.tasks.filter((t) => !t.archived && t.status !== 'Done');
   const doneStatus = ws.config.statuses.tasks.at(-1);
   return el('div', { class: 'stack' }, [
-    card('Production', [
-      el('p', { class: 'muted small', text: 'Go out and make it. Each video shows what is still needed, where every file goes, and when it can be ready if you keep going.' }),
-      live.length ? el('div', { class: 'rows' }, live.map((c) => {
-        const p = progress(c.workflow);
-        const cp = captureProgress(c.captures);
-        const f = sched.get(c.id) || null;
-        return el('a', { class: 'rowcard', href: `#/content/${c.id}/production` }, [
-          el('span', { class: 'rowcard__title', text: c.workingTitle }),
-          el('span', { class: 'rowcard__meta' }, [badge(c.status, 'status'),
-            cp.total ? badge(`${cp.saved}/${cp.total} captured`, cp.needed ? 'warn' : 'ok') : null,
-            el('span', { class: 'small muted', text: c.workflow ? `${p.next ? `next: ${p.next.name}` : 'all steps done'}${f ? ` · ready ~${f.ready.slice(5)}` : ''}` : 'no workflow' })]),
-        ]);
-      })) : emptyState('Nothing in production', 'Set a planned video\'s status to Capturing and it shows here.', [button('Content plan', () => go('#/plan'))]),
-    ]),
     card('Open tasks', [tasks.length ? el('div', { class: 'rows' }, tasks.map((t) => el('div', { class: 'rowcard' }, [
       el('label', { class: 'check' }, [el('input', { type: 'checkbox', 'data-field': `task.${t.id}.done`,
         on: { change: () => commitWs((w) => M.updateRecord(w, 'tasks', t.id, { status: doneStatus })) } }), recordLink('tasks', t)]),
-      el('span', { class: 'rowcard__meta' }, [t.due ? el('span', { class: 'small muted', text: t.due < today ? 'carried over' : `for ${t.due}` }) : null,
+      el('span', { class: 'rowcard__meta' }, [t.due ? el('span', { class: 'small muted', text: t.due <= today ? 'now' : `for ${t.due}` }) : null,
         t.contentId && M.getRecord(ws, 'content', t.contentId) ? recordLink('content', M.getRecord(ws, 'content', t.contentId)) : null]),
     ]))) : el('p', { class: 'muted', text: 'No open tasks. Make one from any workflow step, or add one here.' }),
     button('New task', () => createAndOpen('tasks', { title: 'New task' }))]),
@@ -428,9 +469,9 @@ function rhythmView(ws, today) {
 
 const planRow = (e, withDate = true) => el('div', { class: `plan plan--${e.kind} ${e.done ? 'plan--done' : ''}` }, [
   withDate ? el('span', { class: 'plan__date', text: e.date.slice(5) }) : null,
-  el('a', { href: e.kind === 'step' ? `#/content/${e.id}/production` : href(e.type, e.id), text: e.title }),
+  el('a', { href: e.kind === 'step' ? `#/content/${e.id}` : href(e.type, e.id), text: e.title }),
   el('span', { class: 'small muted', text: PLAN_KINDS[e.kind] }),
-  e.carried ? badge('carried over') : null, e.done ? badge('Done', 'ok') : null,
+  e.carried ? badge('now') : null, e.done ? badge('Done', 'ok') : null,
 ]);
 
 function agendaView(ws, today) {
