@@ -508,3 +508,52 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .release-row__day { font-family: var(--font-mono); font-size: .85rem; color: var(--text-dim); }
 .release-row__day.is-now { color: var(--accent-strong); font-weight: 700; }
 @media (max-width: 640px) { .release-row { grid-template-columns: 1fr; gap: var(--space-1); } }
+
+/* ---- review screen, storyboard mode: the shot's still and its row of the board */
+.rv-still { width: auto; max-width: 100%; max-height: calc(100vh - 230px); align-self: center; border-radius: var(--radius-sm); background: #000; object-fit: contain; }
+.rv-still[hidden] { display: none; }
+.rv-board { display: grid; grid-template-columns: max-content 1fr; gap: 4px var(--space-3); margin: var(--space-2) 0; font-size: .9rem; }
+.rv-board dt { color: var(--text-dim); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; padding-top: 2px; }
+.rv-board dd { margin: 0; }
+.rv-go { margin: var(--space-2) 0; font-weight: 600; }
+.rv-notes { white-space: pre-wrap; max-height: 40vh; overflow: auto; }
+.rv-video[hidden] { display: none; }
+
+/* ---- How to use: the whole process as blocks and arrows */
+.flow { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: 0; max-width: 640px; }
+.flow__node { display: grid; justify-items: center; }
+.flow__box { width: 100%; display: grid; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); position: relative; }
+.flow__node--choice .flow__box { border: 2px solid var(--accent-strong); background: var(--accent-soft); border-radius: 18px; }
+.flow__n { font: 700 .75rem var(--font-mono); color: var(--accent-strong); }
+.flow__title { font-size: 1rem; }
+.flow__text { font-size: .9rem; }
+.flow__exits { list-style: none; margin: 0; padding: var(--space-1) 0 var(--space-2); width: 100%; display: grid; gap: 2px; font-size: .85rem; }
+.flow__exit { display: flex; gap: 6px; align-items: baseline; padding-left: var(--space-3); }
+.flow__exit--next:only-child { justify-content: center; padding-left: 0; }
+.flow__arrow { font-weight: 700; color: var(--accent-strong); min-width: 1em; text-align: center; }
+.flow__exit--next .flow__arrow { font-size: 1.2rem; line-height: 1; }
+.flow__exit--back .flow__arrow { color: var(--warn); }
+.flow__to { font-weight: 600; }
+
+/* ---- lessons: the checks on each step, and the lessons page */
+.check-list { display: grid; gap: var(--space-2); margin: var(--space-2) 0; }
+.check-why { margin: 2px 0 0 1.9em; }
+.check-why p { margin: 2px 0; }
+.lesson__check { flex: 1 1 320px; font-weight: 600; }
+
+/* ---- teleprompter: tools on each line, add a line, a drop target */
+.pr-tools { float: right; display: inline-flex; gap: 2px; margin-left: var(--space-2); }
+.pr-tools .pr-edit { float: none; margin-left: 0; }
+.pr-line.is-drop { outline: 2px dashed var(--accent-strong); outline-offset: 2px; }
+.pr-line[draggable="true"] { cursor: grab; }
+.pr-add { margin-top: var(--space-2); font-size: .8rem; opacity: .7; }
+.pr-add:hover, .pr-add:focus-visible { opacity: 1; }
+
+/* ---- this week and achievements */
+.weekbar { display: flex; height: 12px; border-radius: 6px; background: var(--panel-2); overflow: hidden; margin: var(--space-2) 0; }
+.weekbar__done { background: var(--accent-strong); }
+.weekbar__booked { background: var(--accent-soft); }
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2); }
+.badge-card { display: grid; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); opacity: .75; }
+.badge-card.is-earned { opacity: 1; border-color: var(--accent-strong); background: var(--accent-soft); }
+.badge-card__icon { font-size: 1.3rem; color: var(--accent-strong); }

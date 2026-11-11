@@ -60,8 +60,15 @@ export function describeChange(data, c) {
   return `${where}: ${textName(c.path)} "${c.from}" -> "${c.to}"`;
 }
 
-/** The prompt that starts a Claude Code session to apply the review. */
-export function reviewPrompt({ title = '', data, changes = [], comments = [] }) {
+/** A storyboard review comes before the render: no video, one still per shot, and the go-ahead to render. */
+export const isStoryboard = (data) => data?.stage === 'storyboard';
+
+/**
+ * The prompt that starts (or continues) a Claude Code session to apply the review.
+ * render: on a storyboard, the creator's go-ahead - render after the changes instead of stopping again.
+ */
+export function reviewPrompt({ title = '', data, changes = [], comments = [], render = false }) {
+  const board = isStoryboard(data);
   const sorted = [...comments].sort((a, b) => a.t - b.t);
   const notes = {
     changes,
@@ -71,7 +78,9 @@ export function reviewPrompt({ title = '', data, changes = [], comments = [] }) 
     }),
   };
   const lines = [
-    `Use the faceless-video skill to apply my review of "${title || data.video}" (${data.video}). Edit folder: ${data.editDir}`,
+    board
+      ? `Use the faceless-video skill to apply my review of the storyboard for "${title || data.video}" - before rendering. Edit folder: ${data.editDir}`
+      : `Use the faceless-video skill to apply my review of "${title || data.video}" (${data.video}). Edit folder: ${data.editDir}`,
     '',
     changes.length
       ? `1. Exact changes (${changes.length}) - apply them as they are: save the JSON below as review-notes.json in the edit folder and run \`node review.mjs apply "${data.editDir}" review-notes.json\`.`
@@ -81,7 +90,9 @@ export function reviewPrompt({ title = '', data, changes = [], comments = [] }) 
     sorted.length ? `2. My comments (${sorted.length}) - work through each one. Timing stays yours: place anything you change on the words, with purpose.` : '2. No comments this time.',
     ...notes.comments.map((c) => `   - ${c.time} · ${c.scene || `scene ${c.sid}`} · ${c.kind}: ${c.text}`),
     '',
-    '3. Rebuild, render as a new file next to the old one (never overwrite), export its review file, and put the new path in the Edit step as the finished video.',
+    !board ? '3. Rebuild, render as a new file next to the old one (never overwrite), export its review file, and put the new path in the Edit step as the finished video.'
+      : render ? `3. Then rebuild, re-make only the changed stills, and render - this is my go-ahead${changes.length || sorted.length ? ' once the changes are in' : ': the storyboard is approved'}. Export the review file next to the video and put its path in the Edit step as the finished video.`
+        : '3. Then rebuild, re-make only the changed stills, update storyboard.md, export the storyboard again (`node review.mjs storyboard`) to the same place, and stop for my OK - don\'t render yet.',
     '',
     '```json',
     JSON.stringify(notes, null, 1),

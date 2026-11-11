@@ -67,3 +67,15 @@ test('released on the day it went out; the video is Published when every version
   assert.equal(R.markReleased(ws, 'o1', '2026-11-20'), ws, 'already out: the date it went out stays');
   assert.equal(R.rollForward(ws, '2026-12-01'), ws, 'released ones never move');
 });
+
+test('dropping a release on a past day records it as released there - the line does not move', () => {
+  let ws = queueWs([{ d: '2026-11-10' }, { d: '2026-11-12' }, { d: '2026-11-14' }]);
+  ws = R.placeOnCalendar(ws, 'o0', '2026-11-09', T, '2026-11-10');
+  const o = ws.records.outputs[0];
+  assert.deepEqual([o.publishedDate, o.status], ['2026-11-09', 'Published']);
+  assert.equal(R.rollForward(ws, '2026-11-10'), ws, 'nothing is missed, so nothing moves');
+  assert.deepEqual(dates(ws).slice(1), ['2026-11-12', '2026-11-14']);
+  ws = R.placeOnCalendar(ws, 'o1', '2026-11-13', T, '2026-11-10');
+  assert.equal(ws.records.outputs[1].scheduledDate, '2026-11-13', 'today or later stays a plan');
+  assert.equal(ws.records.outputs[1].publishedDate, '');
+});

@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.14.0
+
+- **Teleprompter:** more words get more time - a planned duration is a floor, never a cap, so a line written out in
+  full gets the time it needs. Every line can be moved (▲ ▼ or drag it), reworded (✎), removed (✕), and **+ Add a line**
+  adds one; every change saves to the card and re-times it at once. It no longer finishes on its own: it holds at the end
+  of the last block until you press **Done ✓**.
+- **Calendar:** dropping a release on a day that has passed records it as released on that day - the rolling line stays
+  put. (Before, it looked missed and moved everything on a day each time.)
+- **This week** (Videos): aim for a number of videos a week - a goal, never a requirement - see what is out and booked,
+  and **Plan … at N a week** re-dates the line at that pace.
+- **Achievements:** first video out, a video a day (6 in a week), 10 in a week, 1,000 views, 1,000 followers, monetised.
+  **Channel stats** (Performance) is where the numbers are logged.
+- **A new colour comes next** (Card step): when the next video brings a colour family viewers haven't seen, one line to
+  say what it means, added before the recap with one tap.
+- How to use → The whole process: a **Read it through** step between Card and Record.
+
+## 0.13.0
+
+- **Lessons** (Content → Lessons): every issue is a learning opportunity. Write down what happened, how it was solved,
+  and the one question to ask at that step so it doesn't happen again.
+- **Check before you move on**: each step of a video shows its questions from the lessons, folded away, with optional
+  ticks saved on the video and a "why this check" that shows the issue and the fix. Nothing waits on them.
+
+## 0.12.0
+
+- **Review the storyboard** (Edit step 4): before anything renders, go through the storyboard shot by shot - each shot's
+  still and its row of the board (spoken line, on screen, motion, character, sound, why). Reword text, switch parts off,
+  comment per shot, and tick **render it** when it is right. One prompt back to Claude: without the tick it shows you
+  the storyboard again, with it Claude renders. The edit prompt now asks Claude to save the storyboard to 08_Export.
+- **How to use → The whole process:** the flowchart from a thought to a released video - every step, every decision and
+  where each choice goes - for both ways of working: automated (Claude connected) or manual (any editor).
+
 ## 0.11.3
 
 - A **full new take** is no longer treated as a delta: its prompt runs every machine step again on the new voice (no

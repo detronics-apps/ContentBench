@@ -107,6 +107,29 @@ export function releaseQueue(ws) {
 
 export const isReleased = released;
 
+/** How many releases fall on each of 7 days to make `perWeek` a week, spread as evenly as possible (10 -> 1,1,2,1,2,1,2). */
+export function dayQuota(perWeek) {
+  const base = Math.floor(perWeek / 7), extra = perWeek % 7;
+  return [...Array(7)].map((_, i) => base + Math.floor(((i + 1) * extra) / 7) - Math.floor((i * extra) / 7));
+}
+
+/**
+ * Re-dates a platform's line from `from` at `perWeek` releases a week, in the order it already has. Releases before
+ * `from` and released ones stay where they are. A plan, not a promise: the rolling line still moves on if a day passes.
+ */
+export function planAtPace(ws, platformId, from, perWeek, now = nowIso()) {
+  const n = Math.max(1, Math.round(Number(perWeek) || 0));
+  const queue = releaseQueue(ws).filter((x) => x.output.platformId === platformId && x.output.scheduledDate >= from);
+  const quota = dayQuota(n);
+  let out = ws, day = 0, used = 0;
+  for (const { output } of queue) {
+    while (used >= quota[day % 7]) { day++; used = 0; }
+    out = updateRecord(out, 'outputs', output.id, { scheduledDate: addDays(from, day) }, now);
+    used++;
+  }
+  return out;
+}
+
 /* ---------------------------------------------------------------- calendar */
 
 /** Release chips: one per platform output, coloured by its content's category. */
@@ -121,9 +144,14 @@ export function calendarItems(ws) {
   });
 }
 
-/** A drop on the calendar. A published output keeps its date. */
-export function placeOnCalendar(ws, id, date, now = nowIso()) {
+/**
+ * A drop on the calendar. A day that has passed means it went out that day: it is recorded as released there - so it
+ * never looks "missed" and the rolling line doesn't move everything on. Today or later is a plan. A published output
+ * keeps its date.
+ */
+export function placeOnCalendar(ws, id, date, now = nowIso(), today = todayIso()) {
   const o = getRecord(ws, 'outputs', id);
   if (!o || released(o)) return ws;
+  if (date && date < today) return markReleased(ws, id, date, now);
   return updateRecord(ws, 'outputs', id, { scheduledDate: date }, now);
 }

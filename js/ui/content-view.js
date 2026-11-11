@@ -10,6 +10,9 @@ import * as W from '../workflow.js';
 import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule,
   setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom, familyOf, newVersion, REDO } from '../content.js';
 import { openReview } from './review.js';
+import { lessonsFor, checksDone, tickCheck } from '../lessons.js';
+import { newColourNext, lineTarget } from '../colours.js';
+import { insertLine, parseLines } from '../prompter.js';
 import { markReleased } from '../releases.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
@@ -233,7 +236,7 @@ function prompterCard(c) {
   const blocks = c.story?.blocks || [];
   return card('Record', [
     el('p', { class: 'small muted', text: blocks.length
-      ? `The teleprompter runs your ${blocks.length} story blocks full screen: the notes, the line the pace says you should be on, what comes next and what is on screen. Pause any time; it saves where each block began, for the edit.`
+      ? `The teleprompter runs your ${blocks.length} story blocks full screen: the notes, the line the pace says you should be on, what comes next and what is on screen. Read it through in the preview first - reword, add, move or remove lines; the timing follows the words. Pause any time; press Done ✓ when you have finished. It saves where each block began, for the edit.`
       : 'Fill in the blocks on the Card step first - the teleprompter reads those.' }),
     blocks.length ? button('Open the teleprompter', () => openPrompter('content', M.getRecord(currentWs(), 'content', c.id)), 'primary', { 'data-field': 'prod.prompter' })
       : button('Go to the Card', () => go(`#/content/${c.id}/card`)),
@@ -424,7 +427,9 @@ function editCard(c, ws) {
       : '3. Start a new session in Claude Code and paste this - put the file name where it says [file name]:' }),
     el('pre', { class: 'prompt-box', text: prompt }),
     button('Copy the prompt for Claude', () => copyText(prompt, 'Prompt copied - paste it into a new Claude Code session'), 'primary', { 'data-field': 'edit.prompt' }),
-    el('p', { class: 'small muted', text: '4. Claude shows you the cut list, renders the video and puts its path below as the finished video.' }),
+    el('p', { class: 'small', text: '4. Before rendering, Claude stops at the storyboard and saves it to 08_Export. Go through it shot by shot here: comment, reword, switch off - or tick "render it". Copy the prompt back to Claude.' }),
+    button('Review the storyboard', () => openReview(c), c.finalVideo ? '' : 'primary', { 'data-field': 'edit.storyboard' }),
+    el('p', { class: 'small muted', text: 'Claude renders after your OK and puts the finished video\'s path below.' }),
     el('p', { class: 'small', text: '5. Watch it in Review: reword text on the cards, switch off what you don\'t want (a stray arrow, a sound), comment on any moment - then copy one prompt back to Claude. Happy with it? Mark ready to release.' }),
     button('Review the finished video', () => openReview(c), c.finalVideo ? 'primary' : '', { 'data-field': 'edit.review' }),
   ]);
@@ -465,7 +470,7 @@ export function contentEditor(id, section = 'idea') {
       card('Built from and links', [linkEditor('content', c, ws, link('content', id), { only: ['sourceIds', 'ideaIds', 'projectIds'] }),
         el('p', { class: 'small muted', text: 'Built from: the videos an e-book sums up, or the master a short comes from - their material goes into the briefs. No project linked means standalone, which is fine.' })]),
       assistantPanel('content', c, ws)],
-    card: () => [card('', [form()]), storyEditor('content', c, ws),
+    card: () => [card('', [form()]), newColourCard(c, ws), storyEditor('content', c, ws),
       more('Hook ideas, alternatives and the ending', [form('hooks')]),
       more('Research and claims to check', [form('research'), linkEditor('content', c, ws, link('content', id), { only: ['referenceIds'] }), button('New reference', addRef, 'small')], !!c.claimsToVerify),
       more('Overall look and visual notes', [form('look')]),
@@ -507,6 +512,44 @@ export function contentEditor(id, section = 'idea') {
       ]),
     ]),
     ...body().filter(Boolean),
+    checksCard(c, ws, step),
+  ]);
+}
+
+/** The next video brings a colour viewers haven't seen: one short line before the recap says what it means. */
+function newColourCard(c, ws) {
+  const hint = newColourNext(ws, c);
+  if (!hint) return null;
+  const blocks = c.story?.blocks || [];
+  const target = lineTarget(blocks);
+  const there = blocks.some((b) => /brings a new colour/i.test(b.script || ''));
+  const add = () => commitWs((w) => {
+    const r = M.getRecord(w, 'content', c.id);
+    const bl = (r.story?.blocks || []).map((b) => (b.id === target.id ? { ...b, script: insertLine(b.script || '', parseLines(b.script || '').length - 1, hint.line) } : b));
+    return M.updateRecord(w, 'content', c.id, { story: { ...r.story, blocks: bl } });
+  });
+  return card('A new colour comes next', [
+    el('p', { class: 'small', text: `The next video, "${hint.next.workingTitle}", is the first ${hint.family.colour} one (${hint.family.name}). Say so here, in a sentence:` }),
+    el('pre', { class: 'prompt-box', text: hint.line }),
+    there ? el('p', { class: 'small text-ok', text: 'It is on the card.' })
+      : target ? button(`Add it to "${target.name}"`, add, 'primary', { 'data-field': 'colour.add' }) : null,
+  ]);
+}
+
+/** This step's questions from earlier lessons. Ticks are notes to self; nothing waits on them. */
+function checksCard(c, ws, step) {
+  const list = lessonsFor(ws, step);
+  if (!list.length) return null;
+  const { ticked, total } = checksDone(ws, c, step);
+  return el('details', { class: 'more more--card checks' }, [
+    el('summary', { text: `Check before you move on: ${ticked} of ${total}` }),
+    el('p', { class: 'small muted', text: 'Questions learned from earlier issues. Tick what you have looked at - nothing waits on it.' }),
+    el('ul', { class: 'plain check-list' }, list.map((l) => el('li', { class: 'check-item' }, [
+      checkbox(l.check, !!c.checks?.[l.id], (on) => commitWs((w) => tickCheck(w, c.id, l.id, on)), `check.${l.id}`),
+      l.issue || l.fix ? el('details', { class: 'small muted check-why' }, [el('summary', { text: 'why this check' }),
+        l.issue ? el('p', { text: `What happened: ${l.issue}` }) : null, l.fix ? el('p', { text: `How we solved it: ${l.fix}` }) : null].filter(Boolean)) : null,
+    ]))),
+    el('a', { class: 'small', href: '#/lessons', text: 'Add or change lessons' }),
   ]);
 }
 

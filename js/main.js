@@ -20,7 +20,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.11.3';
+export const APP_VERSION = '0.14.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - the essentials of each record. Nothing hidden is cleared.',
@@ -56,6 +56,7 @@ function page(route) {
     case 'outputs': return outputEditor(a);
     case 'platforms': return a ? platformEditor(a) : platformsModule();
     case 'performance': return R.performance();
+    case 'lessons': return R.lessonsPage();
     case 'templates': return a === 'process' ? processEditor() : a ? templateEditor(a, b) : templatesModule();
     case 'settings': return settingsModule();
     case 'assets': return a ? R.recordDetail('assets', a) : R.assetsModule();

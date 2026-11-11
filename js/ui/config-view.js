@@ -9,6 +9,7 @@ import * as P from '../process.js';
 import { sync, folderSupported, connectFolder, reconnectFolder, disconnectFolder } from './folder.js';
 import { exampleWorkspace, exampleWorkflows, exampleStories, examplePlatforms } from '../seed.js';
 import { HOWTOS, FAQS, MENTAL_MODEL, FEATURES, guideMatches } from '../guide.js';
+import { TRACKS, flowFor } from '../flow.js';
 import { store, ws as currentWs, commitWs, commitApp } from './store.js';
 import { button, card, emptyState, confirmDialog, textField, linesField, checkbox, badge, recordLink, infoDialog, timelineBar } from './forms.js';
 import { go } from './records.js';
@@ -457,7 +458,39 @@ export function settingsModule() {
 
 /* ------------------------------------------------------------------ guide */
 
-const guideState = { q: '', howto: HOWTOS[0].id };
+const guideState = { q: '', howto: HOWTOS[0].id, track: 'auto' };
+
+/** The whole process as blocks and arrows: a step, a decision (◇) and where each way out goes; loops say ↺. */
+function flowchart() {
+  const box = el('div');
+  const draw = () => {
+    const nodes = flowFor(guideState.track);
+    box.replaceChildren(
+      el('div', { class: 'segmented', role: 'group', 'aria-label': 'How you make the videos' }, Object.entries(TRACKS).map(([k, label]) =>
+        el('button', { class: 'segmented__btn', type: 'button', 'aria-pressed': String(guideState.track === k), text: label, 'data-field': `flow.${k}`,
+          on: { click: () => { guideState.track = k; draw(); } } }))),
+      el('p', { class: 'small muted', text: guideState.track === 'auto'
+        ? 'Claude Code works in your private folder: it edits, renders and fills the results in for you.'
+        : 'You copy the prompts and briefs to any editor, AI or person, and fill the results in yourself.' }),
+      el('ol', { class: 'flow' }, nodes.map((n) => el('li', { class: `flow__node flow__node--${n.kind}`, id: `flow-${n.n}` }, [
+        el('div', { class: 'flow__box' }, [
+          el('span', { class: 'flow__n', text: n.kind === 'choice' ? `◇ ${n.n}` : String(n.n) }),
+          el('strong', { class: 'flow__title', text: n.title }),
+          n.text ? el('span', { class: 'flow__text', text: n.text }) : null,
+          el('span', { class: 'flow__where small muted', text: n.where }),
+        ]),
+        el('ul', { class: 'flow__exits' }, n.exits.map((e) => el('li', { class: `flow__exit${e.back ? ' flow__exit--back' : ''}${e.next ? ' flow__exit--next' : ''}` }, [
+          el('span', { class: 'flow__arrow', 'aria-hidden': 'true', text: e.back ? '↺' : e.next ? '↓' : '→' }),
+          e.label ? el('span', { text: `${e.label} ` }) : null,
+          !e.next || e.label ? el('a', { href: `#flow-${e.to}`, class: 'flow__to', text: `${e.back ? 'back to' : 'go to'} ${e.to} ${e.title}`,
+            on: { click: (ev) => { ev.preventDefault(); document.getElementById(`flow-${e.to}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } } }) : null,
+        ]))),
+      ]))),
+    );
+  };
+  draw();
+  return box;
+}
 
 export function guideModule(openOnboarding) {
   const results = el('div');
@@ -483,13 +516,12 @@ export function guideModule(openOnboarding) {
       el('div', { class: 'row' }, [button('Show me around again', openOnboarding)]),
     ]),
     results,
-    card('The process in words', [el('ol', { class: 'lanes' }, [
+    card('The whole process', [el('p', { class: 'small muted', text: 'Every step from a thought to a released video, and what to do at each decision. Pick how you make your videos.' }), flowchart()]),
+    card('Before a video: thoughts, ideas, projects', [el('ol', { class: 'lanes' }, [
       'Thought - seconds. Drop it in; weigh it up later with the Passport questions, if you like.',
       'Idea - about an hour. Who has the problem, what could solve it, what it could produce; score it if that helps.',
       'Project - days. Move through the stages, forwards or back; the done-by date is counted forwards from today.',
-      'Content plan - for any thought, idea or project, at any stage: story and timeline, script, what to capture, platforms.',
-      'Production - capture each file into its exact folder, work the steps, then mark it ready.',
-      'Release - ready videos wait in a backlog and fill each platform\'s release slots. Then feedback and lessons.',
+      'Any of them can become a video at any stage - from there it follows the process above.',
     ].map((t) => el('li', { text: t })))]),
     card('The ideas it is built on', [tiles(MENTAL_MODEL)]),
     card('Features worth knowing', [tiles(FEATURES)]),

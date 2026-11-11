@@ -6,8 +6,10 @@ import * as M from '../model.js';
 import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule, seriesLabel } from '../content.js';
 import { progress, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
 import { projectForecast } from '../process.js';
-import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS, releaseQueue, markReleased } from '../releases.js';
+import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS, releaseQueue, markReleased, planAtPace } from '../releases.js';
+import { weekProgress, achievements, logStats, setWeeklyTarget } from '../goals.js';
 import { readiness } from '../readiness.js';
+import { lessonsOf, addLesson, updateLesson, removeLesson, LESSON_STEPS } from '../lessons.js';
 import { captureProgress } from '../capture.js';
 import { thoughtCapture, nextTaskCard } from './planning.js';
 import { store, ws as currentWs, commitWs, saveUi, refresh } from './store.js';
@@ -316,7 +318,68 @@ export function videos() {
       lists.querySelectorAll('[data-search]').forEach((r) => { r.hidden = !!q && !r.dataset.search.includes(q); });
       lists.querySelectorAll('details').forEach((d) => { if (q) d.open = true; });
     } } });
-  return el('div', { class: 'stack' }, [card('', [search]), lists]);
+  return el('div', { class: 'stack' }, [weekCard(ws, today), achievementsCard(ws, today), card('', [search]), lists]);
+}
+
+/** This week against the weekly target - a goal, never a requirement - and planning the line at that pace. */
+function weekCard(ws, today) {
+  const p = weekProgress(ws, today);
+  const target = p.target;
+  const pct = target ? Math.min(100, Math.round(((p.released + p.booked) / target) * 100)) : 0;
+  const done = target ? Math.min(100, Math.round((p.released / target) * 100)) : 0;
+  const lines = ws.platforms.filter((pl) => releaseQueue(ws).some((x) => x.output.platformId === pl.id));
+  return card('This week', [
+    el('div', { class: 'row' }, [
+      el('label', { class: 'small' }, ['Aim for ', el('input', { class: 'input input--inline input--num', type: 'number', min: 0, step: 1, value: target || '', placeholder: '10',
+        'data-field': 'week.target', on: { change: (e) => commitWs((w) => setWeeklyTarget(w, e.target.value)) } }), ' a week']),
+      el('span', { class: 'small muted', text: 'A goal to aim for, never a requirement. Each week starts fresh.' }),
+    ]),
+    target ? el('div', { class: 'weekbar', title: `${p.released} out, ${p.booked} booked, aiming for ${target}` }, [
+      el('span', { class: 'weekbar__done', style: { width: `${done}%` } }), el('span', { class: 'weekbar__booked', style: { width: `${Math.max(0, pct - done)}%` } })]) : null,
+    el('p', { class: 'small', text: target
+      ? `${p.released} out this week${p.booked ? `, ${p.booked} more booked` : ''} - aiming for ${target}.`
+      : `${p.released} out this week. Set a weekly aim to see how close you get.` }),
+    target && lines.length ? el('div', { class: 'row' }, lines.map((pl) => button(`Plan ${pl.name} at ${target} a week from tomorrow`,
+      () => commitWs((w) => planAtPace(w, pl.id, addDays(today, 1), target)), '', { 'data-field': `week.plan.${pl.id}`,
+        title: 'Re-dates everything booked from tomorrow at this pace, in the order it already has. Today and earlier stay.' }))) : null,
+  ]);
+}
+
+/** Milestones: earned ones with their date, the next ones with how close. */
+function achievementsCard(ws, today) {
+  const all = achievements(ws, today);
+  const n = (x) => x.toLocaleString();
+  return card(`Achievements: ${all.filter((a) => a.earned).length} of ${all.length}`, [
+    el('div', { class: 'badges' }, all.map((a) => el('div', { class: `badge-card${a.earned ? ' is-earned' : ''}`, 'data-field': `ach.${a.id}` }, [
+      el('span', { class: 'badge-card__icon', 'aria-hidden': 'true', text: a.earned ? '★' : '☆' }),
+      el('strong', { text: a.title }),
+      el('span', { class: 'small muted', text: a.earned ? `Earned ${longDate(a.earned)}` : a.progress ? `${n(Math.min(a.progress.n, a.progress.of))} of ${n(a.progress.of)}` : 'Ahead' }),
+      el('span', { class: 'small', text: a.detail }),
+    ]))),
+    el('p', { class: 'small muted' }, ['Views, followers and monetisation come from the numbers you log under ', el('a', { href: '#/performance', text: 'Performance → Channel stats' }), '.']),
+  ]);
+}
+
+/** The channel's own numbers, logged by hand from the platform - they feed the achievements and the weekly check-ins. */
+function statsCard(ws) {
+  const today = M.todayIso();
+  const stats = [...(ws.config.channelStats || [])].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const f = { date: today, followers: '', views: '', monetised: false };
+  const inp = (key, type, ph) => el('input', { class: 'input input--inline', type, value: f[key], placeholder: ph, 'data-field': `stats.${key}`, on: { input: (e) => { f[key] = e.target.value; } } });
+  return card('Channel stats', [
+    el('p', { class: 'small muted', text: 'Copy the numbers from the platform now and then - once a week is plenty. They feed the achievements and the weekly progress check-ins.' }),
+    el('div', { class: 'row' }, [
+      el('label', { class: 'small' }, ['Date ', inp('date', 'date')]),
+      el('label', { class: 'small' }, ['Followers ', inp('followers', 'number', 'e.g. 120')]),
+      el('label', { class: 'small' }, ['Total views ', inp('views', 'number', 'e.g. 3400')]),
+      el('label', { class: 'small check' }, [el('input', { type: 'checkbox', 'data-field': 'stats.monetised', on: { change: (e) => { f.monetised = e.target.checked; } } }), ' Monetised']),
+      button('Log it', () => commitWs((w) => logStats(w, f)), 'primary', { 'data-field': 'stats.log' }),
+    ]),
+    stats.length ? el('table', { class: 'table small' }, [
+      el('tr', {}, ['Date', 'Followers', 'Total views', 'Monetised'].map((h) => el('th', { text: h }))),
+      ...stats.map((s) => el('tr', {}, [el('td', { text: s.date }), el('td', { text: String(s.followers ?? '') }), el('td', { text: String(s.views ?? '') }), el('td', { text: s.monetised ? 'yes' : '' })])),
+    ]) : el('p', { class: 'small muted', text: 'Nothing logged yet.' }),
+  ]);
 }
 
 function tasksCard(ws, today) {
@@ -518,12 +581,58 @@ export function releases() {
   ]);
 }
 
+/* --------------------------------------------------------------- lessons */
+
+/** Every issue is a learning opportunity: what happened, how it was solved, and the check that keeps it from coming back. */
+export function lessonsPage() {
+  const ws = currentWs();
+  const all = lessonsOf(ws);
+  const set = (id, key) => (e) => commitWs((w) => updateLesson(w, id, { [key]: e.target.value.trim() }), { render: false });
+  const field = (label, control) => el('label', { class: 'field' }, [el('span', { class: 'field__label', text: label }), control]);
+  const stepSel = (value, onChange, key) => el('select', { class: 'input input--inline', 'data-field': key, on: { change: onChange } },
+    LESSON_STEPS.map(([id, label]) => el('option', { value: id, text: label, selected: id === value })));
+  const fresh = { step: 'card' };
+  const check = el('input', { class: 'input', placeholder: 'The question to ask - e.g. Is the hook about the viewer\'s life, not mine?', 'data-field': 'lesson.new.check' });
+  const issue = el('textarea', { class: 'input', rows: 2, placeholder: 'What happened?', 'data-field': 'lesson.new.issue' });
+  const fix = el('textarea', { class: 'input', rows: 2, placeholder: 'How we solved it', 'data-field': 'lesson.new.fix' });
+  const add = () => {
+    if (!check.value.trim()) { check.focus(); return; }
+    commitWs((w) => addLesson(w, { step: fresh.step, check: check.value, issue: issue.value, fix: fix.value }).ws);
+  };
+  return el('div', { class: 'stack' }, [
+    card('Lessons', [
+      el('p', { class: 'muted small', text: 'Every issue is a learning opportunity. Write down what happened, how it was solved, and the one question to ask at that step so it doesn\'t happen again. The questions show on every video\'s step under "Check before you move on" - optional ticks, never a gate.' }),
+      el('div', { class: 'two' }, [field('At which step?', stepSel(fresh.step, (e) => { fresh.step = e.target.value; }, 'lesson.new.step')), field('The check', check)]),
+      el('div', { class: 'two' }, [field('What happened', issue), field('How we solved it', fix)]),
+      button('Add lesson', add, 'primary', { 'data-field': 'lesson.add' }),
+    ]),
+    ...LESSON_STEPS.map(([step, label]) => {
+      const list = all.filter((l) => l.step === step);
+      return card(`${label} (${list.length})`, list.length ? list.map((l) => el('div', { class: 'block lesson' }, [
+        el('div', { class: 'row' }, [
+          el('input', { class: 'input lesson__check', value: l.check, 'aria-label': 'The check', 'data-field': `lesson.${l.id}.check`, on: { change: set(l.id, 'check') } }),
+          stepSel(l.step, (e) => commitWs((w) => updateLesson(w, l.id, { step: e.target.value })), `lesson.${l.id}.step`),
+          button('×', async () => {
+            if (await confirmDialog({ title: 'Remove this lesson?', removes: `"${l.check}" - it stops showing on the videos.`, keeps: 'Every video and its notes.', confirm: 'Remove' })) commitWs((w) => removeLesson(w, l.id));
+          }, 'ghost', { 'aria-label': 'Remove this lesson' }),
+        ]),
+        el('div', { class: 'two' }, [
+          field('What happened', el('textarea', { class: 'input', rows: 2, value: l.issue || '', 'data-field': `lesson.${l.id}.issue`, on: { change: set(l.id, 'issue') } })),
+          field('How we solved it', el('textarea', { class: 'input', rows: 2, value: l.fix || '', 'data-field': `lesson.${l.id}.fix`, on: { change: set(l.id, 'fix') } })),
+        ]),
+        el('p', { class: 'small muted', text: `Learned ${l.date}` }),
+      ])) : [el('p', { class: 'small muted', text: 'Nothing learned at this step yet.' })]);
+    }),
+  ]);
+}
+
 /* ----------------------------------------------------------- performance */
 
 export function performance() {
   const ws = currentWs();
   const published = ws.records.outputs.filter((o) => !o.archived && (o.publishedDate || o.status === 'Published'));
   return el('div', { class: 'stack' }, [
+    statsCard(ws),
     recordList('feedback', { title: 'Feedback and performance', intro: 'What happened after publishing: numbers if you have them, comments, and lessons. Advanced analytics are planned for a later phase.', newFields: { title: 'New feedback' } }),
     card('Published outputs', [published.length ? el('ul', { class: 'plain' }, published.map((o) => el('li', {}, [recordLink('outputs', o),
       el('span', { class: 'small muted', text: ` · ${outputLabel(ws, o)} · ${o.publishedDate || ''}` }),

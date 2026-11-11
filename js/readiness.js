@@ -92,6 +92,8 @@ export function editPrompt(ws, c) {
   const shapes = [outs.some((o) => /9:16/.test(ratio(o))) && 'vertical (9:16)', outs.some((o) => /16:9/.test(ratio(o))) && 'landscape (16:9)'].filter(Boolean);
   const takes = (c.recordingNotes || '').match(/^Teleprompter take[^\n]*/gm) || [];
   const shape = (shapes.length ? shapes : ['vertical (9:16)']).join(' and the ');
+  // the storyboard stop: reviewed in ContentBench (Edit -> Review the storyboard) before anything renders
+  const board = `At the storyboard stop, export it for me to review in ContentBench: node review.mjs storyboard <the edit folder> "<my private folder>/${contentFolder(c)}/08_Export/${c.workingTitle.replace(/[\\/:*?"<>|]/g, '')} - storyboard.review.json". I'll send my review back.`;
   const v = (c.versions || []).at(-1);
   if (v && !c.finalVideo) {
     // a new version: fix the delta only, ideally in the chat that made the last one
@@ -115,7 +117,9 @@ export function editPrompt(ws, c) {
         if (v.redo === 'section') return takes.length ? [`Recording notes: the first take (${name(takes[0])}) still cuts the parts that stay${takes.length > 1 ? `; the latest (${name(takes.at(-1))}) is the new section` : ''}.`] : [];
         return [];
       })(),
-      `The card in ContentBench is the script to follow. Show me ${v.redo === 'all' ? 'the cut list and which scenes you redid' : 'the changed part of the cut list'} before rendering, then render the ${shape} version and export its review file.`,
+      `The card in ContentBench is the script to follow. Show me ${v.redo === 'all' ? 'the cut list and which scenes you redid' : 'the changed part of the cut list'}.`,
+      board,
+      `Render the ${shape} version after my OK, and export its review file.`,
       'When it is done, put the new path in the Edit step (Finished video) and set the status to Review.',
     ].filter(Boolean).join(' ');
   }
@@ -123,8 +127,9 @@ export function editPrompt(ws, c) {
     `Use the faceless-video skill to edit "${c.workingTitle}" from ContentBench.`,
     `The recording is in my private folder under ${recordingFolder(ws, c)}/ - [file name].`,
     takes.length ? `Use the latest teleprompter take in its recording notes (${takes.at(-1).replace(/^Teleprompter take - /, '')}).` : 'There are no saved cut points; work from the transcript.',
-    'Clean up the retakes and pauses and show me the cut list before rendering.',
-    `Then render the ${shape} version.`,
+    'Clean up the retakes and pauses and show me the cut list.',
+    board,
+    `Render the ${shape} version after my OK, and export its review file.`,
     'When it is done, put the finished video\'s path in its Edit step (Finished video) and set the status to Review.',
   ].join(' ');
 }

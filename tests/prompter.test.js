@@ -34,11 +34,29 @@ test('position: block and line follow the clock, then done', () => {
   assert.equal(positionAt(prompterPlan([]), 0).done, true);
 });
 
-test('pace: too many words for the time is called tight', () => {
-  const [tight] = prompterPlan([{ name: 'T', duration: '2', script: '» ' + 'w '.repeat(30) }]).blocks;
-  assert.match(paceNote(tight), /Tight/);
+test('more words get more time: a planned duration is a floor, never a cap', () => {
+  const [grown] = prompterPlan([{ name: 'T', duration: '2', script: '» ' + 'w '.repeat(30) }]).blocks;
+  assert.equal(grown.seconds, 12, '30 words at 2.5 a second, not the 2 s planned');
+  assert.ok(grown.grown);
+  assert.match(paceNote(grown), /Longer than planned/);
   const [ok] = prompterPlan([{ name: 'O', duration: '4', script: '» one two three four five six seven eight nine ten' }]).blocks;
+  assert.equal(ok.seconds, 4);
   assert.equal(paceNote(ok), '');
+  const [roomy] = prompterPlan([{ name: 'R', duration: '20', script: '- a short point' }]).blocks;
+  assert.equal(roomy.seconds, 20, 'more time than the words need stays');
+});
+
+test('lines can be moved, added and removed; blank lines and markers are kept', async () => {
+  const { moveLine, insertLine, removeLine, parseLines } = await import('../js/prompter.js');
+  const s = '» Hook line.\n\n- first point\n- second point';
+  assert.equal(moveLine(s, 2, 1), '» Hook line.\n\n- second point\n- first point');
+  assert.equal(moveLine(s, 0, 2), '- first point\n\n- second point\n» Hook line.');
+  assert.equal(moveLine(s, 0, 9), s, 'out of range: unchanged');
+  assert.equal(insertLine(s, 1, 'a new point'), '» Hook line.\n\n- first point\n- a new point\n- second point');
+  assert.equal(insertLine(s, -1, '» Read this first.'), '» Read this first.\n» Hook line.\n\n- first point\n- second point');
+  assert.equal(insertLine('', 0, 'only'), '- only');
+  assert.equal(removeLine(s, 1), '» Hook line.\n\n- second point');
+  assert.deepEqual(parseLines(insertLine(s, 2, 'x')).map((l) => l.kind), ['read', 'talk', 'talk', 'talk']);
 });
 
 test('take text lists each block start in the recording', () => {

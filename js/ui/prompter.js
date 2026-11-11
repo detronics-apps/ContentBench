@@ -4,7 +4,7 @@
 import { el, toast } from './dom.js';
 import { commitWs, refresh, ws as currentWs } from './store.js';
 import * as M from '../model.js';
-import { prompterPlan, positionAt, paceNote, takeText, withLatestTake, replaceLine } from '../prompter.js';
+import { prompterPlan, positionAt, paceNote, takeText, withLatestTake, replaceLine, moveLine, insertLine, removeLine } from '../prompter.js';
 import { formatSeconds as fmt } from '../workflow.js';
 
 const SIZE_KEY = 'content-bench-prompter-size';
@@ -31,13 +31,16 @@ export function openPrompter(type, record) {
   const recTime = () => (rec0 ? now() - rec0 : 0);
 
   /* ---- layout, built once; tick() only changes text and classes */
-  const bar = el('div', { class: 'pr-rundown', 'aria-hidden': 'true' }, [
-    ...plan.blocks.map((b) => el('span', { class: 'pr-rundown__seg', style: { flex: `${b.seconds} 0 0` }, title: `${b.name} · ${fmt(b.seconds)}` })),
-    el('span', { class: 'pr-rundown__needle' })]);
+  const needle = el('span', { class: 'pr-rundown__needle' });
+  const bar = el('div', { class: 'pr-rundown', 'aria-hidden': 'true' });
+  const drawBar = () => bar.replaceChildren(...plan.blocks.map((b) => el('span', { class: 'pr-rundown__seg', style: { flex: `${b.seconds} 0 0` }, title: `${b.name} · ${fmt(b.seconds)}` })), needle);
+  drawBar();
   const clock = el('span', { class: 'pr-clock' });
   const recClock = el('span', { class: 'pr-clock pr-clock--rec', title: 'Time since the hook started, pauses included - the length of your recording' });
   const restartBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'data-field': 'pr.restart', title: 'Start the whole take again from the top (keyboard: R)', on: { click: () => restart() } }, ['Restart']);
   const playBtn = el('button', { class: 'btn btn-primary', type: 'button', 'data-field': 'pr.play', on: { click: () => toggle() } });
+  // the take only ends when you say so - the teleprompter never finishes on its own
+  const doneBtn = el('button', { class: 'btn', type: 'button', hidden: true, 'data-field': 'pr.done', title: 'Finished speaking - end the take and see its cut points', on: { click: () => finish() } }, ['Done ✓']);
   const autoBtn = el('button', { class: 'btn', type: 'button', 'aria-pressed': String(auto), 'data-field': 'pr.auto',
     title: 'On: moves to the next block when its time is up. Off: waits at the end of the block until you press Block ▶.', on: { click: () => { auto = !auto; saveAuto(auto); autoBtn.setAttribute('aria-pressed', String(auto)); autoBtn.textContent = auto ? 'Auto-advance: on' : 'Auto-advance: off'; } } }, [auto ? 'Auto-advance: on' : 'Auto-advance: off']);
   const btn = (text, fn, attrs = {}) => el('button', { class: 'btn', type: 'button', on: { click: fn }, ...attrs }, [text]);
@@ -45,8 +48,10 @@ export function openPrompter(type, record) {
   const nowPane = el('section', { class: 'pr-now', 'aria-live': 'polite' });
   const nextPane = el('div', { class: 'pr-next' });
   const screenPane = el('div', { class: 'pr-screen' });
-  const list = el('ol', { class: 'pr-list' }, plan.blocks.map((b, i) => el('li', { 'data-i': i, title: 'Go to this block', on: { click: () => { if (!done) { t = b.start; last = now(); tick(); } } } }, [
+  const list = el('ol', { class: 'pr-list' });
+  const drawList = () => list.replaceChildren(...plan.blocks.map((b, i) => el('li', { 'data-i': i, title: 'Go to this block', on: { click: () => { if (!done) { t = plan.blocks[i].start; last = now(); tick(); } } } }, [
     el('span', { class: 'pr-list__t', text: fmt(b.start) }), ` ${b.name}`])));
+  drawList();
   const banner = el('div', { class: 'pr-banner', hidden: true });
   const sheet = el('div', { class: 'pr-sheet' });
 
@@ -60,6 +65,7 @@ export function openPrompter(type, record) {
         playBtn,
         btn('Line ▼', () => lineStep(1), { title: 'One line on - you are already on the next line (keyboard: ↓)', 'data-field': 'pr.linedown' }),
         btn('Block ▶', () => jump(1), { title: 'Next block (keyboard: →)', 'data-field': 'pr.next' }),
+        doneBtn,
         autoBtn,
         restartBtn,
         btn('A−', () => zoom(-0.1), { 'aria-label': 'Smaller text' }),
@@ -87,10 +93,28 @@ export function openPrompter(type, record) {
       el('div', { class: 'pr-progress' }, [el('span', { class: 'pr-progress__fill' })]),
       el('div', { class: 'pr-left small' }),
       pace ? el('p', { class: 'pr-pace small', text: pace }) : null,
-      el('ol', { class: 'pr-lines' }, b.lines.map((l, j) => el('li', { class: `pr-line pr-line--${l.kind}`, title: 'Tap: I am on this line', on: { click: () => { if (!done) { t = b.start + l.at; last = now(); tick(); } } } }, [
-        l.kind === 'read' ? el('span', { class: 'pr-tag', text: 'READ' }) : null, el('span', { class: 'pr-line__text', text: l.text }),
-        el('button', { class: 'btn pr-edit', type: 'button', 'aria-label': 'Reword this line', title: 'Reword this line - it pauses, and saves to the card',
-          'data-field': 'pr.editLine', on: { click: (e) => { e.stopPropagation(); editLine(i, j, e.currentTarget.closest('li')); } } }, ['✎'])]))),
+      el('ol', { class: 'pr-lines' }, b.lines.map((l, j) => {
+        const tool = (label, title, field, fn) => el('button', { class: 'btn pr-edit', type: 'button', 'aria-label': title, title, 'data-field': field,
+          on: { click: (e) => { e.stopPropagation(); fn(e); } } }, [label]);
+        return el('li', { class: `pr-line pr-line--${l.kind}`, title: 'Tap: I am on this line - or drag it to a new place', draggable: 'true', 'data-j': j,
+          on: {
+            click: () => { if (!done) { t = b.start + l.at; last = now(); tick(); } },
+            dragstart: (e) => { e.dataTransfer.setData('text/plain', String(j)); e.dataTransfer.effectAllowed = 'move'; },
+            dragover: (e) => { e.preventDefault(); e.currentTarget.classList.add('is-drop'); },
+            dragleave: (e) => e.currentTarget.classList.remove('is-drop'),
+            drop: (e) => { e.preventDefault(); e.currentTarget.classList.remove('is-drop'); const from = Number(e.dataTransfer.getData('text/plain')); if (Number.isInteger(from) && from !== j) changeBlock(i, (sc) => moveLine(sc, from, j), 'Line moved'); },
+          } }, [
+          l.kind === 'read' ? el('span', { class: 'pr-tag', text: 'READ' }) : null, el('span', { class: 'pr-line__text', text: l.text }),
+          el('span', { class: 'pr-tools' }, [
+            j > 0 ? tool('▲', 'Move this line up', 'pr.moveUp', () => changeBlock(i, (sc) => moveLine(sc, j, j - 1), 'Line moved up')) : null,
+            j < b.lines.length - 1 ? tool('▼', 'Move this line down', 'pr.moveDown', () => changeBlock(i, (sc) => moveLine(sc, j, j + 1), 'Line moved down')) : null,
+            tool('✎', 'Reword this line - it pauses, and saves to the card', 'pr.editLine', (e) => editLine(i, j, e.currentTarget.closest('li'))),
+            tool('✕', 'Remove this line from the card', 'pr.removeLine', () => { if (confirm('Remove this line from the card?\n\n' + l.text)) changeBlock(i, (sc) => removeLine(sc, j), 'Line removed'); }),
+          ]),
+        ]);
+      })),
+      el('button', { class: 'btn pr-add', type: 'button', 'data-field': 'pr.addLine', title: 'Add a talking point at the end of this block (start it with » to read it word for word)',
+        on: { click: () => addLine(i) } }, ['+ Add a line']),
       b.notes ? el('p', { class: 'pr-notes small', text: b.notes }) : null,
     ].filter(Boolean));   // replaceChildren would print a null as the text "null"
     const n = plan.blocks[i + 1];
@@ -102,8 +126,8 @@ export function openPrompter(type, record) {
   }
 
   function tick() {
+    if (t >= plan.total) t = plan.total - 0.01;   // the end holds; only Done ends the take
     const pos = positionAt(plan, t);
-    if (pos.done) return finish();
     if (pos.block !== shownBlock) {
       showBlock(pos.block); shownBlock = pos.block;
       if (started) marks.push({ at: recTime(), name: plan.blocks[pos.block].name, planned: plan.blocks[pos.block].start });
@@ -111,15 +135,18 @@ export function openPrompter(type, record) {
     const b = plan.blocks[pos.block];
     nowPane.querySelectorAll('.pr-line').forEach((li, j) => { li.classList.toggle('is-now', j === pos.line); li.classList.toggle('is-past', j < pos.line); });
     nowPane.querySelector('.pr-progress__fill').style.width = `${Math.min(100, pos.progress * 100)}%`;
-    const over = !auto && t >= b.start + b.seconds - 0.05;
+    const lastBlock = pos.block === plan.blocks.length - 1;
+    const over = (!auto || lastBlock) && t >= b.start + b.seconds - 0.05;
     nowPane.querySelector('.pr-left').textContent = !started ? `Preview - read it through. Look ahead with the Line and Block buttons or the running order; while you talk, tap the line you are on to keep the highlight there. Press Start, then hit record during the 3-2-1 (${fmt(b.seconds)} for this block).`
-      : over ? 'Time is up - press Block ▶ when you are ready.' : `${fmt(Math.ceil(pos.left))} left in this block`;
+      : over ? (lastBlock ? 'That is the last block - finish what you are saying, then press Done ✓.' : 'Time is up - press Block ▶ when you are ready.') : `${fmt(Math.ceil(pos.left))} left in this block`;
     root.classList.toggle('is-over', over);
-    bar.lastChild.style.left = `${(t / plan.total) * 100}%`;
+    needle.style.left = `${(t / plan.total) * 100}%`;
     clock.textContent = `${fmt(t)} / ${fmt(plan.total)}`;
     recClock.textContent = started ? `● ${fmt(recTime())}` : '';
     playBtn.textContent = running ? 'Pause' : started ? 'Continue' : 'Start';
     restartBtn.hidden = !started && !countTo;
+    doneBtn.hidden = !started;
+    doneBtn.classList.toggle('btn-primary', started && lastBlock);
   }
 
   function loop() {
@@ -132,7 +159,7 @@ export function openPrompter(type, record) {
       let next = t + (n - last);
       const b = plan.blocks[positionAt(plan, t).block];
       if (!auto && b) next = Math.min(next, b.start + b.seconds - 0.01);   // hold at the end of the block
-      t = next;
+      t = Math.min(next, plan.total - 0.01);   // and always at the end of the last one: only Done ends the take
     }
     last = n;
     if (!done) tick();
@@ -178,15 +205,7 @@ export function openPrompter(type, record) {
     const save = () => {
       const text = box.value.replace(/\s*\n\s*/g, ' ').trim();
       if (!text || text === line.text) return showBlock(bi);
-      const blockId = plan.blocks[bi].id;
-      commitWs((w) => {
-        const r = M.getRecord(w, type, record.id);
-        const blocks = (r?.story?.blocks || []).map((x) => (x.id === blockId ? { ...x, script: replaceLine(x.script, li, text) } : x));
-        return M.updateRecord(w, type, record.id, { story: { ...r.story, blocks } });
-      }, { render: false });
-      line.text = text; edited = true;
-      showBlock(bi); tick();
-      toast('Line saved to the card.');
+      changeBlock(bi, (sc) => replaceLine(sc, li, text), 'Line saved to the card');
     };
     box.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
@@ -197,6 +216,38 @@ export function openPrompter(type, record) {
       btn('Cancel', () => { showBlock(bi); tick(); }),
       el('span', { class: 'small muted', text: 'Saved to the card, so the next take reads it this way.' })]));
     box.focus(); box.select();
+  }
+
+  /**
+   * Changes one block's script on the card (reword, move, add, remove a line) and re-plans at once: more words get more
+   * time, and the highlight stays in the same block.
+   */
+  function changeBlock(bi, fn, note) {
+    if (done) return;
+    if (running) toggle();
+    const blockId = plan.blocks[bi].id;
+    const into = Math.max(0, t - plan.blocks[bi].start);
+    const inBlock = t >= plan.blocks[bi].start && t < plan.blocks[bi].start + plan.blocks[bi].seconds;
+    let blocks = [];
+    commitWs((w) => {
+      const r = M.getRecord(w, type, record.id);
+      blocks = (r?.story?.blocks || []).map((x) => (x.id === blockId ? { ...x, script: fn(x.script || '') } : x));
+      return M.updateRecord(w, type, record.id, { story: { ...r.story, blocks } });
+    }, { render: false });
+    edited = true;
+    Object.assign(plan, prompterPlan(blocks));
+    drawBar(); drawList();
+    const nb = plan.blocks[bi];
+    t = inBlock ? Math.min(nb.start + into, nb.start + nb.seconds - 0.01) : nb.start;
+    shownBlock = -1; last = now(); tick();
+    toast(`${note} - the timing follows the words.`);
+  }
+  /** A new line at the end of the block, opened straight away for typing. */
+  function addLine(bi) {
+    const n = plan.blocks[bi].lines.length;
+    changeBlock(bi, (sc) => insertLine(sc, n - 1, 'new point'), 'Line added');
+    const row = nowPane.querySelectorAll('.pr-line')[n];
+    if (row) editLine(bi, n, row);
   }
 
   /** Throw the take away and go back to the top: the notes on screen, nothing moving, the cut points cleared. */
@@ -213,7 +264,7 @@ export function openPrompter(type, record) {
     if (done) return;
     const pos = positionAt(plan, t);
     const b = plan.blocks[pos.block];
-    if (d > 0) t = pos.block + 1 < plan.blocks.length ? plan.blocks[pos.block + 1].start : plan.total;
+    if (d > 0) t = pos.block + 1 < plan.blocks.length ? plan.blocks[pos.block + 1].start : plan.total - 0.01;
     else t = pos.into > 2 || pos.block === 0 ? b.start : plan.blocks[pos.block - 1].start;
     last = now(); tick();
   }

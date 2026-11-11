@@ -48,3 +48,15 @@ test('the prompt carries the exact changes as JSON and the comments in time orde
   assert.equal(json.comments[0].time, '0:02');
   assert.match(reviewPrompt({ data }), /No exact changes this time/);
 });
+
+test('a storyboard review asks for the next storyboard, or renders on the go-ahead', async () => {
+  const { reviewPrompt, isStoryboard } = await import('../js/review.js');
+  const sb = { ...data, stage: 'storyboard' };
+  assert.ok(isStoryboard(sb) && !isStoryboard(data));
+  const ask = reviewPrompt({ title: 'X', data: sb, comments: [{ t: 0, sid: 0, kind: 'Visual', text: 'busy' }] });
+  assert.match(ask, /review of the storyboard for "X" - before rendering/);
+  assert.match(ask, /stop for my OK - don't render yet/);
+  const go = reviewPrompt({ title: 'X', data: sb, render: true });
+  assert.match(go, /render - this is my go-ahead: the storyboard is approved/);
+  assert.doesNotMatch(go, /don't render yet/);
+});
