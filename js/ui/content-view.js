@@ -2,7 +2,7 @@
 
 import { el, toast, download } from './dom.js';
 import * as M from '../model.js';
-import { STEPS, stepOf, readiness, isRecorded, editPrompt, recordingFolder } from '../readiness.js';
+import { STEPS, STEP_CONNECTS, stepOf, readiness, isRecorded, editPrompt, recordingFolder } from '../readiness.js';
 import { contentPackage, assistantBrief, productBrief, slug } from '../exporter.js';
 import { EXTRA_TYPES } from '../extras.js';
 import { zip } from '../zip.js';
@@ -501,6 +501,7 @@ export function contentEditor(id, section = 'idea') {
     })),
     el('div', { class: 'card step-head' }, [
       el('p', { class: 'step-head__what', text: STEPS[n][3] }),
+      store.ui.level === 'expert' && STEP_CONNECTS[step] ? el('p', { class: 'expert-note small', text: STEP_CONNECTS[step] }) : null,
       here.length ? el('ul', { class: 'step-head__gaps' }, here.map((g) => el('li', { text: g })))
         : state[step] === 'later' ? el('p', { class: 'small muted', text: 'Nothing to do here until it is out - then note how it did.' })
         : state[step] === 'booked' ? el('p', { class: 'small muted', text: 'Everything is set; this ticks when it is published.' })

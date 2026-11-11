@@ -39,3 +39,12 @@ test('content fields sit in a known section; each level shows at least what the 
   assert.ok(atLeast('expert', 'advanced'));
   assert.ok(!atLeast('simple', 'advanced'));
 });
+
+test('Simple keeps every field a step asks for - a to-do never points at a hidden field', async () => {
+  const { visibleFields, ESSENTIAL } = await import('../js/schema.js');
+  const simple = (type) => visibleFields(type, 'simple').map((f) => f.key);
+  for (const k of ['workingTitle', 'viewerPromise', 'centralMessage', 'categoryId', 'finalVideo']) assert.ok(simple('content').includes(k), k);
+  for (const k of ['caption', 'scheduledDate']) assert.ok(simple('outputs').includes(k), k);
+  assert.equal(simple('content').length, ESSENTIAL.content.length, 'Simple is only the essentials');
+  assert.ok(visibleFields('content', 'advanced').length > simple('content').length);
+});

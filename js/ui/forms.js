@@ -68,6 +68,7 @@ export function recordForm(type, record, ws, onPatch, { section, group } = {}) {
       el('span', { class: 'field__label' }, [f.label, f.ai ? badge('AI - not your words', 'ai') : null]),
       control(type, f, record, ws, onPatch),
       f.hint ? el('span', { class: 'field__hint', text: f.hint }) : null,
+      f.connects && store.ui.level === 'expert' ? el('span', { class: 'field__connects', text: `↳ ${f.connects}` }) : null,
     ])),
     hidden > 0 ? el('p', { class: 'muted small', text: `${hidden} more field${hidden === 1 ? '' : 's'} at a higher detail level (bar under the header). Nothing hidden is cleared.` }) : null,
   ]);

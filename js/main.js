@@ -20,12 +20,12 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.14.0';
+export const APP_VERSION = '0.15.0';
 
 const LEVEL_TEXT = {
-  simple: 'Simple - the essentials of each record. Nothing hidden is cleared.',
-  advanced: 'Advanced - categories, audiences, research fields and the full template editors.',
-  expert: 'Expert - everything, including AI fields, record ids and step dependencies.',
+  simple: 'Simple - only what it takes to get from an idea to a released video. Nothing hidden is cleared.',
+  advanced: 'Advanced - the extras that make each video better: research, hooks, look, production notes, platform set-up.',
+  expert: 'Expert - make the app your own: settings, templates, statuses, your own platforms - with notes on every page about how things connect.',
 };
 
 const THEMES = ['system', 'light', 'dark'];
@@ -276,7 +276,8 @@ export function render() {
       sec ? ' › ' : null,
       sec ? (sec.tabs.length > 1 ? el('a', { href: `#/section/${sec.id}`, text: sec.name }) : el('span', { text: sec.name })) : null,
     ]),
-    sec && sec.tabs.length > 1 ? el('div', { class: 'segmented', role: 'navigation', 'aria-label': sec.name }, sec.tabs.map(([id, label]) =>
+    // the templates are where the app is made your own: Expert (a link to them still opens at any level)
+    sec && sec.tabs.length > 1 ? el('div', { class: 'segmented', role: 'navigation', 'aria-label': sec.name }, sec.tabs.filter(([id]) => id !== 'templates' || store.ui.level === 'expert' || id === current).map(([id, label]) =>
       el('a', { class: 'segmented__btn', href: `#/${id}`, text: label, 'aria-current': id === current ? 'page' : null }))) : null,
   ]));
   paintSync();

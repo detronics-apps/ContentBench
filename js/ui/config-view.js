@@ -14,8 +14,13 @@ import { store, ws as currentWs, commitWs, commitApp } from './store.js';
 import { button, card, emptyState, confirmDialog, textField, linesField, checkbox, badge, recordLink, infoDialog, timelineBar } from './forms.js';
 import { go } from './records.js';
 
-const adv = () => store.ui.level !== 'simple';
+// Settings and templates are where the app is made your own: that is Expert (levels: Simple = the minimum from idea to
+// release, Advanced = the extras on each video, Expert = calibration and how it all connects).
 const expert = () => store.ui.level === 'expert';
+const adv = expert;
+const advanced = () => store.ui.level !== 'simple';
+/** At Expert: a short note on how this connects to the rest of the app. */
+const connects = (text) => (expert() ? el('p', { class: 'expert-note small', text }) : null);
 
 /* -------------------------------------------------------------- templates */
 
@@ -130,10 +135,27 @@ export function templateEditor(kind, id) {
 const setPlatform = (id, patch, render = false) =>
   commitWs((w) => ({ ...w, modified: M.nowIso(), platforms: w.platforms.map((p) => (p.id === id ? { ...p, ...patch } : p)) }), { render });
 
+/** Simple: where you post, picked from the ready list - enough to get started. */
+function wherePostCard(ws) {
+  const have = new Set(ws.platforms.map((p) => p.name.toLowerCase()));
+  return card('Where you post', [
+    el('p', { class: 'small muted', text: 'Pick the platforms you publish on. Each comes with sensible formats, ready to use.' }),
+    el('div', { class: 'chipset' }, examplePlatforms().map((p) => {
+      const on = have.has(p.name.toLowerCase());
+      return el('button', { class: 'chip', type: 'button', 'aria-pressed': String(on), 'data-field': `plat.pick.${p.name}`, disabled: on,
+        title: on ? `${p.name} is set up` : `Add ${p.name}`, on: { click: () => commitWs((w) => ({ ...w, platforms: [...w.platforms, p] })) } }, [on ? `✓ ${p.name}` : `+ ${p.name}`]);
+    })),
+    connects('Each platform version of a video copies its format\'s specs and checklist; its release days and the weekly aim plan the line.'),
+    !advanced() ? el('p', { class: 'small muted', text: 'Setting each one up - formats, style, release days - is under Advanced. Your own platforms beyond this list are under Expert.' }) : null,
+  ]);
+}
+
 export function platformsModule() {
   const ws = currentWs();
   const outs = ws.records.outputs.filter((o) => !o.archived);
+  if (!advanced()) return el('div', { class: 'stack' }, [wherePostCard(ws)]);
   return el('div', { class: 'stack' }, [
+    wherePostCard(ws),
     card('Platform profiles', [
       el('p', { class: 'muted small', text: 'A platform and its formats are separate: YouTube can hold long-form and Shorts, each with its own requirements. Every value is editable - specs change, so record when you last checked.' }),
       ws.platforms.length ? el('div', { class: 'rows' }, ws.platforms.map((p) => {
@@ -143,7 +165,7 @@ export function platformsModule() {
             age === null ? badge('never verified', 'warn') : badge(`verified ${age} day${age === 1 ? '' : 's'} ago`, age > 180 ? 'warn' : 'ok')])]);
       })) : emptyState('No platforms yet', 'Add the ones you publish to.'),
       el('div', { class: 'row' }, [
-        button('New platform', () => { const p = makePlatform({ formats: [{ name: 'Default' }] }); commitWs((w) => ({ ...w, platforms: [...w.platforms, p] }), { render: false }); go(`#/platforms/${p.id}`); }, 'primary'),
+        expert() ? button('New platform', () => { const p = makePlatform({ formats: [{ name: 'Default' }] }); commitWs((w) => ({ ...w, platforms: [...w.platforms, p] }), { render: false }); go(`#/platforms/${p.id}`); }, 'primary') : null,
         button('Add example platforms', () => commitWs((w) => ({ ...w, platforms: [...w.platforms, ...examplePlatforms()] }))),
       ]),
     ]),
@@ -163,17 +185,25 @@ export function platformEditor(id) {
   const used = ws.records.outputs.filter((o) => o.platformId === id);
   const setFormats = (formats, render = true) => setPlatform(id, { formats }, render);
   const fmtField = (f, k, label) => textField(label, f[k], (v) => setFormats(M.patchItem(p.formats, f.id, { [k]: v }), false), { key: `fmt.${f.id}.${k}` });
+  if (!advanced()) return el('div', { class: 'detail' }, [
+    el('nav', { class: 'crumbs' }, [el('a', { href: '#/platforms', text: 'Platforms & Publishing' })]),
+    el('h1', { class: 'detail__title', text: p.name }),
+    card('', [el('p', { class: 'small', text: `${p.formats.length} format${p.formats.length === 1 ? '' : 's'}: ${p.formats.map((f) => f.name).join(', ')}.` }),
+      el('p', { class: 'small muted', text: 'Its formats, style and release days are set up under Advanced; the technical specs under Expert.' })]),
+    card('Outputs on this platform', [used.length ? el('ul', { class: 'plain' }, used.map((o) => el('li', {}, [recordLink('outputs', o)]))) : el('p', { class: 'muted', text: 'None yet.' })]),
+  ]);
   return el('div', { class: 'detail' }, [
     el('nav', { class: 'crumbs' }, [el('a', { href: '#/platforms', text: 'Platforms & Publishing' })]),
     el('h1', { class: 'detail__title', text: p.name }),
     card('', [
       textField('Platform name', p.name, (v) => setPlatform(id, { name: v }), { key: 'plat.name' }),
-      el('div', { class: 'row' }, [
+      expert() ? el('div', { class: 'row' }, [
         textField('Specs last verified', p.verifiedOn, (v) => setPlatform(id, { verifiedOn: v }, true), { key: 'plat.verified', type: 'date' }),
         button('Verified today', () => setPlatform(id, { verifiedOn: M.todayIso() }, true)),
-      ]),
+      ]) : null,
+      connects('The publishing checklist and each format\'s specs are copied into every new platform version of a video. The release rhythm and your weekly aim plan the line on Videos.'),
       textField('Notes', p.notes, (v) => setPlatform(id, { notes: v }), { key: 'plat.notes', multiline: true }),
-      linesField('Metadata fields', p.metadataFields, (v) => setPlatform(id, { metadataFields: v }), { key: 'plat.meta', hint: 'Title, caption, description, tags, chapters, links… one per line.' }),
+      !expert() ? null : linesField('Metadata fields', p.metadataFields, (v) => setPlatform(id, { metadataFields: v }), { key: 'plat.meta', hint: 'Title, caption, description, tags, chapters, links… one per line.' }),
       adv() ? textField('Disclosure and reference requirements', p.disclosure, (v) => setPlatform(id, { disclosure: v }), { key: 'plat.disclosure', multiline: true }) : null,
       linesField('Publishing checklist', p.checklist, (v) => setPlatform(id, { checklist: v }), { key: 'plat.checklist', hint: 'Copied into each new output for this platform.' }),
     ]),
@@ -415,37 +445,42 @@ export function settingsModule() {
         wsAction('Delete workspace…', reset('workspace', `Delete the workspace "${ws.name}"?`, () => commitApp((app) => M.deleteWorkspace(app, ws.id))), 'danger'),
       ]),
     ]),
-    card('Identity', [
+    expert() ? card('Identity', [
+      connects('Goes into every AI prompt and the briefs Claude works from - "About me".'),
       textField('Channel or brand name', c.identity.channelName, (v) => setNested('identity', { channelName: v }), { key: 'cfg.channel' }),
       textField('Tagline', c.identity.tagline, (v) => setNested('identity', { tagline: v }), { key: 'cfg.tagline' }),
       textField('Philosophy', c.identity.philosophy, (v) => setNested('identity', { philosophy: v }), { key: 'cfg.philosophy', multiline: true }),
       adv() ? textField('Principles', c.identity.principles, (v) => setNested('identity', { principles: v }), { key: 'cfg.principles', multiline: true }) : null,
       adv() ? textField('Editorial guidelines', c.identity.editorialGuidelines, (v) => setNested('identity', { editorialGuidelines: v }), { key: 'cfg.editorial', multiline: true }) : null,
-    ]),
-    card('Categories, series, audiences and tags', [
+    ]) : null,
+    card(expert() ? 'Categories, series, audiences and tags' : 'Categories', [
+      connects('A category\'s colour is the video\'s colour family: the edit renders it, the poster maps it, and the video before a new colour says what it means (colour meanings live in your data).'),
       categoriesEditor(ws),
-      lines('Series', 'series', 'Each series keeps its own count: Grind my Gears #1, #2 ...'), lines('Audience profiles', 'audiences'), looksEditor(ws), lines('Tags', 'tags', 'Suggested when tagging. One per line.'),
+      ...(expert() ? [lines('Series', 'series', 'Each series keeps its own count: Grind my Gears #1, #2 ...'), lines('Audience profiles', 'audiences'), looksEditor(ws), lines('Tags', 'tags', 'Suggested when tagging. One per line.')] : []),
       adv() ? lines('Content types / formats', 'contentTypes') : null,
       adv() ? lines('Idea types', 'ideaTypes') : null,
       adv() ? lines('Project types', 'projectTypes') : null,
     ]),
-    card('Thoughts, ideas and capture', [
+    expert() ? card('Thoughts, ideas and capture', [
+      connects('Capture kinds decide the folders each video gets (Edit → Make the folder) and the file names the editor looks for.'),
       lines('Where thoughts come from', 'thoughtSources'),
       lines('What a project or idea can produce', 'produce'),
       captureKindsEditor(ws),
-    ]),
-    adv() ? card('Statuses', Object.entries(c.statuses).map(([type, list]) => linesField(M.TYPE_LABEL[type][1], list,
-      (v) => setCfg({ statuses: { ...currentWs().config.statuses, [type]: v.length ? v : list } }), { key: `cfg.status.${type}`, hint: 'In order. Records keep their current status even if you remove it here.' }))) : null,
-    card('Voice and branding', [
+    ]) : null,
+    adv() ? card('Statuses', [connects('Review, Ready and Published tick the steps and fill the release backlog - keep those three names.'), ...Object.entries(c.statuses).map(([type, list]) => linesField(M.TYPE_LABEL[type][1], list,
+      (v) => setCfg({ statuses: { ...currentWs().config.statuses, [type]: v.length ? v : list } }), { key: `cfg.status.${type}`, hint: 'In order. Records keep their current status even if you remove it here.' }))]) : null,
+    expert() ? card('Voice and branding', [
+      connects('Your voice goes into every AI prompt; brand colours and fonts go into the product briefs and the poster prompt.'),
       textField('Voice and tone', c.voice.tone, (v) => setNested('voice', { tone: v }), { key: 'cfg.tone', multiline: true }),
       adv() ? textField('Communication preferences', c.voice.communication, (v) => setNested('voice', { communication: v }), { key: 'cfg.comm', multiline: true }) : null,
       adv() ? textField('Storytelling and hook styles', c.voice.hookStyles, (v) => setNested('voice', { hookStyles: v }), { key: 'cfg.hooks', multiline: true }) : null,
       adv() ? textField('Brand colours', c.brand.colors, (v) => setNested('brand', { colors: v }), { key: 'cfg.colors' }) : null,
       adv() ? textField('Fonts', c.brand.fonts, (v) => setNested('brand', { fonts: v }), { key: 'cfg.fonts' }) : null,
       adv() ? textField('Visual preferences and brand assets', c.brand.visualNotes, (v) => setNested('brand', { visualNotes: v }), { key: 'cfg.visual', multiline: true }) : null,
-    ]),
-    card('AI instructions', [textField('Standing instructions for any assistant', c.aiInstructions, (v) => setCfg({ aiInstructions: v }), { key: 'cfg.ai', multiline: true, rows: 5,
-      hint: 'Included in every prompt this workspace builds, and in every content package export.' })]),
+    ]) : null,
+    expert() ? card('AI instructions', [textField('Standing instructions for any assistant', c.aiInstructions, (v) => setCfg({ aiInstructions: v }), { key: 'cfg.ai', multiline: true, rows: 5,
+      hint: 'Included in every prompt this workspace builds, and in every content package export.' })]) : null,
+    !expert() ? el('p', { class: 'small muted', text: 'Making the app your own - identity, series, voice and branding, AI instructions, statuses, defaults and the templates - is under Expert (the bar under the header).' }) : null,
     adv() ? card('Defaults', [el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Default workflow' }),
       el('select', { class: 'input', 'data-field': 'cfg.defaultWf', on: { change: (e) => setNested('preferences', { defaultWorkflowId: e.target.value }) } },
         [el('option', { value: '', text: '—' }), ...ws.workflows.map((t) => el('option', { value: t.id, text: t.name, selected: t.id === c.preferences.defaultWorkflowId }))])]),

@@ -318,7 +318,8 @@ export function videos() {
       lists.querySelectorAll('[data-search]').forEach((r) => { r.hidden = !!q && !r.dataset.search.includes(q); });
       lists.querySelectorAll('details').forEach((d) => { if (q) d.open = true; });
     } } });
-  return el('div', { class: 'stack' }, [weekCard(ws, today), achievementsCard(ws, today), card('', [search]), lists]);
+  const note = store.ui.level === 'expert' ? el('p', { class: 'expert-note small', text: 'Every list here is worked out from the videos themselves: their status, their platform versions\' dates and what each step still needs - nothing is kept twice, so change a video and it moves to the right list. The weekly aim and the achievements count released platform versions (and logged publications for earlier versions).' }) : null;
+  return el('div', { class: 'stack' }, [note, weekCard(ws, today), achievementsCard(ws, today), card('', [search]), lists]);
 }
 
 /** This week against the weekly target - a goal, never a requirement - and planning the line at that pace. */
@@ -602,6 +603,7 @@ export function lessonsPage() {
   return el('div', { class: 'stack' }, [
     card('Lessons', [
       el('p', { class: 'muted small', text: 'Every issue is a learning opportunity. Write down what happened, how it was solved, and the one question to ask at that step so it doesn\'t happen again. The questions show on every video\'s step under "Check before you move on" - optional ticks, never a gate.' }),
+      store.ui.level === 'expert' ? el('p', { class: 'expert-note small', text: 'Lessons are kept in your workspace settings, so they travel with your data file and every workspace can have its own. Ticks are saved on each video; removing a lesson keeps those ticks.' }) : null,
       el('div', { class: 'two' }, [field('At which step?', stepSel(fresh.step, (e) => { fresh.step = e.target.value; }, 'lesson.new.step')), field('The check', check)]),
       el('div', { class: 'two' }, [field('What happened', issue), field('How we solved it', fix)]),
       button('Add lesson', add, 'primary', { 'data-field': 'lesson.add' }),

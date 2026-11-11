@@ -21,6 +21,16 @@ export const STEPS = [
 /** Old section names still land somewhere sensible (bookmarks, links from other pages). */
 export const SECTION_ALIAS = { overview: 'idea', concept: 'idea', story: 'card', script: 'card', hooks: 'card', research: 'card',
   capture: 'record', production: 'record', editing: 'edit', review: 'edit', outputs: 'publish', publishing: 'publish', performance: 'results', history: 'results' };
+/** Shown at Expert in each step's header: how this step connects to the rest of the app. */
+export const STEP_CONNECTS = {
+  idea: 'The category sets the colour family of the edit; the title, what the viewer gets and the central idea feed the AI prompts, the brief export and every platform version. A short made from a longer video names it under Built from - that links the family strip under the title.',
+  card: 'The blocks are the script: the teleprompter reads them line by line (» read word for word, - talk around it), the edit prompt and the storyboard follow them, and their words set the timing. Lessons for this step show at the bottom.',
+  record: 'Each saved take writes its cut points to Recording notes; the edit uses the latest. Redoing one section keeps the first take, because the parts that stay are still cut from it.',
+  edit: 'The folder comes from the capture kinds (Settings at Expert). The prompt is built from the card, the take and the platform shapes; the storyboard and the finished video come back as review files you open here. A new version keeps the old file in the versions list.',
+  publish: 'Each platform version with a date joins the release line (Videos → Next to release). A missed day moves that platform\'s line on; a past day dropped on the calendar, or Released ✓, records the real date - and counts towards the weekly aim and the achievements.',
+  results: 'Feedback or a logged publication ticks this step. Channel stats (Performance) feed the achievements and the weekly progress check-ins; an issue written down under Lessons becomes a check on every video.',
+};
+
 export const stepOf = (section) => (STEPS.some(([id]) => id === section) ? section : SECTION_ALIAS[section] || 'idea');
 
 const PLACEHOLDER = /^(untitled|new )/i;

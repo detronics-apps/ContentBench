@@ -171,6 +171,46 @@ export const FIELDS = {
   ],
 };
 
+/**
+ * Simple is the minimum that still goes all the way from an idea to a released video: only these fields. Anything
+ * else that was not marked shows from Advanced (the extras that make a video better). Expert adds making the app your
+ * own - the settings - and notes on how things connect.
+ */
+export const ESSENTIAL = {
+  thoughts: ['text', 'decision'],
+  ideas: ['title', 'rawInput', 'status', 'categoryId'],
+  projects: ['title', 'description', 'status', 'startDate', 'targetDate'],
+  content: ['workingTitle', 'contentType', 'status', 'categoryId', 'viewerPromise', 'centralMessage', 'finalVideo'],
+  outputs: ['title', 'status', 'caption', 'hashtags', 'scheduledDate', 'publishedDate'],
+  references: ['title', 'url'],
+  assets: ['name', 'location'],
+  tasks: ['title', 'status', 'due'],
+  publications: ['title', 'date', 'url'],
+  feedback: ['title', 'date', 'notes'],
+};
+
+/** Shown at Expert under the field: what it feeds elsewhere in the app. */
+const CONNECTS = {
+  content: {
+    categoryId: 'Sets the video\'s colour family (the edit\'s palette) and the "new colour" line on the video before it.',
+    viewerPromise: 'Goes into the brief, the AI prompts and the platform versions\' "viewer promise".',
+    centralMessage: 'The takeaway: the platform versions\' angle, the brief and the recording card start from it.',
+    contentType: 'Short, long, e-book, poster... decides the steps\' wording (Record or Make) and which fields apply.',
+    finalVideo: 'Ticks the Edit step; Review the finished video opens this file\'s review file.',
+    status: 'Review, Ready and Published tick the steps; Ready puts it in the release backlog.',
+  },
+  outputs: {
+    scheduledDate: 'Puts it in the release line (Videos → Next to release). A missed day moves the line on; a past day dropped on the calendar means released.',
+    caption: 'The Publish step asks for one per platform version.',
+  },
+};
+for (const [type, list] of Object.entries(FIELDS)) {
+  for (const x of list) {
+    if (x.level === 'simple' && !ESSENTIAL[type]?.includes(x.key)) x.level = 'advanced';
+    if (CONNECTS[type]?.[x.key]) x.connects = CONNECTS[type][x.key];
+  }
+}
+
 /** The content item's sections, in the order the work runs: plan (inputs), then make. */
 /** The six steps of a content item (its tabs). Labels and the gaps per step live in readiness.js. */
 export const CONTENT_SECTIONS = [['idea', 'Idea'], ['card', 'Card'], ['record', 'Record'], ['edit', 'Edit'], ['publish', 'Publish'], ['results', 'Results']];

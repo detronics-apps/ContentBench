@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.0
+
+- **Three levels, each with one job.** **Simple** is only what it takes to get from an idea to a released video (a
+  video's Idea step: title, type, status, category, what they get, the central idea; Settings: your folder and the
+  categories; Platforms: pick where you post). **Advanced** adds the extras that make each video better and setting up
+  each platform's formats, style and release days. **Expert** is making the app your own - identity, series, voice and
+  branding, AI instructions, statuses, defaults, the Templates tab, technical specs and your own platforms - with a
+  short note on each page about how it connects to the rest. The How to use tab shows everything at every level, and
+  nothing hidden is ever cleared.
+
 ## 0.14.0
 
 - **Teleprompter:** more words get more time - a planned duration is a floor, never a cap, so a line written out in

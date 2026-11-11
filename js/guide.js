@@ -150,6 +150,7 @@ export const MENTAL_MODEL = [
 export const FEATURES = [
   ['Six steps per video', 'Any video or product', 'Idea → Card → Record → Edit → Publish → Results along the top, each with a tick or what is still to do, and a button to the next gap.'],
   ['Edit with Claude', 'A video → 4 Edit', 'The folder your recording goes in and a ready-made prompt to paste into Claude Code; the finished video comes back here.'],
+  ['Simple, Advanced, Expert', 'The bar under the header', 'Simple: only what it takes to get from an idea to a released video. Advanced: the extras that make each video better, and setting up each platform. Expert: make the app your own - settings, templates, statuses, your own platforms - with a note on every page about how it connects. This guide shows everything at every level.'],
   ['This week and achievements', 'Content → Videos', 'Aim for a number of videos a week - a goal, never a requirement - and plan the line at that pace in one click. Milestones: first video, a video a day, 10 in a week, 1,000 views, 1,000 followers, monetised.'],
   ['A new colour comes next', 'A video → 2 Card', 'When the next video wears a colour viewers have not seen yet, the Card step offers one line to say what it means.'],
   ['Lessons', 'Content → Lessons', 'Every issue becomes a check: what happened, how it was solved, and the question to ask at that step. Each video step shows its questions under Check before you move on - optional ticks, never a gate.'],
