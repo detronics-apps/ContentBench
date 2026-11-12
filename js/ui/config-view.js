@@ -188,7 +188,7 @@ export function platformEditor(id) {
   if (!advanced()) return el('div', { class: 'detail' }, [
     el('nav', { class: 'crumbs' }, [el('a', { href: '#/platforms', text: 'Platforms & Publishing' })]),
     el('h1', { class: 'detail__title', text: p.name }),
-    card('', [el('p', { class: 'small', text: `${p.formats.length} format${p.formats.length === 1 ? '' : 's'}: ${p.formats.map((f) => f.name).join(', ')}.` }),
+    card('', [el('p', { class: 'small', text: `${p.formats.length} format${p.formats.length === 1 ? '' : 's'}: ${p.formats.map((f) => (f.releaseTime ? `${f.name} (out at ${f.releaseTime})` : f.name)).join(', ')}.` }),
       el('p', { class: 'small muted', text: 'Its formats, style and release days are set up under Advanced; the technical specs under Expert.' })]),
     card('Outputs on this platform', [used.length ? el('ul', { class: 'plain' }, used.map((o) => el('li', {}, [recordLink('outputs', o)]))) : el('p', { class: 'muted', text: 'None yet.' })]),
   ]);
@@ -218,6 +218,8 @@ export function platformEditor(id) {
             setFormats(M.removeItem(p.formats, f.id));
           }, 'ghost', { 'aria-label': `Remove ${f.name}` }),
         ]),
+        el('div', { class: 'two' }, [textField('Release time', f.releaseTime || '', (v) => setFormats(M.patchItem(p.formats, f.id, { releaseTime: v }), false), { key: `fmt.${f.id}.releaseTime`, type: 'time' }),
+          el('p', { class: 'small muted', text: 'Your usual time to post this format, in your own time zone. Each release can have its own time in the Publish step of its video.' })]),
         el('div', { class: 'two' }, [fmtField(f, 'aspectRatio', 'Aspect ratio'), fmtField(f, 'resolution', 'Resolution')]),
         el('div', { class: 'two' }, [fmtField(f, 'duration', 'Duration constraints'), fmtField(f, 'cover', 'Thumbnail / cover')]),
         adv() ? el('div', { class: 'two' }, [fmtField(f, 'frameRate', 'Frame rate'), fmtField(f, 'fileFormat', 'File format')]) : null,

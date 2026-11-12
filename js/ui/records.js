@@ -3,7 +3,7 @@
 
 import { el } from './dom.js';
 import * as M from '../model.js';
-import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule, seriesLabel, videoTags, passesFilter } from '../content.js';
+import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule, seriesLabel, videoTags, passesFilter, releaseTime } from '../content.js';
 import { progress, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
 import { projectForecast } from '../process.js';
 import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS, releaseQueue, markReleased, planAtPace } from '../releases.js';
@@ -285,7 +285,7 @@ export function videos() {
     const next = readiness(ws, c).next;
     const ready = !next || ['publish', 'results'].includes(next.step);
     return el('div', { class: 'rowcard release-row', 'data-search': `${c.workingTitle} ${o.title || ''} ${c.series || ''}`.toLowerCase() }, [
-      el('span', { class: `release-row__day${o.scheduledDate <= today ? ' is-now' : ''}`, text: dayLabel(o.scheduledDate, today) }),
+      el('span', { class: `release-row__day${o.scheduledDate <= today ? ' is-now' : ''}`, text: `${dayLabel(o.scheduledDate, today)}${releaseTime(ws, o) ? ` ${releaseTime(ws, o)}` : ''}` }),
       el('a', { class: 'rowcard__title', href: workHref(ws, c), text: o.title || c.workingTitle }),
       el('span', { class: 'rowcard__meta' }, [
         p ? el('strong', { class: 'small', text: p.name }) : null,

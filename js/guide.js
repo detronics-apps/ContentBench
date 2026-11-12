@@ -173,6 +173,7 @@ export const FEATURES = [
   ['Scorecard', 'Idea or project', 'Optional 1-10 criteria; score only what applies.'],
   ['Capture list', 'A video → 3 Record', 'Every shot, recording and sound, with the exact folder it goes in.'],
   ['Check folder', 'A video → 3 Record', 'Finds each saved file, so done means really there.'],
+  ['Release times', 'Platforms → a platform → a format', 'Each format has its usual time to go out - TikTok 16:00, a YouTube video 19:00 - shown in the release line, on the calendar and in Publish, where one release can have its own time.'],
   ['Release rhythm', 'Platforms → a platform', 'Release days per platform; the backlog fills the open slots.'],
   ['Safe zones drawn', 'Platforms → a format', 'The no-go margins shown on the frame.'],
   ['Private folder', 'Settings', 'Your data in your own Google Drive folder, not in the public app.'],

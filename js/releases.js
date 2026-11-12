@@ -3,7 +3,7 @@
 
 import { nowIso, todayIso, getRecord, updateRecord } from './model.js';
 import { addDays } from './workflow.js';
-import { outputLabel, videoNumber } from './content.js';
+import { outputLabel, videoNumber, releaseTime } from './content.js';
 
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const blankRhythm = () => ({ enabled: false, days: [], target: 2 });
@@ -139,7 +139,7 @@ export function calendarItems(ws) {
   const cat = (id) => ws.config.categories.find((x) => x.id === id) || null;
   return ws.records.outputs.filter((r) => !r.archived).map((o) => {
     const c = getRecord(ws, 'content', o.contentId);
-    return { type: 'outputs', id: o.id, title: o.title || c?.workingTitle || '(untitled)', label: outputLabel(ws, o),
+    return { type: 'outputs', id: o.id, title: o.title || c?.workingTitle || '(untitled)', label: [releaseTime(ws, o), outputLabel(ws, o)].filter(Boolean).join(' · '),
       platformId: o.platformId, date: o.publishedDate || o.scheduledDate || '', color: cat(c?.categoryId)?.color || '',
       category: cat(c?.categoryId)?.name || '', done: released(o),
       ready: o.status === 'Ready' || c?.status === 'Ready' };

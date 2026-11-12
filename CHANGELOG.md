@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.0
+
+- **Release times:** each platform format has its usual time to go out (Platforms → a platform, at Advanced). The
+  release line, the calendar chips and the Publish step show it, and one release can have its own time in Publish.
+- **A check that every module parses,** so a stray quote in a screen can never blank the app again.
+
 ## 0.18.0
 
 - **No sidebar: every page has the full width.** Drop a thought and How this works are on Home; switching workspace

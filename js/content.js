@@ -11,7 +11,7 @@ import { projectForecast, stageById } from './process.js';
 export function makeFormat(fields = {}) {
   return {
     id: newId('fmt'), name: 'New format', aspectRatio: '', resolution: '', duration: '',
-    fileSize: '', frameRate: '', fileFormat: '', safeZones: '', cover: '', checklist: [],
+    fileSize: '', frameRate: '', fileFormat: '', safeZones: '', cover: '', checklist: [], releaseTime: '',
     ...fields,
     safe: { top: 0, bottom: 0, left: 0, right: 0, ...(fields.safe || {}) },  // % of the frame kept clear
   };
@@ -65,6 +65,12 @@ export function createOutput(ws, contentId, { platformId = '', formatId = '', st
     story: story ? instantiateStory(story, now) : null,
   };
   return createRecord(ws, 'outputs', fields, now);
+}
+
+/** When a version goes out on its day: its own time, else its format's usual time (e.g. TikTok 16:00), else nothing. */
+export function releaseTime(ws, output) {
+  const format = ws.platforms.find((p) => p.id === output.platformId)?.formats.find((f) => f.id === output.formatId);
+  return output.releaseTime || format?.releaseTime || '';
 }
 
 export function outputLabel(ws, output) {

@@ -79,3 +79,12 @@ test('dropping a release on a past day records it as released there - the line d
   assert.equal(ws.records.outputs[1].scheduledDate, '2026-11-13', 'today or later stays a plan');
   assert.equal(ws.records.outputs[1].publishedDate, '');
 });
+
+test('a release goes out at its own time, else at its format\'s usual time', async () => {
+  const { releaseTime } = await import('../js/content.js');
+  const ws = { platforms: [{ id: 'tt', formats: [{ id: 'short', releaseTime: '16:00' }, { id: 'none' }] }] };
+  assert.equal(releaseTime(ws, { platformId: 'tt', formatId: 'short' }), '16:00');
+  assert.equal(releaseTime(ws, { platformId: 'tt', formatId: 'short', releaseTime: '18:30' }), '18:30');
+  assert.equal(releaseTime(ws, { platformId: 'tt', formatId: 'none' }), '');
+  assert.equal(releaseTime(ws, { platformId: 'gone' }), '');
+});

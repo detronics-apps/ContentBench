@@ -8,7 +8,7 @@ import { EXTRA_TYPES } from '../extras.js';
 import { zip } from '../zip.js';
 import * as W from '../workflow.js';
 import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule,
-  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom, familyOf, newVersion, REDO, withFolder, recordingFile, shortCaption, videoNumber } from '../content.js';
+  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom, familyOf, newVersion, REDO, withFolder, recordingFile, shortCaption, videoNumber, releaseTime } from '../content.js';
 import { openReview } from './review.js';
 import { lessonsFor, checksDone, tickCheck } from '../lessons.js';
 import { newColourNext, lineTarget } from '../colours.js';
@@ -369,7 +369,8 @@ function publishOutputs(c, ws) {
       el('div', { class: 'two' }, [
         field('Title', el('input', { class: 'input', value: o.title || '', 'data-field': `pub.${o.id}.title`, on: { change: set(o, 'title') } })),
         el('div', { class: 'two' }, [
-          field('Release date', el('input', { class: 'input', type: 'date', value: o.scheduledDate || '', 'data-field': `pub.${o.id}.date`, on: { change: set(o, 'scheduledDate', true) } })),
+          field('Release date', el('div', { class: 'row' }, [el('input', { class: 'input', type: 'date', value: o.scheduledDate || '', 'data-field': `pub.${o.id}.date`, on: { change: set(o, 'scheduledDate', true) } }),
+            el('input', { class: 'input input--inline', type: 'time', value: releaseTime(ws, o), 'aria-label': 'Release time', title: 'The time it goes out - the usual time for its format unless you change it here', 'data-field': `pub.${o.id}.time`, on: { change: set(o, 'releaseTime', true) } })])),
           field('Status', el('select', { class: 'input', 'data-field': `pub.${o.id}.status`, on: { change: set(o, 'status', true) } },
             ws.config.statuses.outputs.map((x) => el('option', { value: x, text: x, selected: x === o.status })))),
         ]),
