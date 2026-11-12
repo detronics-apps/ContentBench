@@ -166,7 +166,7 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 /* --- calendar --------------------------------------------------------
    A chip's colour is its content category (--cat, set inline - the creator's data). */
 .cal__title { margin: 0; font-size: 18px; min-width: 9em; text-align: center; }
-.cal { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: var(--space-3); align-items: start; }
+.cal { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 34%); gap: var(--space-3); align-items: start; }
 .cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
 .cal__dow { font-size: 11px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; padding: 2px 4px; }
 .calday { min-height: 92px; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); padding: 3px; display: flex; flex-direction: column; gap: 3px; }
@@ -187,10 +187,11 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .calchip[aria-pressed="true"] { outline: 2px solid var(--accent-strong); outline-offset: 1px; }
 .calchip__title, .calchip__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .calchip__label { font-weight: 400; color: var(--text-faint); font-size: 10px; }
-.cal__shelf { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: var(--space-3); background: var(--panel); display: flex; flex-direction: column; gap: var(--space-2); }
+.cal__shelf { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: var(--space-3); background: var(--panel); display: flex; flex-direction: column; gap: var(--space-2);
+  position: sticky; top: var(--space-2); max-height: calc(100vh - 2 * var(--space-4)); overflow-y: auto; }
 .cal__shelfhead { margin: 0; font-size: 13px; }
-.cal__shelfitems { display: flex; flex-direction: column; gap: 4px; }
-.cal__legend { display: flex; flex-wrap: wrap; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-2); }
+.cal__shelfitems { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+.cal__legend { display: flex; flex-wrap: wrap; gap: var(--space-2); border-bottom: 1px solid var(--border); padding-bottom: var(--space-2); }
 .plan--step { border-left-color: var(--accent); }
 
 /* --- video timeline ---------------------------------------------------- */
@@ -247,7 +248,7 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 
 @media (max-width: 700px) {
   .grid, .two, .compare, .cal { grid-template-columns: minmax(0, 1fr); }
-  .cal__shelf { order: -1; }
+  .cal__shelf { order: -1; position: static; max-height: none; }
   .calday { min-height: 64px; padding: 2px; }
   .calchip { padding: 1px 3px; border-left-width: 3px; }
   .calchip__label { display: none; }

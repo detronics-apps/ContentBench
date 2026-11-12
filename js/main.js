@@ -1,4 +1,4 @@
-// Chrome, routing and the sidebar. Routes live in the URL hash, so the browser's own
+// Chrome and routing. Routes live in the URL hash, so the browser's own
 // back button walks back through records and every page has a link of its own.
 
 import { el, toast, download } from './ui/dom.js';
@@ -20,7 +20,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.17.0';
+export const APP_VERSION = '0.18.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - only what it takes to get from an idea to a released video. Nothing hidden is cleared.',
@@ -125,7 +125,7 @@ function paintChrome() {
   );
 }
 
-/* ---------------------------------------------------------------- sidebar */
+/* ---------------------------------------------------------------- panels */
 
 /** An accordion section with a padlock: a locked section stays open when a sibling opens. */
 function sideSection(id, title, kids) {
@@ -141,7 +141,7 @@ function sideSection(id, title, kids) {
   node.addEventListener('toggle', () => {
     store.ui.sections[id] = node.open;
     if (node.open) {
-      for (const other of dom.sidebar.querySelectorAll('details.side[open]')) {
+      for (const other of dom.page.querySelectorAll('details.side[open]')) {
         if (other !== node && !store.ui.locks[other.dataset.section]) { other.open = false; store.ui.sections[other.dataset.section] = false; }
       }
     }
@@ -194,6 +194,7 @@ function exportPanel(cur) {
   const ws = currentWs();
   const contentId = cur?.type === 'content' ? cur.record.id : cur?.type === 'outputs' ? cur.record.contentId : '';
   const c = contentId && M.getRecord(ws, 'content', contentId);
+  if (!c) return null;
   return sideSection('export', 'Export', [
     c ? el('p', { class: 'small', text: `Content package for "${c.workingTitle}": brief, concept, story, script, references, visuals, production notes, AI instructions, asset manifest, and a folder per platform output.` }) : el('p', { class: 'small muted', text: 'Open a content item to export its package.' }),
     c ? el('div', { class: 'row' }, [
@@ -205,28 +206,18 @@ function exportPanel(cur) {
       EXTRA_TYPES.includes(c.contentType) ? button('Brief for Claude to make it (.md)', () => download(new Blob([productBrief(ws, c.id)], { type: 'text/markdown' }), `${slug(c.workingTitle)}_make-it.md`), 'primary', { 'data-field': 'export.product', title: 'Upload to Claude: the job, the rules, the structure, your content and sources, the design and the graphics - it makes the product' }) : null,
       button('Download brief (.md)', () => download(new Blob([assistantBrief(ws, c.id)], { type: 'text/markdown' }), `${slug(c.workingTitle)}_brief.md`), '', { 'data-field': 'export.md', title: 'Everything about this video in one Markdown file - to paste into another chat or AI' }),
     ]) : null,
-    el('div', { class: 'row' }, [button('Export workspace (.json)', () => download(new Blob([M.exportWorkspace(ws)], { type: 'application/json' }),
-      `ContentBench_${slug(ws.name)}_${M.todayIso()}.json`), '', { 'data-field': 'export.ws' })]),
     el('p', { class: 'small muted', text: 'Files download to this device. Nothing is uploaded.' }),
   ]);
 }
 
-function workspacePanel() {
-  const sel = el('select', { class: 'input', 'data-field': 'side.ws', 'aria-label': 'Switch workspace',
-    on: { change: (e) => { commitApp((app) => ({ ...app, currentId: e.target.value })); location.hash = '#/home'; } } },
-  store.app.workspaces.map((w) => el('option', { value: w.id, text: w.name, selected: w.id === store.app.currentId })));
-  return sideSection('workspace', 'Workspace', [sel, el('p', { class: 'small muted', text: currentWs().description || '' }), el('a', { href: '#/settings', class: 'small', text: 'Workspace settings' })]);
-}
-
-function buildSidebar(route) {
+/**
+ * What used to sit in a sidebar now sits where it is used, so the page has the full width: Drop a thought and How this
+ * works on Home, the workspace and its export in Settings, and a record's links and export at the foot of its own page.
+ */
+function pageFoot(route) {
+  if (route.mod === 'home') return [explainPanel(route, null)];
   const cur = currentRecord(route);
-  dom.sidebar.replaceChildren(...[
-    sideSection('capture', 'Drop a thought', [R.quickCapture('side')]),
-    relatedPanel(cur),
-    explainPanel(route, cur),
-    workspacePanel(),
-    exportPanel(cur),
-  ].filter(Boolean));
+  return cur ? [relatedPanel(cur), exportPanel(cur)].filter(Boolean) : [];
 }
 
 /* ----------------------------------------------------------------- render */
@@ -264,7 +255,7 @@ export function render() {
   const path = `${route.mod}/${route.a}/${route.b}`;
   const moved = path !== lastPath;
   lastPath = path;
-  const snap = captureFocus({ viewport: dom.viewport, sidebar: dom.sidebar });
+  const snap = captureFocus({ viewport: dom.viewport });
   const winY = window.scrollY;
 
   // Home is the grid of sections; inside one, a breadcrumb home and only that section's tabs.
@@ -276,15 +267,14 @@ export function render() {
       el('a', { href: '#/home', text: 'Home', 'data-field': 'nav.home' }),
       sec ? ' › ' : null,
       sec ? (sec.tabs.length > 1 ? el('a', { href: `#/section/${sec.id}`, text: sec.name }) : el('span', { text: sec.name })) : null,
+      // the big buttons on a section's page are the way between its parts; the breadcrumb says which part this is
+      sec && current && route.mod !== 'section' && sec.tabs.length > 1 ? ' › ' : null,
+      sec && current && route.mod !== 'section' && sec.tabs.length > 1 ? el('a', { href: `#/${current}`, text: sec.tabs.find(([id]) => id === current)?.[1] || '' }) : null,
     ]),
-    // the templates are where the app is made your own: Expert (a link to them still opens at any level)
-    // a section's own page has its big buttons, so the small tab row shows only inside one of its parts
-    sec && sec.tabs.length > 1 && route.mod !== 'section' ? el('div', { class: 'segmented', role: 'navigation', 'aria-label': sec.name }, sec.tabs.filter(([id]) => id !== 'templates' || store.ui.level === 'expert' || id === current).map(([id, label]) =>
-      el('a', { class: 'segmented__btn', href: `#/${id}`, text: label, 'aria-current': id === current ? 'page' : null }))) : null,
   ].filter(Boolean)));
   paintSync();
   renderNotices(dom.notices, notices(), render);
-  dom.page.replaceChildren(page(route));
+  dom.page.replaceChildren(page(route), ...pageFoot(route));
   // Big buttons at the bottom: one step back, and home. The breadcrumb up top only shows where you are.
   const back = Pl.backFor(route);
   dom.pagenav.hidden = route.mod === 'home';
@@ -293,7 +283,6 @@ export function render() {
     el('a', { class: 'btn pagenav__btn', href: '#/home', 'data-field': 'nav.homeBottom' }, [el('span', { 'aria-hidden': 'true', text: '⌂ ' }), 'Home']),
   ].filter(Boolean)));
   dom.tagList.replaceChildren(...currentWs().config.tags.map((t) => el('option', { value: t })));
-  buildSidebar(route);
   paintChrome();
 
   if (moved) {
@@ -301,7 +290,7 @@ export function render() {
     window.scrollTo(0, 0);
     if (snap.key?.startsWith('capture') || snap.key?.startsWith('side')) restoreFocus({ ...snap, scroll: {} }, {});
   } else {
-    restoreFocus(snap, { viewport: dom.viewport, sidebar: dom.sidebar });
+    restoreFocus(snap, { viewport: dom.viewport });
     window.scrollTo(0, winY);
   }
 }
@@ -350,9 +339,8 @@ function init() {
   dom.page = el('div', { class: 'page' });
   dom.pagenav = el('nav', { class: 'pagenav', 'aria-label': 'Back and home' });
   dom.viewport = el('section', { class: 'viewport' }, [dom.tabs, dom.syncbar, dom.notices, dom.page, dom.pagenav]);
-  dom.sidebar = el('aside', { class: 'sidebar', 'aria-label': 'Tools' });
   dom.tagList = el('datalist', { id: 'dl-tags' });
-  document.body.append(buildHeader(), buildModebar(), el('main', { class: 'app-main' }, [dom.viewport, dom.sidebar]), buildFooter(), dom.tagList);
+  document.body.append(buildHeader(), buildModebar(), el('main', { class: 'app-main' }, [dom.viewport]), buildFooter(), dom.tagList);
   onChange(({ render: full }) => (full ? render() : paintChrome()));
   window.addEventListener('hashchange', render);
   onSync(() => { paintSync(); paintChrome(); });

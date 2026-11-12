@@ -76,7 +76,7 @@ js/seed.js         example workspace - data only, never read by the app logic
 js/exporter.js     content package files;  js/zip.js  stored-zip writer
 js/guide.js        how-to, FAQ, aliases, onboarding, explain texts;  js/legal.js  footer texts
 js/ui/             store, folder sync, planning (hub, thoughts, ideas, projects), content, config views
-js/main.js         chrome, hash routing, sidebar
+js/main.js         chrome, hash routing, the panels at the foot of a page
 tools/cb.mjs       command-line editor for the private data file
 ```
 

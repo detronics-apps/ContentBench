@@ -478,8 +478,9 @@ function calendarView(ws, today) {
   const all = calendarItems(ws);
   const show = planFilter.show;
   const cats = store.ui.calCats || [];
-  const items = all.filter((i) => (!show || i.platformId === show) && (!cats.length || cats.includes(i.category)));
-  const catChip = (c) => el('button', { class: 'chip cat-toggle', type: 'button', 'aria-pressed': String(cats.includes(c.name)), 'data-field': `calcat.${c.id}`, title: 'Show only this category - tap more to add them',
+  // the category filter is for finding what still needs a date: it narrows the shelf, never the days already planned
+  const items = all.filter((i) => !show || i.platformId === show);
+  const catChip = (c) => el('button', { class: 'chip cat-toggle', type: 'button', 'aria-pressed': String(cats.includes(c.name)), 'data-field': `calcat.${c.id}`, title: 'Show only this category on the shelf - tap more to add them. The days keep everything planned.',
     on: { click: (e) => { e.stopPropagation(); store.ui.calCats = cats.includes(c.name) ? cats.filter((x) => x !== c.name) : [...cats, c.name]; saveUi(); refresh(); } } },
     [el('span', { class: 'cat__dot', style: { background: c.color } }), c.name]);
   const byDate = new Map();
@@ -487,7 +488,7 @@ function calendarView(ws, today) {
     if (!byDate.has(i.date)) byDate.set(i.date, []);
     byDate.get(i.date).push(i);
   }
-  const shelf = items.filter((i) => !i.date && !i.done).sort((a, b) => Number(b.ready) - Number(a.ready));
+  const shelf = items.filter((i) => !i.date && !i.done && (!cats.length || cats.includes(i.category))).sort((a, b) => Number(b.ready) - Number(a.ready));
   const slots = new Map();
   for (const p of ws.platforms.filter((x) => x.rhythm?.enabled && (!show || x.id === show))) {
     for (const d of slotDates(p.rhythm, addDays(`${ym}-01`, -7), 50)) slots.set(d, [...(slots.get(d) || []), p.name]);
@@ -542,10 +543,10 @@ function calendarView(ws, today) {
         ...days.map(cell),
       ]),
       dropZone(el('div', { class: `cal__shelf ${picked ? 'calday--target' : ''}`, on: { click: () => picked && place(picked, '') } }, [
-        el('h3', { class: 'cal__shelfhead', text: 'No release date yet' }),
-        shelf.length ? el('div', { class: 'cal__shelfitems' }, shelf.map(calChip)) : el('p', { class: 'small muted', text: 'Everything has a date. Drop a chip here to take its date off.' }),
+        el('h3', { class: 'cal__shelfhead', text: `No release date yet (${shelf.length})` }),
         ws.config.categories.length ? el('div', { class: 'cal__legend chipset', 'data-field': 'cal.cats' }, [...ws.config.categories.map(catChip),
           cats.length ? el('button', { class: 'chip', type: 'button', text: 'All', 'data-field': 'calcat.all', on: { click: (e) => { e.stopPropagation(); store.ui.calCats = []; saveUi(); refresh(); } } }) : null]) : null,
+        shelf.length ? el('div', { class: 'cal__shelfitems' }, shelf.map(calChip)) : el('p', { class: 'small muted', text: cats.length ? 'Nothing in these categories still needs a date.' : 'Everything has a date. Drop a chip here to take its date off.' }),
       ]), ''),
     ]),
   ]);

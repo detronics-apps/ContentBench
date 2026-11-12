@@ -71,7 +71,7 @@ export const HOWTOS = [
     'On a video\'s Card step, repeat a block (an extra re-hook) or change a duration. The bar compares it with the template.',
     'Liked it? "Save as a new template (variant)" keeps it to use on other videos; the default is untouched.'] },
   { id: 'capture', category: 'Planning', title: 'Drop a thought, then grow it', steps: [
-    'Type it into "Drop a thought" on Home or in the sidebar and press Enter. Seconds, no form.',
+    'Type it into "Drop a thought" on Home and press Enter. Seconds, no form.',
     'Later, in Thoughts, mark it Develop, Park or Drop - or leave it. The Passport questions are there if they help.',
     'Press → Idea to spend about an hour on it, → Project for days of work, or → Video to make content straight away.'] },
   { id: 'idea-to-content', category: 'Planning', title: 'Turn a thought, idea or project into videos', steps: [
@@ -107,7 +107,7 @@ export const HOWTOS = [
     'Press "Use master" to take the new text, or "Keep mine" to keep your adaptation.'] },
   { id: 'export', category: 'Export', title: 'Export a content package for a collaborator or assistant', steps: [
     'Open the content item.',
-    'In the sidebar, under Export, press "Download package (.zip)".',
+    'Open the video, scroll to Export at the foot of the page, and press "Download package (.zip)".',
     'Or "Copy assistant brief" to paste the whole package into an AI assistant as text.'] },
   { id: 'ai', category: 'Assistant', title: 'Use an AI assistant without losing your own words', steps: [
     'Open an idea, content item or output and find "Assistant" at the bottom.',
@@ -154,7 +154,7 @@ export const FEATURES = [
   ['This week and achievements', 'Content → Videos · Content → Achievements', 'Aim for a number of videos a week - a goal, never a requirement - and plan the line at that pace in one click. Milestones: first video, a video a day, 10 in a week, 1,000 views, 1,000 followers, monetised.'],
   ['A new colour comes next', 'A video → 2 Card', 'When the next video wears a colour viewers have not seen yet, the Card step offers one line to say what it means.'],
   ['Lessons', 'Content → Lessons', 'Every issue becomes a check: what happened, how it was solved, and the question to ask at that step. Each video step shows its questions under Check before you move on - optional ticks, never a gate.'],
-  ['Filter by category, series and status', 'Content → Videos · Releases → Calendar', 'Tap a category, series or status to see only those; tap another of the same kind to add it - Home and Parenting together. On the calendar, the categories under No release date yet switch on and off the same way.'],
+  ['Filter by category, series and status', 'Content → Videos · Releases → Calendar', 'Tap a category, series or status to see only those; tap another of the same kind to add it - Home and Parenting together. On the calendar, the categories under No release date yet narrow that list the same way, so you find what still needs a date - the days keep everything already planned.'],
   ['Videos: one list', 'Content → Videos', 'Every video in one place: next to release (with what each still needs and Released ✓), in the making, being planned, released and parked. Search finds any of them; a click opens the video where its work is.'],
   ['Plans move on', 'Content → Videos → Next to release', 'Missed a release day? The whole line for that platform moves on by the same days: the next one is simply today, everything after keeps its spacing. Nothing is ever late.'],
   ['Review the finished video', 'A video → 4 Edit → Review the finished video', 'Watch it scene by scene: reword the text on a card, untick what you do not want (a pointing arrow, a sound), comment on any moment. One prompt hands it all back to Claude - the timing stays its job.'],
@@ -181,11 +181,11 @@ export const FEATURES = [
   ['Release chips per platform', 'Planner → Calendar', 'Each TikTok, Reel and YouTube upload has its own date and category colour.'],
   ['Video timeline', 'A video → 2 Card', 'The structure as a timed bar, compared with its template.'],
   ['Variant templates', 'A video → 2 Card', 'Save a tweaked structure as a new template to test it.'],
-  ['Quick capture', 'Sidebar → Quick capture', 'Jot an idea from any screen without leaving it.'],
-  ['Related records', 'Sidebar → Related', 'Jump between an idea, its content and its outputs in both directions.'],
+  ['Drop a thought', 'Home', 'Jot an idea in seconds - no form, no decision.'],
+  ['Related records', 'Foot of a record → Related', 'Jump between an idea, its content and its outputs in both directions.'],
   ['Master drift', 'Output → notice', 'Shows which master fields changed since an output copied them.'],
-  ['Brief in one file', 'Sidebar → Export', 'Download brief (.md): the whole video - plan, talking points, reasoning, claims, visuals - in one Markdown file for another chat or AI.'],
-  ['Content package', 'Sidebar → Export', 'A zip of Markdown files an outsider can read without guessing.'],
+  ['Brief in one file', 'Foot of a video → Export', 'Download brief (.md): the whole video - plan, talking points, reasoning, claims, visuals - in one Markdown file for another chat or AI.'],
+  ['Content package', 'Foot of a video → Export', 'A zip of Markdown files an outsider can read without guessing.'],
   ['Board view', 'Content Library → Board', 'Content grouped by status.'],
   ['Remove samples', 'Settings → Workspace', 'Strips every example record, keeping your own.'],
   ['Spec verification date', 'Platforms → platform', 'Records when you last checked a platform\'s limits.'],

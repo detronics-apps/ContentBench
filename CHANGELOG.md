@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.18.0
+
+- **No sidebar: every page has the full width.** Drop a thought and How this works are on Home; switching workspace
+  and exporting it are in Settings; a video's Related links and Export (package, brief) are at the foot of its page.
+- **A wider No release date yet** on the calendar - about a third of it, in two columns, and it stays in view as you
+  scroll - with the category filters at the top and a count.
+
+## 0.17.1
+
+- **No small tab row inside a section:** the big buttons on the section page are the way between its parts, and the
+  breadcrumb names the part you are in (Home › Content › Releases).
+- **The calendar filter narrows only No release date yet:** it is for finding what still needs a date to drag into
+  place; everything already on a day stays on the calendar.
+
 ## 0.17.0
 
 - **Home is the dashboard:** five big buttons - Planning, Content, Library, Settings, How to use - and under them your

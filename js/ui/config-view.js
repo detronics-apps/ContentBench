@@ -424,6 +424,9 @@ export function settingsModule() {
     folderCard(),
     card('Workspace', [
       el('p', { class: 'muted small', text: 'Everything below belongs to this workspace only. The application, and every other workspace, are never touched by these actions.' }),
+      store.app.workspaces.length > 1 ? el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Open workspace' }),
+        el('select', { class: 'input', 'data-field': 'ws.switch', on: { change: (e) => { commitApp((app) => ({ ...app, currentId: e.target.value })); location.hash = '#/home'; } } },
+          store.app.workspaces.map((w) => el('option', { value: w.id, text: w.name, selected: w.id === store.app.currentId })))]) : null,
       textField('Workspace name', ws.name, (v) => commitWs((w) => ({ ...w, name: v || 'Untitled workspace', modified: M.nowIso() })), { key: 'ws.name' }),
       textField('Description', ws.description, (v) => commitWs((w) => ({ ...w, description: v }), { render: false }), { key: 'ws.desc', multiline: true }),
       el('div', { class: 'row' }, [
