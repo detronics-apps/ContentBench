@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.2
+
+- **Tag a line while you edit it:** ✎ on a teleprompter line now shows Read · Talk · Note. Pick one and Save, and the
+  line changes kind on the card (» read word for word, large and bold; - a point to talk around; a note, small and grey).
+
 ## 0.16.1
 
 - **Shorter folder names:** the number, then the series and part (`002_Speed_over_Truth_Part_1_43bfd9`), or the video's own

@@ -74,13 +74,14 @@ export function paceNote(seg) {
 
 /**
  * A block's script with its `index`-th line (as parseLines counts them) reworded.
- * The line keeps its marker (» read, - talk), so it stays the same kind on the teleprompter.
+ * The line keeps its marker (» read, - talk), so it stays the same kind on the teleprompter - unless `kind` gives a new one.
  */
-export function replaceLine(script = '', index, text) {
+export const MARKS = { read: '» ', talk: '- ', note: '' };
+export function replaceLine(script = '', index, text, kind) {
   let n = -1;
   return String(script).split('\n').map((raw) => {
     if (!raw.trim() || ++n !== index) return raw;
-    const mark = raw.match(/^\s*(»\s*|[-*•]\s+)/)?.[0] ?? '';
+    const mark = kind in MARKS ? MARKS[kind] : raw.match(/^\s*(»\s*|[-*•]\s+)/)?.[0] ?? '';
     return mark + String(text).replace(/\s*\n\s*/g, ' ').trim();
   }).join('\n');
 }

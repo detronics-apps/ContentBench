@@ -161,7 +161,7 @@ export const FEATURES = [
   ['Full video and its parts', 'The strip under the title', 'Working on:  Full video · Part 1 · Part 2 ... - one tap to switch, on the same step. A short joins the strip when it names the full video under Built from.'],
   ['Every platform on one page', 'A video → 5 Publish', 'Title, caption, hashtags, date and status for TikTok, YouTube, Instagram and the rest, side by side.'],
   ['Beyond video', 'Content → Beyond video', 'Courses, e-books and PDFs, posters, LinkedIn and Instagram posts per category - with a + to start one and free / paid counted.'],
-  ['Teleprompter', 'A video → 3 Record', 'Full screen: your notes, the line you should be on, what comes next and what is on screen. Pause any time; it keeps your cut points.'],
+  ['Teleprompter', 'A video → 3 Record', 'Full screen: your notes, the line you should be on, what comes next and what is on screen. Pause any time; it keeps your cut points. ✎ on a line rewords it and sets its tag: Read, Talk or Note.'],
   ['Read lines and talking points', 'A video → 2 Card', 'Start a line with » to read it word for word, - to talk around it. Each block also says why it is there.'],
   ['Why it is made this way', 'A video → 1 Idea', 'The reasoning behind the structure, so the next video copies the thinking, not just the format.'],
   ['Back and Home', 'Bottom of every page', 'Big buttons: one step back to the logical place, or straight home. The breadcrumb up top shows where you are.'],

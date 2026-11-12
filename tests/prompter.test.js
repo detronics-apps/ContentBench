@@ -8,6 +8,10 @@ test('rewording a line keeps its marker and leaves the other lines alone', () =>
   assert.equal(replaceLine(s, 1, 'new point\nsecond bit'), '» Read this.\n\n- new point second bit\nnote here');
   assert.equal(replaceLine(s, 2, 'new note'), '» Read this.\n\n- talk point\nnew note');
   assert.deepEqual(parseLines(replaceLine(s, 0, 'X')).map((l) => l.kind), ['read', 'talk', 'note']);
+  // a new tag while editing: read -> note, talk -> read, note -> talk
+  const t = replaceLine(replaceLine(replaceLine(s, 0, 'A', 'note'), 1, 'B', 'read'), 2, 'C', 'talk');
+  assert.equal(t, 'A\n\n» B\n- C');
+  assert.deepEqual(parseLines(t).map((l) => l.kind), ['note', 'read', 'talk']);
 });
 
 test('lines: » is read, - is talked, the rest are notes', () => {

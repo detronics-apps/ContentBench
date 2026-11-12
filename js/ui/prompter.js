@@ -202,16 +202,22 @@ export function openPrompter(type, record) {
     const line = plan.blocks[bi].lines[li];
     const box = el('textarea', { class: 'input pr-edit__box', rows: 3, 'data-field': 'pr.editBox' });
     box.value = line.text;
+    // the line's tag: pick one while editing; Save writes the matching mark (» read, - talk, none for a note)
+    let kind = line.kind;
+    const TAGS = [['read', 'Read', 'Word for word: large and bold'], ['talk', 'Talk', 'A point to talk around'], ['note', 'Note', 'A reminder, not said: small and grey']];
+    const tags = el('div', { class: 'segmented pr-tags', role: 'group', 'aria-label': 'Line tag' }, TAGS.map(([k, label, tip]) =>
+      el('button', { class: 'segmented__btn', type: 'button', title: tip, 'aria-pressed': String(k === kind), 'data-field': `pr.tag.${k}`,
+        on: { click: (e) => { kind = k; [...tags.children].forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget))); box.focus(); } } }, [label])));
     const save = () => {
       const text = box.value.replace(/\s*\n\s*/g, ' ').trim();
-      if (!text || text === line.text) return showBlock(bi);
-      changeBlock(bi, (sc) => replaceLine(sc, li, text), 'Line saved to the card');
+      if (!text || (text === line.text && kind === line.kind)) return showBlock(bi);
+      changeBlock(bi, (sc) => replaceLine(sc, li, text, kind), 'Line saved to the card');
     };
     box.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); }
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); showBlock(bi); tick(); }
     });
-    row.replaceChildren(box, el('div', { class: 'row' }, [
+    row.replaceChildren(tags, box, el('div', { class: 'row' }, [
       btn('Save line', save, { class: 'btn btn-primary', 'data-field': 'pr.saveLine' }),
       btn('Cancel', () => { showBlock(bi); tick(); }),
       el('span', { class: 'small muted', text: 'Saved to the card, so the next take reads it this way.' })]));

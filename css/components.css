@@ -395,6 +395,7 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 .pr-line--note { color: var(--text-dim); font-style: italic; font-size: .85em; }
 .pr-line--read { font-size: 1.35em; font-weight: 700; border-left-color: var(--accent); }
 .pr-line.is-past { opacity: .4; }
+.pr-tags { width: fit-content; margin-bottom: var(--space-2); font-size: .8rem; font-weight: 400; font-style: normal; }
 /* the reword button: quiet until you're on the line or pointing at it, always reachable by tap */
 .pr-edit { float: right; margin-left: var(--space-2); padding: 0 .5em; font-size: .7rem; line-height: 1.8; opacity: .45; font-weight: 400; }
 .pr-line:hover .pr-edit, .pr-line.is-now .pr-edit, .pr-edit:focus-visible { opacity: 1; }
