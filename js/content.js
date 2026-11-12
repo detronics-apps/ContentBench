@@ -396,3 +396,14 @@ export function categoryPlace(ws, c) {
 /** One look per audience: the same layout and type, its own two colours. */
 export const DEFAULT_LOOK = { main: '#1f2d3d', accent: '#2f6e94' };
 export const lookFor = (ws, audience) => (audience && ws.config.looks?.[audience]) || null;
+
+/**
+ * What a video can be filtered on: its category, its series (a part takes the full video's) and its status.
+ * A filter is { cat: [], series: [], status: [] }: within one kind any picked value matches; across kinds all must.
+ * Nothing picked in a kind means that kind does not narrow anything.
+ */
+export function videoTags(ws, c) {
+  const full = (c.sourceIds || []).map((id) => ws.records.content.find((x) => x.id === id)).find(Boolean);
+  return { cat: c.categoryId || '', series: c.series || full?.series || '', status: c.status || '' };
+}
+export const passesFilter = (f = {}, t) => ['cat', 'series', 'status'].every((k) => !f[k]?.length || f[k].includes(t[k]));

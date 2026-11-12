@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.17.0
+
+- **Home is the dashboard:** five big buttons - Planning, Content, Library, Settings, How to use - and under them your
+  next task, a box to drop a thought, today, the week ahead, what is ready to release, projects and recent edits.
+- **Content in order:** 1 Videos, 2 Releases, 3 Performance, then a line, then Lessons, Beyond video and the new
+  **Achievements** page (moved out of Videos). The section page shows only its big buttons, not the tab row as well.
+- **Filters on Videos:** tap a category, a series or a status to see only those; tap more of the same kind to add
+  them (Home and Parenting together). "Showing 3 of 88" and Show all.
+- **Filters on the calendar:** the categories under No release date yet switch on and off, for the chips on the
+  days and on the shelf.
+
 ## 0.16.2
 
 - **Tag a line while you edit it:** ✎ on a teleprompter line now shows Read · Talk · Note. Pick one and Save, and the

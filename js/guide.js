@@ -57,7 +57,7 @@ export const HOWTOS = [
     'Found a better way to say a line? Press ✎ beside it: the take pauses, you type the new wording, and Save line (or Enter) puts it on the card - a READ line stays a READ line. Then retake from there.',
     'At the end it lists where each block began in your recording - save it to the recording notes as the cut points for the edit.'] },
   { id: 'next-task', category: 'Planning', title: 'Know what to work on next (without catching up)', steps: [
-    'Open Home or the Dashboard: "Your next task" is the one thing to focus on.',
+    'Open Home: "Your next task" is the one thing to focus on, with today, the week ahead and what is ready to release underneath.',
     'Finish it, press Done on its step, and the next one takes its place.',
     'If you do not finish something, nothing turns red: tomorrow it is still the next task, and every date after it moves out by itself.'] },
   { id: 'release-dates', category: 'Releases', title: 'Release on a rhythm (for example every Saturday)', steps: [
@@ -151,9 +151,10 @@ export const FEATURES = [
   ['Six steps per video', 'Any video or product', 'Idea → Card → Record → Edit → Publish → Results along the top, each with a tick or what is still to do, and a button to the next gap.'],
   ['Edit with Claude', 'A video → 4 Edit', 'The folder your recording goes in and a ready-made prompt to paste into Claude Code; the finished video comes back here.'],
   ['Simple, Advanced, Expert', 'The bar under the header', 'Simple: only what it takes to get from an idea to a released video. Advanced: the extras that make each video better, and setting up each platform. Expert: make the app your own - settings, templates, statuses, your own platforms - with a note on every page about how it connects. This guide shows everything at every level.'],
-  ['This week and achievements', 'Content → Videos', 'Aim for a number of videos a week - a goal, never a requirement - and plan the line at that pace in one click. Milestones: first video, a video a day, 10 in a week, 1,000 views, 1,000 followers, monetised.'],
+  ['This week and achievements', 'Content → Videos · Content → Achievements', 'Aim for a number of videos a week - a goal, never a requirement - and plan the line at that pace in one click. Milestones: first video, a video a day, 10 in a week, 1,000 views, 1,000 followers, monetised.'],
   ['A new colour comes next', 'A video → 2 Card', 'When the next video wears a colour viewers have not seen yet, the Card step offers one line to say what it means.'],
   ['Lessons', 'Content → Lessons', 'Every issue becomes a check: what happened, how it was solved, and the question to ask at that step. Each video step shows its questions under Check before you move on - optional ticks, never a gate.'],
+  ['Filter by category, series and status', 'Content → Videos · Releases → Calendar', 'Tap a category, series or status to see only those; tap another of the same kind to add it - Home and Parenting together. On the calendar, the categories under No release date yet switch on and off the same way.'],
   ['Videos: one list', 'Content → Videos', 'Every video in one place: next to release (with what each still needs and Released ✓), in the making, being planned, released and parked. Search finds any of them; a click opens the video where its work is.'],
   ['Plans move on', 'Content → Videos → Next to release', 'Missed a release day? The whole line for that platform moves on by the same days: the next one is simply today, everything after keeps its spacing. Nothing is ever late.'],
   ['Review the finished video', 'A video → 4 Edit → Review the finished video', 'Watch it scene by scene: reword the text on a card, untick what you do not want (a pointing arrow, a sound), comment on any moment. One prompt hands it all back to Claude - the timing stays its job.'],

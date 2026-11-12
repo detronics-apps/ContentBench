@@ -20,7 +20,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.16.2';
+export const APP_VERSION = '0.17.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - only what it takes to get from an idea to a released video. Nothing hidden is cleared.',
@@ -43,7 +43,7 @@ function page(route) {
   switch (mod) {
     case 'home': return Pl.hub();
     case 'section': return Pl.sectionPage(a);
-    case 'dashboard': return R.dashboard();
+    case 'dashboard': return Pl.hub();
     case 'thoughts': return a ? Pl.thoughtDetail(a) : Pl.thoughtsModule();
     case 'ideas': return a ? Pl.ideaDetail(a) : R.recordList('ideas', { title: 'Ideas', newFields: { title: 'New idea' },
       intro: 'About an hour each: is there something behind it? Develop a thought into one, or start one directly. An idea can become a project, a video, or be parked.' });
@@ -57,6 +57,7 @@ function page(route) {
     case 'platforms': return a ? platformEditor(a) : platformsModule();
     case 'performance': return R.performance();
     case 'lessons': return R.lessonsPage();
+    case 'achievements': return R.achievementsPage();
     case 'templates': return a === 'process' ? processEditor() : a ? templateEditor(a, b) : templatesModule();
     case 'settings': return settingsModule();
     case 'assets': return a ? R.recordDetail('assets', a) : R.assetsModule();
@@ -277,9 +278,10 @@ export function render() {
       sec ? (sec.tabs.length > 1 ? el('a', { href: `#/section/${sec.id}`, text: sec.name }) : el('span', { text: sec.name })) : null,
     ]),
     // the templates are where the app is made your own: Expert (a link to them still opens at any level)
-    sec && sec.tabs.length > 1 ? el('div', { class: 'segmented', role: 'navigation', 'aria-label': sec.name }, sec.tabs.filter(([id]) => id !== 'templates' || store.ui.level === 'expert' || id === current).map(([id, label]) =>
+    // a section's own page has its big buttons, so the small tab row shows only inside one of its parts
+    sec && sec.tabs.length > 1 && route.mod !== 'section' ? el('div', { class: 'segmented', role: 'navigation', 'aria-label': sec.name }, sec.tabs.filter(([id]) => id !== 'templates' || store.ui.level === 'expert' || id === current).map(([id, label]) =>
       el('a', { class: 'segmented__btn', href: `#/${id}`, text: label, 'aria-current': id === current ? 'page' : null }))) : null,
-  ]));
+  ].filter(Boolean)));
   paintSync();
   renderNotices(dom.notices, notices(), render);
   dom.page.replaceChildren(page(route));
@@ -289,7 +291,7 @@ export function render() {
   dom.pagenav.replaceChildren(...(route.mod === 'home' ? [] : [
     back ? el('a', { class: 'btn pagenav__btn pagenav__back', href: back.href, 'data-field': 'nav.back', 'aria-label': `Back to ${back.label}` }, [el('span', { 'aria-hidden': 'true', text: '← ' }), back.label]) : null,
     el('a', { class: 'btn pagenav__btn', href: '#/home', 'data-field': 'nav.homeBottom' }, [el('span', { 'aria-hidden': 'true', text: '⌂ ' }), 'Home']),
-  ]));
+  ].filter(Boolean)));
   dom.tagList.replaceChildren(...currentWs().config.tags.map((t) => el('option', { value: t })));
   buildSidebar(route);
   paintChrome();

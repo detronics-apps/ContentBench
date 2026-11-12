@@ -121,3 +121,18 @@ test('videos are numbered in release order; the number leads the folder and file
   assert.equal(recordingFile(w, p2), '003 Speed over Truth Part 2 - Speed.wav');
   assert.equal(shortCaption(w, p1), 'Have you ever answered too quickly?\nGrind my Gears #1 · Speed over Truth · Part 1\nWhen did you last answer too quickly?\n[#2]');
 });
+
+test('videos filter on category, series and status: any within a kind, all across kinds', async () => {
+  const { videoTags, passesFilter } = await import('../js/content.js');
+  let w = blankWorkspace();
+  const add = (f) => { const r = createRecord(w, 'content', f, '2026-11-12T10:00:00.000Z'); w = r.ws; return r.record; };
+  const full = add({ workingTitle: 'Speed', series: 'Grind my Gears', categoryId: 'cat_home', status: 'Scripting' });
+  const part = add({ workingTitle: 'P1', sourceIds: [full.id], part: 1, categoryId: 'cat_home', status: 'Concept' });
+  const other = add({ workingTitle: 'Kids', categoryId: 'cat_parent' });
+  assert.deepEqual(videoTags(w, part), { cat: 'cat_home', series: 'Grind my Gears', status: 'Concept' }, 'a part takes the full video\'s series');
+  const pick = (f) => [full, part, other].filter((c) => passesFilter(f, videoTags(w, c))).map((c) => c.workingTitle);
+  assert.deepEqual(pick({}), ['Speed', 'P1', 'Kids']);
+  assert.deepEqual(pick({ cat: ['cat_home', 'cat_parent'] }), ['Speed', 'P1', 'Kids'], 'two categories at once');
+  assert.deepEqual(pick({ cat: ['cat_parent'] }), ['Kids']);
+  assert.deepEqual(pick({ series: ['Grind my Gears'], status: ['Scripting'] }), ['Speed']);
+});

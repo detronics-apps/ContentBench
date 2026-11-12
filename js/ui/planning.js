@@ -10,8 +10,9 @@ import { backlogHealth } from '../releases.js';
 import { captureProgress } from '../capture.js';
 import { store, ws as currentWs, commitWs } from './store.js';
 import { button, card, emptyState, badge, catDot, recordLink, href } from './forms.js';
-import { recordDetail, go, createAndOpenContent } from './records.js';
+import { recordDetail, go, createAndOpenContent, dashboard } from './records.js';
 import { sync } from './folder.js';
+import { lessonsOf } from '../lessons.js';
 
 const today = () => M.todayIso();
 const longDate = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) : '');
@@ -338,13 +339,13 @@ export function nextTaskCard(ws) {
  * tabs show. `owns` is every route that belongs to it, so the breadcrumb always knows.
  */
 export const SECTIONS = [
-  { id: 'dashboard', name: 'Dashboard', purpose: 'Your next task, today, the week ahead and what is ready to release.',
-    tabs: [['dashboard', 'Dashboard']], owns: ['dashboard'] },
   { id: 'planning', name: 'Planning', purpose: 'The inputs: thoughts (seconds), ideas (an hour), projects (days).',
     tabs: [['thoughts', 'Thoughts'], ['ideas', 'Ideas'], ['projects', 'Projects']], owns: ['thoughts', 'ideas', 'projects'] },
   { id: 'content', name: 'Content', purpose: 'Every video in one list - what goes out next, what is being made, planned and out - and releasing on a rhythm.',
-    tabs: [['plan', 'Videos'], ['releases', 'Releases'], ['performance', 'Performance'], ['lessons', 'Lessons'], ['extras', 'Beyond video']],
-    owns: ['extras', 'plan', 'create', 'content', 'production', 'tasks', 'releases', 'planner', 'outputs', 'performance', 'lessons', 'feedback', 'publications'] },
+    // the first `steps` run in order (1 Videos, 2 Releases, 3 Performance); the rest stand apart, after a line
+    steps: 3,
+    tabs: [['plan', 'Videos'], ['releases', 'Releases'], ['performance', 'Performance'], ['lessons', 'Lessons'], ['extras', 'Beyond video'], ['achievements', 'Achievements']],
+    owns: ['achievements', 'extras', 'plan', 'create', 'content', 'production', 'tasks', 'releases', 'planner', 'outputs', 'performance', 'lessons', 'feedback', 'publications'] },
   { id: 'library', name: 'Library', purpose: 'Every video, references and assets, templates and platforms.',
     tabs: [['library', 'All videos'], ['assets', 'References & assets'], ['templates', 'Templates'], ['platforms', 'Platforms']],
     owns: ['library', 'assets', 'references', 'templates', 'platforms'] },
@@ -388,10 +389,6 @@ export function backFor(route) {
 function sectionNote(id, ws) {
   const live = (t) => ws.records[t].filter((r) => !r.archived);
   const content = live('content');
-  if (id === 'dashboard') {
-    const n = agenda(plannerEntries(ws, today()), today()).next;
-    return n ? `Next: ${n.title}` : 'Nothing lined up yet';
-  }
   if (id === 'planning') {
     const fresh = live('thoughts').filter((t) => !t.decision).length;
     const active = live('projects').filter((p) => !['Completed', 'Abandoned'].includes(p.status)).length;
@@ -408,7 +405,7 @@ function sectionNote(id, ws) {
   return 'Start here if something is unclear';
 }
 
-/** Home: one big block per section, then the next task and a place to drop a thought. */
+/** Home is the dashboard: one big button per section, then the next task, a place to drop a thought, and what is waiting. */
 export function hub() {
   const ws = currentWs();
   return el('div', { class: 'stack' }, [
@@ -419,6 +416,7 @@ export function hub() {
     ]))),
     el('div', { class: 'two' }, [nextTaskCard(ws), card('Drop a thought', [thoughtCapture('hub'),
       el('p', { class: 'small muted', text: 'No form, no decision. Weigh it up later in Planning → Thoughts.' })])]),
+    dashboard({ next: false }),
   ]);
 }
 
@@ -436,6 +434,9 @@ export function sectionPage(id) {
     production: ['Capture each file into its folder, work the steps, mark it ready.', `${live('content').reduce((n, c) => n + captureProgress(c.captures).needed, 0)} captures still needed`],
     releases: ['A rhythm per platform; ready videos fill the open slots.', backlogHealth(ws, today()).map((h) => `${h.platform.name}: ${h.ready} ready`).join(' · ') || 'No rhythm set yet'],
     performance: ['What happened after publishing, and what you learned.', plural(live('feedback').length, 'feedback record')],
+    lessons: ['Every issue becomes a check to ask at that step.', plural(lessonsOf(ws).length, 'lesson')],
+    extras: ['Courses, e-books, posters and posts per category.', ''],
+    achievements: ['Milestones: first video, a video a day, views, followers, monetised.', ''],
     library: ['Every video, whatever its status.', plural(live('content').length, 'video')],
     assets: ['Sources and files, entered once, linked anywhere.', `${plural(live('references').length, 'reference')} · ${plural(live('assets').length, 'asset')}`],
     templates: ['Workflows, story structures and the stage process.', plural(ws.workflows.length + ws.stories.length, 'template')],
@@ -443,10 +444,13 @@ export function sectionPage(id) {
   };
   return el('div', { class: 'stack' }, [
     el('p', { class: 'muted', text: s.purpose }),
-    el('div', { class: 'navtiles' }, s.tabs.map(([to, label]) => el('a', { class: 'navtile', href: `#/${to}`, 'data-field': `section.${to}` }, [
-      el('span', { class: 'navtile__name', text: label }),
+    ...(s.steps ? [tiles(s.tabs.slice(0, s.steps), true), el('hr', { class: 'navtiles__line' }), tiles(s.tabs.slice(s.steps))] : [tiles(s.tabs)]),
+  ]);
+  function tiles(list, numbered = false) {
+    return el('div', { class: 'navtiles' }, list.map(([to, label], i) => el('a', { class: 'navtile', href: `#/${to}`, 'data-field': `section.${to}` }, [
+      el('span', { class: 'navtile__name' }, [numbered ? el('span', { class: 'navtile__num', text: String(i + 1) }) : null, label]),
       el('span', { class: 'navtile__purpose', text: PURPOSE[to]?.[0] || '' }),
       el('span', { class: 'navtile__meta', text: PURPOSE[to]?.[1] || '' }),
-    ]))),
-  ]);
+    ])));
+  }
 }

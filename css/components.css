@@ -338,6 +338,12 @@ a.rowcard:hover { border-color: var(--accent); background: var(--panel-2); }
 }
 .navtile:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
 .navtile__name { font-size: 20px; font-weight: 700; }
+.navtile__num { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; margin-right: .45em; border-radius: 50%; background: var(--accent); color: #fff; font-size: .8em; }
+.navtiles__line { border: 0; border-top: 1px solid var(--border); margin: var(--space-2) 0; width: 100%; }
+.filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.filter-row__label { min-width: 5.5em; }
+.chip .cat__dot { display: inline-block; margin-right: .35em; vertical-align: middle; }
+.video-filters { margin-top: var(--space-2); }
 .navtile__purpose { font-size: 13px; color: var(--text-dim); }
 .navtile__meta { margin-top: auto; font-size: 13px; font-weight: 600; color: var(--accent-strong); overflow-wrap: anywhere; }
 .sectionbar { display: flex; flex-direction: column; gap: var(--space-2); }

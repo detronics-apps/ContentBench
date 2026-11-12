@@ -3,7 +3,7 @@
 
 import { el } from './dom.js';
 import * as M from '../model.js';
-import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule, seriesLabel } from '../content.js';
+import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule, seriesLabel, videoTags, passesFilter } from '../content.js';
 import { progress, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
 import { projectForecast } from '../process.js';
 import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS, releaseQueue, markReleased, planAtPace } from '../releases.js';
@@ -108,7 +108,7 @@ export function detailHeader(type, r, crumbs = []) {
   ]);
 }
 
-export function recordActions(type, r, after = '#/dashboard') {
+export function recordActions(type, r, after = '#/home') {
   return el('div', { class: 'row' }, [
     r.archived
       ? button('Restore', () => commitWs((w) => M.restoreRecord(w, type, r.id)), '', { 'data-field': 'record.restore' })
@@ -138,7 +138,7 @@ export function backlinks(type, id, ws) {
 export function recordDetail(type, id, { crumbs, extras = [], top = [] } = {}) {
   const ws = currentWs();
   const r = M.getRecord(ws, type, id);
-  if (!r) return emptyState('Not found', 'This record no longer exists - it may have been deleted.', [button('Dashboard', () => go('#/dashboard'))]);
+  if (!r) return emptyState('Not found', 'This record no longer exists - it may have been deleted.', [button('Home', () => go('#/home'))]);
   const list = { thoughts: 'thoughts', ideas: 'ideas', projects: 'projects', references: 'assets', assets: 'assets', tasks: 'production', feedback: 'performance', publications: 'platforms' }[type];
   const links = linkEditor(type, r, ws, linker(type, id));
   return el('div', { class: 'detail' }, [
@@ -176,7 +176,8 @@ export const quickCapture = (key = 'side') => thoughtCapture(key);
 
 const done = (r) => ['Published', 'Parked', 'Completed', 'Abandoned', 'Rejected', 'Ready'].includes(r.status);
 
-export function dashboard() {
+/** What is waiting: today, the week, what is ready to release, projects, thoughts. Home shows it under the section buttons. */
+export function dashboard({ next = true } = {}) {
   const ws = currentWs();
   const live = (t) => ws.records[t].filter((r) => !r.archived);
   const today = M.todayIso();
@@ -188,7 +189,7 @@ export function dashboard() {
   const health = backlogHealth(ws, today);
   const fresh = live('thoughts').filter((t) => !t.decision);
   return el('div', { class: 'grid' }, [
-    el('div', { class: 'grid__wide' }, [nextTaskCard(ws)]),
+    next ? el('div', { class: 'grid__wide' }, [nextTaskCard(ws)]) : null,
     card('Today', [list(a.today.map(entry), 'Nothing for today - the next task above is the one to pick up.')]),
     card('The week ahead', [list(a.week.map(entry), 'Nothing forecast for the next six days.')]),
     card('Ready to release', [health.length ? list(health.map((h) => el('li', {}, [el('strong', { text: h.platform.name }),
@@ -266,8 +267,11 @@ const dayLabel = (iso, today) => (iso === today ? 'today' : iso === addDays(toda
 export function videos() {
   const ws = currentWs();
   const today = M.todayIso();
-  const all = ws.records.content.filter((c) => !c.archived);
-  const queue = releaseQueue(ws);
+  const vf = store.ui.videoFilter || {};
+  const shown = (c) => passesFilter(vf, videoTags(ws, c));
+  const everyVideo = ws.records.content.filter((c) => !c.archived);
+  const all = everyVideo.filter(shown);
+  const queue = releaseQueue(ws).filter((x) => shown(x.content));
   const queued = new Set(queue.map((x) => x.content.id));
   const outIds = new Set(all.filter((c) => OUT_STATUSES.includes(c.status)).map((c) => c.id));
   const making = all.filter((c) => !queued.has(c.id) && !outIds.has(c.id) && !SHELF_STATUSES.includes(c.status) && !PLAN_STATUSES.includes(c.status) && c.status);
@@ -319,8 +323,38 @@ export function videos() {
       lists.querySelectorAll('details').forEach((d) => { if (q) d.open = true; });
     } } });
   const note = store.ui.level === 'expert' ? el('p', { class: 'expert-note small', text: 'Every list here is worked out from the videos themselves: their status, their platform versions\' dates and what each step still needs - nothing is kept twice, so change a video and it moves to the right list. The weekly aim and the achievements count released platform versions (and logged publications for earlier versions).' }) : null;
-  return el('div', { class: 'stack' }, [note, weekCard(ws, today), achievementsCard(ws, today), card('', [search]), lists]);
+  return el('div', { class: 'stack' }, [note, weekCard(ws, today), card('', [search, filterChips(ws, everyVideo, all.length)]), lists]);
 }
+
+/** Tap a category, series or status to see only those; tap more of the same kind to add them (Home and Parenting together). */
+function filterChips(ws, videos, showing) {
+  const f = store.ui.videoFilter || {};
+  const tags = videos.map((c) => videoTags(ws, c));
+  const used = (k) => [...new Set(tags.map((t) => t[k]).filter(Boolean))];
+  const toggle = (k, v) => {
+    const on = new Set(f[k] || []);
+    if (on.has(v)) on.delete(v); else on.add(v);
+    store.ui.videoFilter = { ...f, [k]: [...on] };
+    saveUi(); refresh();
+  };
+  const chip = (k, v, label, dot) => el('button', { class: 'chip', type: 'button', 'aria-pressed': String((f[k] || []).includes(v)), 'data-field': `vf.${k}.${v}`,
+    on: { click: () => toggle(k, v) } }, [dot ? el('span', { class: 'cat__dot', style: { background: dot } }) : null, label]);
+  const cats = ws.config.categories.filter((c) => used('cat').includes(c.id));
+  const series = used('series').sort();
+  const statuses = ws.config.statuses.content.filter((s) => used('status').includes(s));
+  const picked = ['cat', 'series', 'status'].some((k) => f[k]?.length);
+  const group = (label, chips) => (chips.length ? el('div', { class: 'filter-row' }, [el('span', { class: 'small muted filter-row__label', text: label }), el('div', { class: 'chipset' }, chips)]) : null);
+  return el('div', { class: 'stack video-filters', 'data-field': 'videos.filters' }, [
+    group('Category', cats.map((c) => chip('cat', c.id, c.name, c.color))),
+    group('Series', series.map((s) => chip('series', s, s))),
+    group('Status', statuses.map((s) => chip('status', s, s))),
+    picked ? el('div', { class: 'row' }, [el('span', { class: 'small', text: `Showing ${showing} of ${videos.length}` }),
+      button('Show all', () => { store.ui.videoFilter = {}; saveUi(); refresh(); }, 'small', { 'data-field': 'vf.clear' })]) : null,
+  ]);
+}
+
+/** Every achievement in one place: earned ones with their date, the next ones with how close. */
+export const achievementsPage = () => el('div', { class: 'stack' }, [achievementsCard(currentWs(), M.todayIso())]);
 
 /** This week against the weekly target - a goal, never a requirement - and planning the line at that pace. */
 function weekCard(ws, today) {
@@ -443,7 +477,11 @@ function calendarView(ws, today) {
   const ym = planFilter.month || today.slice(0, 7);
   const all = calendarItems(ws);
   const show = planFilter.show;
-  const items = all.filter((i) => !show || i.platformId === show);
+  const cats = store.ui.calCats || [];
+  const items = all.filter((i) => (!show || i.platformId === show) && (!cats.length || cats.includes(i.category)));
+  const catChip = (c) => el('button', { class: 'chip cat-toggle', type: 'button', 'aria-pressed': String(cats.includes(c.name)), 'data-field': `calcat.${c.id}`, title: 'Show only this category - tap more to add them',
+    on: { click: (e) => { e.stopPropagation(); store.ui.calCats = cats.includes(c.name) ? cats.filter((x) => x !== c.name) : [...cats, c.name]; saveUi(); refresh(); } } },
+    [el('span', { class: 'cat__dot', style: { background: c.color } }), c.name]);
   const byDate = new Map();
   for (const i of items.filter((x) => x.date)) {
     if (!byDate.has(i.date)) byDate.set(i.date, []);
@@ -506,7 +544,8 @@ function calendarView(ws, today) {
       dropZone(el('div', { class: `cal__shelf ${picked ? 'calday--target' : ''}`, on: { click: () => picked && place(picked, '') } }, [
         el('h3', { class: 'cal__shelfhead', text: 'No release date yet' }),
         shelf.length ? el('div', { class: 'cal__shelfitems' }, shelf.map(calChip)) : el('p', { class: 'small muted', text: 'Everything has a date. Drop a chip here to take its date off.' }),
-        ws.config.categories.length ? el('div', { class: 'cal__legend' }, ws.config.categories.map((c) => el('span', { class: 'cat' }, [el('span', { class: 'cat__dot', style: { background: c.color } }), c.name]))) : null,
+        ws.config.categories.length ? el('div', { class: 'cal__legend chipset', 'data-field': 'cal.cats' }, [...ws.config.categories.map(catChip),
+          cats.length ? el('button', { class: 'chip', type: 'button', text: 'All', 'data-field': 'calcat.all', on: { click: (e) => { e.stopPropagation(); store.ui.calCats = []; saveUi(); refresh(); } } }) : null]) : null,
       ]), ''),
     ]),
   ]);
