@@ -78,3 +78,44 @@ test('a look belongs to an audience', () => {
   assert.equal(lookFor(w, 'Makers').accent, '#ff8800');
   assert.equal(lookFor(w, 'Nobody'), null);
 });
+
+test('folders and recording files say the series and the part; a made folder never moves', async () => {
+  const { folderLabel, withFolder, recordingFile } = await import('../js/content.js');
+  const { contentFolder } = await import('../js/capture.js');
+  let w = blankWorkspace();
+  const add = (f) => { const r = createRecord(w, 'content', f, '2026-11-12T10:00:00.000Z'); w = r.ws; return r.record; };
+  const full = add({ workingTitle: 'Speed over Truth' });
+  const p2 = add({ workingTitle: "Speed isn't the same as competence", sourceIds: [full.id], part: 2 });
+  add({ workingTitle: 'P1', sourceIds: [full.id], part: 1 });
+  const op = add({ workingTitle: 'Read any resistor', series: 'One Problem', episode: 4 });
+  const solo = add({ workingTitle: 'Why this channel exists' });
+  assert.equal(folderLabel(w, p2), 'Speed over Truth Part 2');
+  assert.equal(folderLabel(w, op), 'One Problem 4');
+  assert.equal(folderLabel(w, solo), '');
+  assert.match(contentFolder(withFolder(w, p2)), /^Content\/Speed_over_Truth_Part_2_Speed_isnt_the_same_as_competence_[0-9a-f]{6}$/);
+  assert.equal(contentFolder({ ...p2, folder: 'Content/Old_name_abc123', workingTitle: 'Renamed' }), 'Content/Old_name_abc123', 'a made folder keeps its name');
+  assert.equal(recordingFile(w, p2), "Speed over Truth Part 2 - Speed isn't the same as competence.wav");
+  assert.equal(recordingFile(w, { ...solo, versions: [{ n: 1 }], finalVideo: '' }), 'Why this channel exists v2.wav');
+});
+
+test('videos are numbered in release order; the number leads the folder and file and ends the caption', async () => {
+  const { videoNumber, withFolder, recordingFile, shortCaption } = await import('../js/content.js');
+  const { contentFolder } = await import('../js/capture.js');
+  let w = blankWorkspace();
+  const add = (type, f) => { const r = createRecord(w, type, f, '2026-11-12T10:00:00.000Z'); w = r.ws; return r.record; };
+  const intro = add('content', { workingTitle: 'Why this channel exists' });
+  const full = add('content', { workingTitle: 'Speed over Truth', series: 'Grind my Gears', episode: 1 });
+  const p1 = add('content', { workingTitle: 'Have you ever answered too quickly?', sourceIds: [full.id], part: 1, series: 'Grind my Gears', episode: 1,
+    story: { blocks: [{ name: 'Your turn (talk)', script: '- When did you last answer too quickly? Tell me in the comments.\n- [your own words]' }] } });
+  const p3 = add('content', { workingTitle: 'Measuring', sourceIds: [full.id], part: 3 });
+  const p2 = add('content', { workingTitle: 'Speed', sourceIds: [full.id], part: 2 });
+  add('outputs', { contentId: intro.id, scheduledDate: '2026-11-09', publishedDate: '2026-11-09' });
+  add('outputs', { contentId: p1.id, scheduledDate: '2026-11-09', publishedDate: '2026-11-09' });
+  add('outputs', { contentId: p3.id, scheduledDate: '2026-11-12' });
+  add('outputs', { contentId: p2.id, scheduledDate: '2026-11-12' });
+  assert.deepEqual([intro, p1, p2, p3, full].map((x) => videoNumber(w, x)), [1, 2, 3, 4, 0]);
+  assert.equal(videoNumber(w, { ...p3, videoNo: 9 }), 9, 'a stored number stays');
+  assert.match(contentFolder(withFolder(w, p2)), /^Content\/003_Speed_over_Truth_Part_2_Speed_[0-9a-f]{6}$/);
+  assert.equal(recordingFile(w, p2), '003 Speed over Truth Part 2 - Speed.wav');
+  assert.equal(shortCaption(w, p1), 'Have you ever answered too quickly?\nGrind my Gears #1 · Speed over Truth · Part 1\nWhen did you last answer too quickly?\n[#2]');
+});

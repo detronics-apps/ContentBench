@@ -8,7 +8,7 @@ import { EXTRA_TYPES } from '../extras.js';
 import { zip } from '../zip.js';
 import * as W from '../workflow.js';
 import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersion, INHERITS, contentSchedule,
-  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom, familyOf, newVersion, REDO } from '../content.js';
+  setSeries, setEpisode, addPart, partsOf, seriesLabel, nextEpisode, categoryPlace, lookFor, madeFrom, familyOf, newVersion, REDO, withFolder, recordingFile, shortCaption, videoNumber } from '../content.js';
 import { openReview } from './review.js';
 import { lessonsFor, checksDone, tickCheck } from '../lessons.js';
 import { newColourNext, lineTarget } from '../colours.js';
@@ -160,7 +160,7 @@ function captureSection(c, ws) {
   const blocks = c.story?.blocks || [];
   const caps = c.captures || [];
   const row = (cp) => {
-    const path = K.capturePath(kinds, c, cp);
+    const path = K.capturePath(kinds, withFolder(ws, c), cp);
     return el('div', { class: 'capture-row' }, [
       el('div', { class: 'row' }, [
         el('span', { class: 'block__n', text: String(cp.n) }),
@@ -192,8 +192,9 @@ function captureSection(c, ws) {
 
 async function checkFolder(c, ws) {
   const kinds = capKinds(ws);
-  const listing = await listFolders([...new Set((c.captures || []).map((cp) => K.capturePath(kinds, c, cp).dir))]);
-  const next = K.checkCaptures(kinds, c, listing);
+  const cf = withFolder(ws, c);
+  const listing = await listFolders([...new Set((c.captures || []).map((cp) => K.capturePath(kinds, cf, cp).dir))]);
+  const next = K.checkCaptures(kinds, cf, listing);
   setCaps(c.id, () => next);
   const p = K.captureProgress(next);
   toast(p.needed ? `${p.saved} of ${p.total} found. ${p.needed} still to go.` : `All ${p.total} captures are in their folders.`);
@@ -204,19 +205,20 @@ function productionCaptures(c, ws) {
   const caps = c.captures || [];
   const prog = K.captureProgress(caps);
   const live = folderReady();
-  const tree = K.folderTree(kinds, c);
+  const cf = withFolder(ws, c);
+  const tree = K.folderTree(kinds, cf);
   const mark = (cp, on) => setCaps(c.id, (l) => M.patchItem(l, cp.id, { status: on ? 'marked' : 'needed' }));
   return card(`Captures: ${prog.saved} of ${prog.total} saved`, [
     live ? el('p', { class: 'small muted', text: `Folder: ${sync.name}. Save each file where it says, then press Check folder - a file counts once it is there.` })
       : el('p', { class: 'small muted', text: folderSupported() ? 'Connect your folder (Settings → Your private folder) and the app makes these folders and checks for each file itself.'
         : 'This browser cannot open folders. Download the folder tree, save files into it, and tick each one by hand.' }),
     el('div', { class: 'row' }, [
-      live ? button('Make the folders', async () => { await makeFolders(tree); toast(`Folders ready in ${sync.name}/${K.contentFolder(c)}`); }, '', { 'data-field': 'prod.mkdirs' }) : null,
+      live ? button('Make the folders', async () => { await makeFolders(tree); freezeFolder(c, cf); toast(`Folders ready in ${sync.name}/${K.contentFolder(cf)}`); }, '', { 'data-field': 'prod.mkdirs' }) : null,
       live ? button('Check folder', () => checkFolder(c, ws).catch((e) => toast(`Could not read the folder: ${e.message}`)), 'primary', { 'data-field': 'prod.check' }) : null,
-      !live ? button('Download the folder tree (.zip)', () => downloadTree(K.contentFolder(c).split('/').pop(), tree), '', { 'data-field': 'prod.zip' }) : null,
+      !live ? button('Download the folder tree (.zip)', () => { downloadTree(K.contentFolder(cf).split('/').pop(), tree); freezeFolder(c, cf); }, '', { 'data-field': 'prod.zip' }) : null,
     ]),
     caps.length ? el('ul', { class: 'plain captures' }, caps.map((cp) => {
-      const path = K.capturePath(kinds, c, cp);
+      const path = K.capturePath(kinds, cf, cp);
       const kind = kinds.find((k) => k.id === cp.kind)?.name || cp.kind;
       return el('li', { class: `cap cap--${cp.status}` }, [
         el('span', { class: 'cap__state', text: cp.status === 'needed' ? '○' : '●', 'aria-hidden': 'true' }),
@@ -373,6 +375,8 @@ function publishOutputs(c, ws) {
         ]),
       ]),
       field('Caption / description', el('textarea', { class: 'input', rows: 4, value: o.caption || '', 'data-field': `pub.${o.id}.caption`, on: { change: set(o, 'caption') } })),
+      el('div', { class: 'row' }, [button('Use the short caption', () => commitWs((w) => M.updateRecord(w, 'outputs', o.id, { caption: shortCaption(w, M.getRecord(w, 'content', c.id)) })), 'small', { 'data-field': `pub.${o.id}.short`, title: 'Title, series and part, the question you ask viewers, and the video number in brackets' }),
+        el('span', { class: 'small muted', text: videoNumber(ws, c) ? `Video #${videoNumber(ws, c)} on the channel.` : 'Gets its number once it has a release date.' })]),
       field('Hashtags / tags', el('input', { class: 'input', value: o.hashtags || '', 'data-field': `pub.${o.id}.hashtags`, on: { change: set(o, 'hashtags') } })),
     ])),
     !outs.length ? el('p', { class: 'muted', text: 'No platform versions yet.' }) : null,
@@ -402,29 +406,37 @@ function makeCard(c, ws) {
   ]);
 }
 
+/** Keeps the folder's name on the video once it is made - renaming the video never moves its files. */
+function freezeFolder(c, cf) {
+  if (!c.folder) commitWs((w) => M.updateRecord(w, 'content', c.id, { folder: K.contentFolder(cf) }), { render: false });
+}
+
 /** After recording: where the file goes, the prompt that starts the edit, what happens next. */
 function editCard(c, ws) {
   const where = `${sync.name || 'your private folder'}/${recordingFolder(ws, c)}`;
   const prompt = editPrompt(ws, c);
   const live = folderReady();
-  const tree = K.folderTree(capKinds(ws), c);
+  const cf = withFolder(ws, c);
+  const tree = K.folderTree(capKinds(ws), cf);
+  const file = recordingFile(ws, c);
   const main = (c.captures || []).find((x) => x.kind === 'main');
   return card('Edit with Claude', [
     el('p', { class: 'small', text: '1. Make the folder for this video:' }),
     el('div', { class: 'row' }, [el('code', { class: 'path-box', text: where }), button('Copy folder', () => copyText(where, 'Folder copied'), 'small', { 'data-field': 'edit.folder' })]),
     el('div', { class: 'row' }, live
-      ? [button('Make the folder', async () => { await makeFolders(tree); toast(`Folder ready: ${where}`); }, 'primary', { 'data-field': 'edit.mkdirs' }),
+      ? [button('Make the folder', async () => { await makeFolders(tree); freezeFolder(c, cf); toast(`Folder ready: ${where}`); }, 'primary', { 'data-field': 'edit.mkdirs' }),
         el('span', { class: 'small muted', text: 'Safe to press again - nothing in it is touched.' })]
       : [folderSupported()
         ? el('span', { class: 'small muted' }, ['Create it in your Drive by hand, or connect your folder (', el('a', { href: '#/settings', text: 'Settings' }), ' → Your private folder) and the app makes it for you.'])
-        : button('Download the folder tree (.zip)', () => downloadTree(K.contentFolder(c).split('/').pop(), tree), '', { 'data-field': 'edit.zip' })]),
-    el('p', { class: 'small', text: '2. Export your recording from Audacity as a WAV (File → Export Audio) into that folder.' }),
+        : button('Download the folder tree (.zip)', () => { downloadTree(K.contentFolder(cf).split('/').pop(), tree); freezeFolder(c, cf); }, '', { 'data-field': 'edit.zip' })]),
+    el('p', { class: 'small', text: '2. Export your recording from Audacity as a WAV (File → Export Audio) into that folder, with this name:' }),
+    el('div', { class: 'row' }, [el('code', { class: 'path-box', text: file }), button('Copy name', () => copyText(file.replace(/\.wav$/, ''), 'Name copied - paste it when you save'), 'small', { 'data-field': 'edit.fileName' })]),
     live && main ? el('div', { class: 'row' }, [
       button('Check it is there', () => checkFolder(c, ws).catch((e) => toast(`Could not read the folder: ${e.message}`)), '', { 'data-field': 'edit.check' }),
       main.status === 'saved' ? el('span', { class: 'small text-ok', text: `Found: ${main.file}` }) : null]) : null,
     el('p', { class: 'small', text: (c.versions || []).length && !c.finalVideo
       ? `3. This is version ${(c.versions.at(-1).n || 0) + 1}: paste this into the Claude Code chat that made version ${c.versions.at(-1).n} (or a new one) - it fixes only what changed. Put the file name where it says [file name]:`
-      : '3. Start a new session in Claude Code and paste this - put the file name where it says [file name]:' }),
+      : '3. Start a new session in Claude Code and paste this - the folder and the file name are already in it:' }),
     el('pre', { class: 'prompt-box', text: prompt }),
     button('Copy the prompt for Claude', () => copyText(prompt, 'Prompt copied - paste it into a new Claude Code session'), 'primary', { 'data-field': 'edit.prompt' }),
     el('p', { class: 'small', text: '4. Before rendering, Claude stops at the storyboard and saves it to 08_Export. Go through it shot by shot here: comment, reword, switch off - or tick "render it". Copy the prompt back to Claude.' }),

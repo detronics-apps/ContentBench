@@ -3,6 +3,7 @@
 import { EXTRA_TYPES } from './extras.js';
 import { parseSeconds } from './workflow.js';
 import { capturePath, contentFolder } from './capture.js';
+import { withFolder, recordingFile } from './content.js';
 
 /** Items that are written or designed rather than recorded (no teleprompter, no captures). */
 const MADE_NOT_RECORDED = new Set([...EXTRA_TYPES, 'Article', 'Carousel', 'Reference sheet']);
@@ -92,7 +93,8 @@ export function readiness(ws, c) {
 /** Where the voice recording goes, relative to the private folder. */
 export function recordingFolder(ws, c) {
   const main = (c.captures || []).find((x) => x.kind === 'main');
-  return main ? capturePath(ws.config.captureKinds || [], c, main).dir : contentFolder(c);
+  const cf = withFolder(ws, c);
+  return main ? capturePath(ws.config.captureKinds || [], cf, main).dir : contentFolder(cf);
 }
 
 /** The sentence that starts an editing session in Claude Code (the faceless-video skill does the rest). */
@@ -103,16 +105,16 @@ export function editPrompt(ws, c) {
   const takes = (c.recordingNotes || '').match(/^Teleprompter take[^\n]*/gm) || [];
   const shape = (shapes.length ? shapes : ['vertical (9:16)']).join(' and the ');
   // the storyboard stop: reviewed in ContentBench (Edit -> Review the storyboard) before anything renders
-  const board = `At the storyboard stop, export it for me to review in ContentBench: node review.mjs storyboard <the edit folder> "<my private folder>/${contentFolder(c)}/08_Export/${c.workingTitle.replace(/[\\/:*?"<>|]/g, '')} - storyboard.review.json". I'll send my review back.`;
+  const board = `At the storyboard stop, export it for me to review in ContentBench: node review.mjs storyboard <the edit folder> "<my private folder>/${contentFolder(withFolder(ws, c))}/08_Export/${c.workingTitle.replace(/[\\/:*?"<>|]/g, '')} - storyboard.review.json". I'll send my review back.`;
   const v = (c.versions || []).at(-1);
   if (v && !c.finalVideo) {
     // a new version: fix the delta only, ideally in the chat that made the last one
     const what = {
-      section: `New recording of just the changed section: my private folder under ${recordingFolder(ws, c)}/ - [file name]. Cut it from its take, splice it into the cleaned voice of v${v.n} at a natural pause with a short crossfade, re-run words and mouth on the joined file, and rewrite only that section's scenes. Every other scene, the cut, the look, the sounds and the music stay as they are.`,
+      section: `New recording of just the changed section: my private folder under ${recordingFolder(ws, c)}/${recordingFile(ws, c)}. Cut it from its take, splice it into the cleaned voice of v${v.n} at a natural pause with a short crossfade, re-run words and mouth on the joined file, and rewrite only that section's scenes. Every other scene, the cut, the look, the sounds and the music stay as they are.`,
       edit: 'Same recording as before. Change only what is described above; keep the cut, the voice and every other scene.',
       // a new voice changes every word time and mouth shape: the machine steps run again in full (they cost no tokens);
       // what is reused is the scene design, which is anchored to words and so follows the new pacing by itself
-      all: `A new full take: my private folder under ${recordingFolder(ws, c)}/ - [file name]. Run every step again on the new voice - cut list, clean-up, words and mouth, render - so nothing drifts out of sync. Reuse v${v.n}'s scene design as the starting point: its scenes are anchored to words, so they follow the new pacing; redo the scenes the build reports as broken (an anchor word I no longer say) and those of the sections that changed, and check every scene against stills before rendering - a word said earlier or more often can pin a scene to the wrong moment without an error. Keep the look, the sound kit and the music.`,
+      all: `A new full take: my private folder under ${recordingFolder(ws, c)}/${recordingFile(ws, c)}. Run every step again on the new voice - cut list, clean-up, words and mouth, render - so nothing drifts out of sync. Reuse v${v.n}'s scene design as the starting point: its scenes are anchored to words, so they follow the new pacing; redo the scenes the build reports as broken (an anchor word I no longer say) and those of the sections that changed, and check every scene against stills before rendering - a word said earlier or more often can pin a scene to the wrong moment without an error. Keep the look, the sound kit and the music.`,
     }[v.redo] || '';
     return [
       v.redo === 'all'
@@ -135,7 +137,7 @@ export function editPrompt(ws, c) {
   }
   return [
     `Use the faceless-video skill to edit "${c.workingTitle}" from ContentBench.`,
-    `The recording is in my private folder under ${recordingFolder(ws, c)}/ - [file name].`,
+    `The recording is in my private folder under ${recordingFolder(ws, c)}/${recordingFile(ws, c)}.`,
     takes.length ? `Use the latest teleprompter take in its recording notes (${takes.at(-1).replace(/^Teleprompter take - /, '')}).` : 'There are no saved cut points; work from the transcript.',
     'Clean up the retakes and pauses and show me the cut list.',
     board,

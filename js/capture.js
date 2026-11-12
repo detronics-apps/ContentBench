@@ -12,7 +12,12 @@ export function makeCapture(captures = [], fields = {}) {
   return { id: newId('cap'), n, kind: 'main', what: '', blockId: '', notes: '', status: 'needed', ...fields };
 }
 
-export const contentFolder = (content) => `Content/${slug(content.workingTitle || 'Untitled')}_${content.id.slice(-6)}`;
+/**
+ * A video's folder. Once made, its name is kept on the video (`folder`), so renaming the video never moves its files.
+ * Before that it is worked out from the label (series and part, see content.js folderFor) and the title.
+ */
+export const contentFolder = (content) => content.folder
+  || `Content/${slug([content.folderLabel, content.workingTitle || 'Untitled'].filter(Boolean).join(' '), 90)}_${content.id.slice(-6)}`;
 
 const kindOf = (kinds, id) => kinds.find((k) => k.id === id) || { id, name: id, folder: '09_Other' };
 

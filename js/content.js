@@ -251,6 +251,80 @@ export function familyOf(ws, c) {
   return { full, parts };
 }
 
+/**
+ * What a video's folder and files start with, so they can be told apart at a glance: the full video's title and the
+ * part ("Speed over Truth Part 2"), the series and number ("One Problem 3"), or nothing for a standalone video.
+ */
+export function folderLabel(ws, c) {
+  const { full } = familyOf(ws, c);
+  if (full && full.id !== c.id && c.part) return `${full.workingTitle} Part ${c.part}`;
+  if (c.partGroup && c.part && partsOf(ws, c).length > 1) return `${c.series ? `${c.series}${c.episode ? ` ${c.episode}` : ''} ` : ''}Part ${c.part}`;
+  if (c.series && c.episode) return `${c.series} ${c.episode}`;
+  return '';
+}
+
+/**
+ * The channel's running video number: released videos in the order they first went out, then the booked ones in date
+ * order (parts in part order). A number stored on a video when it went out (`videoNo`) never changes. 0 = not in the
+ * line yet.
+ */
+export function videoNumber(ws, c) {
+  if (c.videoNo) return c.videoNo;
+  const live = ws.records.content.filter((x) => !x.archived);
+  const outs = ws.records.outputs.filter((o) => !o.archived);
+  const pubs = ws.records.publications || [];
+  const first = (x) => {
+    const mine = outs.filter((o) => o.contentId === x.id);
+    const out = [...mine.map((o) => o.publishedDate).filter(Boolean), ...pubs.filter((p) => !p.archived && mine.some((o) => o.id === p.outputId)).map((p) => p.date).filter(Boolean)].sort()[0];
+    const booked = mine.map((o) => o.scheduledDate).filter(Boolean).sort()[0];
+    return out ? { out: true, d: out } : booked ? { out: false, d: booked } : null;
+  };
+  const line = live.map((x) => ({ x, f: first(x) })).filter((e) => e.f || e.x.videoNo)
+    .sort((a, b) => (a.x.videoNo || 1e9) - (b.x.videoNo || 1e9) || Number(b.f?.out) - Number(a.f?.out)
+      || (a.f.d < b.f.d ? -1 : a.f.d > b.f.d ? 1 : (Number(a.x.part) || 0) - (Number(b.x.part) || 0) || (a.x.created < b.x.created ? -1 : 1)));
+  const taken = new Set(line.map((e) => e.x.videoNo).filter(Boolean));
+  let n = 0;
+  for (const e of line) {
+    if (e.x.videoNo) continue;
+    do n++; while (taken.has(n));
+    if (e.x.id === c.id) return n;
+  }
+  return 0;
+}
+
+const num3 = (n) => String(n).padStart(3, '0');
+
+/** The video with its folder label and number filled in - pass this to the capture helpers so every path agrees. */
+export const withFolder = (ws, c) => (c.folder ? c : { ...c, folderLabel: [videoNumber(ws, c) ? num3(videoNumber(ws, c)) : '', folderLabel(ws, c)].filter(Boolean).join(' ') });
+
+/**
+ * A short caption: the title, the series and part, the question(s) the video asks viewers, and the video number in
+ * brackets at the end so anyone can tell which one they are watching.
+ */
+export function shortCaption(ws, c) {
+  const { full } = familyOf(ws, c);
+  const where = [c.series ? `${c.series}${c.episode ? ` #${c.episode}` : ''}` : '', full && full.id !== c.id ? full.workingTitle : '', c.part && (full || c.partGroup) ? `Part ${c.part}` : '']
+    .filter(Boolean).join(' · ');
+  const ask = (c.story?.blocks || []).filter((b) => /your turn|invite|close|conclusion|cta/i.test(b.name || ''))
+    .flatMap((b) => String(b.script || '').split('\n')).map((l) => l.replace(/^\s*[-»*•]\s*/, '').trim())
+    .flatMap((l) => l.match(/[^.!?]*\?/g) || []).map((q) => q.trim().replace(/^(so|and|but)\s+/i, ''))
+    .filter((q) => q.length > 8 && !/\[|brings a new colour/i.test(q)).map((q) => q[0].toUpperCase() + q.slice(1)).slice(0, 2);
+  const n = videoNumber(ws, c);
+  return [c.workingTitle, where, ...ask, n ? `[#${n}]` : ''].filter(Boolean).join('\n');
+}
+
+/**
+ * The file name to save the recording as: the label and title, plus the version when it is a redo -
+ * copied in the Edit step and already filled into the prompt for Claude.
+ */
+export function recordingFile(ws, c) {
+  const n = videoNumber(ws, c);
+  const label = [n ? num3(n) : '', folderLabel(ws, c)].filter(Boolean).join(' ');
+  const v = (c.versions || []).length && !c.finalVideo ? ` v${c.versions.length + 1}` : '';
+  const base = [label, c.workingTitle || 'Untitled'].filter(Boolean).join(' - ');
+  return `${base.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim()}${v}.wav`;
+}
+
 /** What a new version redoes, and the status the work goes back to. */
 export const REDO = {
   all: { name: 'The whole recording', status: 'Capturing', step: 'record' },

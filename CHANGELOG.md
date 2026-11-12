@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.16.0
+
+- **Every video has a number** on the channel - released ones in the order they went out, then the booked ones in date
+  order - kept for good once it is out.
+- **Folders say what they are:** the number first, then the series and part, then the title (`003_Speed_over_Truth_Part_2_…`).
+  A folder's name is kept on the video once it is made, so renaming a video never moves its files.
+- **The recording's file name** is shown in the Edit step with **Copy name**, and it is already filled into the prompt
+  for Claude - no more typing it twice.
+- **Use the short caption** (Publish): the title, the series and part, the question(s) the video asks viewers, and the
+  video number in brackets at the end, e.g. `[#5]`.
+
 ## 0.15.0
 
 - **Three levels, each with one job.** **Simple** is only what it takes to get from an idea to a released video (a

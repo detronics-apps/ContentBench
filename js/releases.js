@@ -3,7 +3,7 @@
 
 import { nowIso, todayIso, getRecord, updateRecord } from './model.js';
 import { addDays } from './workflow.js';
-import { outputLabel } from './content.js';
+import { outputLabel, videoNumber } from './content.js';
 
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const blankRhythm = () => ({ enabled: false, days: [], target: 2 });
@@ -90,6 +90,8 @@ export function rollForward(ws, today = todayIso(), now = nowIso()) {
 export function markReleased(ws, outputId, date = todayIso(), now = nowIso()) {
   const o = getRecord(ws, 'outputs', outputId);
   if (!o || released(o)) return ws;
+  const c0 = getRecord(ws, 'content', o.contentId);
+  if (c0 && !c0.videoNo) ws = updateRecord(ws, 'content', c0.id, { videoNo: videoNumber(ws, c0) || undefined }, now);
   const status = ws.config.statuses.outputs.includes('Published') ? 'Published' : o.status;
   let out = updateRecord(ws, 'outputs', outputId, { publishedDate: date, scheduledDate: date, status }, now);
   const siblings = out.records.outputs.filter((x) => x.contentId === o.contentId && !x.archived);
