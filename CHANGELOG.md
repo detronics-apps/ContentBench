@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.1
+
+- **Shorter folder names:** the number, then the series and part (`002_Speed_over_Truth_Part_1_43bfd9`), or the video's own
+  name when it is not part of a series (`001_Why_this_channel_exists_b37519`).
+
 ## 0.16.0
 
 - **Every video has a number** on the channel - released ones in the order they went out, then the booked ones in date

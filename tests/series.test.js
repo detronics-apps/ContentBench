@@ -92,7 +92,8 @@ test('folders and recording files say the series and the part; a made folder nev
   assert.equal(folderLabel(w, p2), 'Speed over Truth Part 2');
   assert.equal(folderLabel(w, op), 'One Problem 4');
   assert.equal(folderLabel(w, solo), '');
-  assert.match(contentFolder(withFolder(w, p2)), /^Content\/Speed_over_Truth_Part_2_Speed_isnt_the_same_as_competence_[0-9a-f]{6}$/);
+  assert.match(contentFolder(withFolder(w, p2)), /^Content\/Speed_over_Truth_Part_2_[0-9a-f]{6}$/);
+  assert.match(contentFolder(withFolder(w, solo)), /^Content\/Why_this_channel_exists_[0-9a-f]{6}$/, 'outside a series: the video name');
   assert.equal(contentFolder({ ...p2, folder: 'Content/Old_name_abc123', workingTitle: 'Renamed' }), 'Content/Old_name_abc123', 'a made folder keeps its name');
   assert.equal(recordingFile(w, p2), "Speed over Truth Part 2 - Speed isn't the same as competence.wav");
   assert.equal(recordingFile(w, { ...solo, versions: [{ n: 1 }], finalVideo: '' }), 'Why this channel exists v2.wav');
@@ -115,7 +116,8 @@ test('videos are numbered in release order; the number leads the folder and file
   add('outputs', { contentId: p2.id, scheduledDate: '2026-11-12' });
   assert.deepEqual([intro, p1, p2, p3, full].map((x) => videoNumber(w, x)), [1, 2, 3, 4, 0]);
   assert.equal(videoNumber(w, { ...p3, videoNo: 9 }), 9, 'a stored number stays');
-  assert.match(contentFolder(withFolder(w, p2)), /^Content\/003_Speed_over_Truth_Part_2_Speed_[0-9a-f]{6}$/);
+  assert.match(contentFolder(withFolder(w, p2)), /^Content\/003_Speed_over_Truth_Part_2_[0-9a-f]{6}$/);
+  assert.match(contentFolder(withFolder(w, intro)), /^Content\/001_Why_this_channel_exists_[0-9a-f]{6}$/);
   assert.equal(recordingFile(w, p2), '003 Speed over Truth Part 2 - Speed.wav');
   assert.equal(shortCaption(w, p1), 'Have you ever answered too quickly?\nGrind my Gears #1 · Speed over Truth · Part 1\nWhen did you last answer too quickly?\n[#2]');
 });

@@ -295,7 +295,7 @@ export function videoNumber(ws, c) {
 const num3 = (n) => String(n).padStart(3, '0');
 
 /** The video with its folder label and number filled in - pass this to the capture helpers so every path agrees. */
-export const withFolder = (ws, c) => (c.folder ? c : { ...c, folderLabel: [videoNumber(ws, c) ? num3(videoNumber(ws, c)) : '', folderLabel(ws, c)].filter(Boolean).join(' ') });
+export const withFolder = (ws, c) => (c.folder ? c : { ...c, folderNumber: videoNumber(ws, c) ? num3(videoNumber(ws, c)) : '', folderLabel: folderLabel(ws, c) });
 
 /**
  * A short caption: the title, the series and part, the question(s) the video asks viewers, and the video number in
