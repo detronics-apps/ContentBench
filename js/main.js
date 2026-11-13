@@ -20,7 +20,7 @@ import * as Pl from './ui/planning.js';
 import { sync, onSync, restoreFolder, reconnectFolder, useFolderCopy, useBrowserCopy, connectFolder } from './ui/folder.js';
 import { infoDialog, button, copyText } from './ui/forms.js';
 
-export const APP_VERSION = '0.19.0';
+export const APP_VERSION = '0.20.0';
 
 const LEVEL_TEXT = {
   simple: 'Simple - only what it takes to get from an idea to a released video. Nothing hidden is cleared.',

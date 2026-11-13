@@ -14,6 +14,7 @@ import { lessonsFor, checksDone, tickCheck } from '../lessons.js';
 import { newColourNext, lineTarget } from '../colours.js';
 import { insertLine, parseLines } from '../prompter.js';
 import { markReleased } from '../releases.js';
+import { MAKING, makingPlan, setStage, setStageDays, keepPlan } from '../making.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
 import { store, ws as currentWs, commitWs } from './store.js';
@@ -525,8 +526,38 @@ export function contentEditor(id, section = 'idea') {
         !next ? el('span', { class: 'small text-ok', text: 'Everything is in place.' }) : null,
       ]),
     ]),
+    makingCard(c, ws),
     ...body().filter(Boolean),
     checksCard(c, ws, step),
+  ]);
+}
+
+/** Making it: the stages, each with its day counted back from the release - tick, move a day, keep the plan. */
+function makingCard(c, ws) {
+  const today = M.todayIso();
+  const p = makingPlan(ws, c, today);
+  const next = p.steps.find((s) => !s.done);
+  const day = (iso) => (iso === today ? 'today' : new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }));
+  const row = (s) => {
+    const auto = s.done && !c.making?.[s.id]?.done;
+    return el('div', { class: `making__row${s.done ? ' is-done' : ''}`, 'data-field': `mk.${s.id}` }, [
+      el('label', { class: 'check' }, [el('input', { type: 'checkbox', checked: s.done, disabled: auto, title: auto ? 'Ticked by the work already done on this video' : '',
+        'data-field': `mk.${s.id}.done`, on: { change: (e) => commitWs((w) => setStage(w, c.id, s.id, { done: e.target.checked ? today : '' }, M.nowIso())) } }), ' ', el('strong', { text: s.name })]),
+      s.hint ? el('span', { class: 'small muted', text: s.hint }) : null,
+      el('span', { class: 'row__push' }),
+      s.id === 'investigate' && !s.done ? el('label', { class: 'small' }, ['takes ', el('input', { class: 'input input--inline input--num', type: 'number', min: 0, step: 0.5, value: s.days,
+        'data-field': 'mk.investigate.days', on: { change: (e) => commitWs((w) => setStageDays(w, c.id, 'investigate', e.target.value, M.nowIso())) } }), ' days']) : null,
+      s.date ? el('input', { class: 'input input--inline', type: 'date', value: s.date, title: 'Move it to another day - it stays there', 'data-field': `mk.${s.id}.on`,
+        on: { change: (e) => commitWs((w) => setStage(w, c.id, s.id, { on: e.target.value }, M.nowIso())) } }) : null,
+      s.pinned ? button('Planned day', () => commitWs((w) => setStage(w, c.id, s.id, { on: '' }, M.nowIso())), 'small ghost', { title: `Back to the planned day, ${day(s.planned)}` }) : null,
+    ]);
+  };
+  const summary = p.done ? 'all made' : p.ready ? 'made - ready to go out' : next ? `next: ${next.name}${next.date ? `, ${day(next.date)}` : ''}` : '';
+  return el('details', { class: 'card making', 'data-field': 'making' }, [
+    el('summary', {}, [el('strong', { text: 'Making it' }), el('span', { class: 'small muted', text: ` · ${summary}` })]),
+    el('p', { class: 'small muted', text: p.release ? `Goes out ${day(p.release.date)}; ready by ${day(p.readyBy)}. Each stage is counted back from that - move any to another day and it stays there.` : 'No release date yet: give it one in Publish and each stage gets its day. Made videos without a date wait in the bank on the calendar.' }),
+    ...p.steps.map(row),
+    p.release && p.steps.some((s) => s.date && !s.pinned) ? el('div', { class: 'row' }, [button('Keep these days', () => commitWs((w) => keepPlan(w, c.id, today, M.nowIso())), 'small', { 'data-field': 'mk.keep', title: 'Pin every open stage to its day, so moving the release leaves them be' })]) : null,
   ]);
 }
 

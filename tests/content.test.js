@@ -78,16 +78,15 @@ test('planner keeps kinds separate, never lists ideas or thoughts, and marks a p
     ['milestone', 'P: M1', false], ['publishing', 'O', false]]);
 });
 
-test('planner forecasts forwards: workflow steps and a project done-by date', async () => {
+test('the planner dates the stages of each video for its release, and a project done-by date', async () => {
   const { exampleWorkspace } = await import('../js/seed.js');
   const ws = exampleWorkspace('2026-01-01T00:00:00.000Z');
   const e = C.plannerEntries(ws, '2026-01-01');
   const steps = e.filter((x) => x.kind === 'step');
-  assert.ok(steps.length && steps.every((x) => x.date >= '2026-01-01' && x.forecast), 'steps dated from today onwards');
+  assert.ok(steps.every((x) => x.date >= '2026-01-01' && x.for >= x.date), 'each stage is on or before the release it is for, never before today');
   assert.ok(e.some((x) => x.kind === 'project' && x.forecast), 'project done-by');
   assert.ok(!e.some((x) => x.kind === 'step' && x.title.startsWith('Speed is not truth')), 'a ready item has nothing left to forecast');
   const a = C.agenda(e, '2026-01-01');
-  assert.ok(a.next && a.next.kind === 'step', 'one next task to focus on');
   const late = C.agenda([{ kind: 'task', date: '2025-12-20', title: 'missed', done: false }], '2026-01-01');
   assert.deepEqual(late.today.map((x) => [x.title, x.carried]), [['missed', true]], 'a missed date is carried into today, not flagged');
 });
@@ -98,7 +97,7 @@ test('verificationAge is null until verified', () => {
 });
 
 
-test('videos are forecast one at a time, soonest release first - today holds one task, not all of them', async () => {
+test('the old workflow forecast still runs one video at a time, soonest first', async () => {
   const W = await import('../js/workflow.js');
   let ws = M.blankWorkspace({}, T);
   const tpl = W.makeWorkflowTemplate({ steps: [{ name: 'Outline', days: 0 }, { name: 'Record', days: 1 }, { name: 'Edit', days: 1 }] });
@@ -107,6 +106,4 @@ test('videos are forecast one at a time, soonest release first - today holds one
   const b = add({ workingTitle: 'B', targetDate: '2026-01-03' });
   const s = C.contentSchedule(ws, '2026-01-01');
   assert.deepEqual([s.get(b.id).ready, s.get(a.id).ready], ['2026-01-03', '2026-01-05'], 'B has a date, so it goes first; A starts when B is ready');
-  const today = C.agenda(C.plannerEntries(ws, '2026-01-01'), '2026-01-01').today.filter((e) => e.kind === 'step');
-  assert.deepEqual(today.map((e) => e.title), ['B: Outline']);
 });

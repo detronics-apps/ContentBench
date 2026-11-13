@@ -4,6 +4,7 @@
 import { newId, nowIso, todayIso, createRecord, getRecord, updateRecord } from './model.js';
 import { instantiateStory, forecast, addDays } from './workflow.js';
 import { projectForecast, stageById } from './process.js';
+import { makingEntries } from './making.js';
 
 /* ------------------------------------------------------------- platforms */
 
@@ -144,7 +145,7 @@ export function resolveSuggestion(record, id, decision, editedText, now = nowIso
 /* --------------------------------------------------------------- planner */
 
 export const PLAN_KINDS = {
-  milestone: 'Project milestone', project: 'Project done by', production: 'Content ready by', step: 'Workflow step',
+  milestone: 'Project milestone', project: 'Project done by', production: 'Content ready by', step: 'To do',
   publishing: 'Release', task: 'Task',
 };
 
@@ -193,16 +194,10 @@ export function plannerEntries(ws, today = todayIso()) {
     }
     push('project', p.targetDate, `${p.title}: target`, 'projects', p.id, finished);
   }
-  const sched = contentSchedule(ws, today);
-  for (const c of live('content')) {
-    const finished = contentDone(c);
-    if (sched.has(c.id)) {
-      const f = sched.get(c.id);
-      for (const s of c.workflow.steps) if (f.byStep[s.id]) push('step', f.byStep[s.id], `${c.workingTitle}: ${s.name}`, 'content', c.id, false, { forecast: true, stepId: s.id });
-      push('production', f.ready, c.workingTitle, 'content', c.id, false, { forecast: true });
-    }
-    push('production', c.targetDate, `${c.workingTitle}: target`, 'content', c.id, finished);
-  }
+  // what to make, and when: each video's stages counted back from its release (making.js) - the old per-video
+  // workflow copies are no longer dated, so only the plan you work to shows up here
+  items.push(...makingEntries(ws, today));
+  for (const c of live('content')) push('production', c.targetDate, `${c.workingTitle}: target`, 'content', c.id, contentDone(c));
   for (const o of live('outputs')) {
     push('publishing', o.publishedDate || o.scheduledDate, o.title, 'outputs', o.id, !!o.publishedDate || o.status === 'Published');
   }

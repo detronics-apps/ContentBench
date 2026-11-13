@@ -9,6 +9,7 @@ import { projectForecast } from '../process.js';
 import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS, releaseQueue, markReleased, planAtPace } from '../releases.js';
 import { weekProgress, achievements, logStats, setWeeklyTarget } from '../goals.js';
 import { readiness } from '../readiness.js';
+import { makingEntries, bankOf, setStage } from '../making.js';
 import { lessonsOf, addLesson, updateLesson, removeLesson, LESSON_STEPS } from '../lessons.js';
 import { captureProgress } from '../capture.js';
 import { thoughtCapture, nextTaskCard } from './planning.js';
@@ -183,15 +184,12 @@ export function dashboard({ next = true } = {}) {
   const today = M.todayIso();
   const a = agenda(plannerEntries(ws, today), today);
   const list = (items, empty) => (items.length ? el('ul', { class: 'plain' }, items) : el('p', { class: 'muted small', text: empty }));
-  const entry = (e) => el('li', {}, [el('span', { class: 'small muted', text: `${e.carried ? 'now' : e.date.slice(5)} ` }),
-    el('a', { href: e.kind === 'step' ? `#/content/${e.id}` : href(e.type, e.id), text: e.title }),
-    el('span', { class: 'small muted', text: ` · ${PLAN_KINDS[e.kind]}` })]);
   const health = backlogHealth(ws, today);
   const fresh = live('thoughts').filter((t) => !t.decision);
   return el('div', { class: 'grid' }, [
     next ? el('div', { class: 'grid__wide' }, [nextTaskCard(ws)]) : null,
-    card('Today', [list(a.today.map(entry), 'Nothing for today - the next task above is the one to pick up.')]),
-    card('The week ahead', [list(a.week.map(entry), 'Nothing forecast for the next six days.')]),
+    card('Today', [lanes(ws, a.today, today, false)]),
+    card('The week ahead', [lanes(ws, a.week, today, true)]),
     card('Ready to release', [health.length ? list(health.map((h) => el('li', {}, [el('strong', { text: h.platform.name }),
       ` · ${h.ready} ready · ${h.empty} open slot${h.empty === 1 ? '' : 's'} in 4 weeks`, h.short ? badge('make a quick one', 'warn') : badge('enough waiting', 'ok')])), '')
       : el('p', { class: 'muted small', text: 'Switch on a release rhythm for a platform (Platforms → TikTok) to see this.' }), button('Releases', () => go('#/releases'), 'small')]),
@@ -374,6 +372,7 @@ function weekCard(ws, today) {
     el('p', { class: 'small', text: target
       ? `${p.released} out this week${p.booked ? `, ${p.booked} more booked` : ''} - aiming for ${target}.`
       : `${p.released} out this week. Set a weekly aim to see how close you get.` }),
+    bufferLine(ws, today, target),
     target && lines.length ? el('div', { class: 'row' }, lines.map((pl) => button(`Plan ${pl.name} at ${target} a week from tomorrow`,
       () => commitWs((w) => planAtPace(w, pl.id, addDays(today, 1), target)), '', { 'data-field': `week.plan.${pl.id}`,
         title: 'Re-dates everything booked from tomorrow at this pace, in the order it already has. Today and earlier stay.' }))) : null,
@@ -494,11 +493,9 @@ function calendarView(ws, today) {
     for (const d of slotDates(p.rhythm, addDays(`${ym}-01`, -7), 50)) slots.set(d, [...(slots.get(d) || []), p.name]);
   }
   const ready = new Map();
-  for (const [id, fc] of contentSchedule(ws, today)) {
-    const c = M.getRecord(ws, 'content', id);
-    const f = fc.ready;
-    ready.set(f, [...(ready.get(f) || []), c.workingTitle]);
-  }
+  for (const e of makingEntries(ws, today)) ready.set(e.date, [...(ready.get(e.date) || []), `${e.step} · ${e.video}`]);
+  const made = new Set(bankOf(ws, today).ready.map((c) => c.id));
+  const contentOf = (item) => ws.records.outputs.find((o) => o.id === item.id)?.contentId;
   const first = new Date(`${ym}-01T00:00:00Z`);
   const lead = (first.getUTCDay() + 6) % 7;
   const start = new Date(first.getTime() - lead * DAY_MS);
@@ -520,7 +517,7 @@ function calendarView(ws, today) {
         on: { click: (e) => { e.stopPropagation(); if (picked) place(picked, iso); } } }),
       ...chips.map(calChip),
       slot && !chips.length && iso >= today ? el('span', { class: 'calday__slot', text: `${slot.join(', ')} slot` }) : null,
-      ready.has(iso) ? el('span', { class: 'calday__ready', title: ready.get(iso).join(', '), text: `ready: ${ready.get(iso).join(', ')}` }) : null,
+      ready.has(iso) ? el('span', { class: 'calday__ready', title: ready.get(iso).join('\n'), text: `to do: ${ready.get(iso).length === 1 ? ready.get(iso)[0] : `${ready.get(iso).length} stages`}` }) : null,
     ]);
     return dropZone(node, iso);
   };
@@ -546,7 +543,7 @@ function calendarView(ws, today) {
         el('h3', { class: 'cal__shelfhead', text: `No release date yet (${shelf.length})` }),
         ws.config.categories.length ? el('div', { class: 'cal__legend chipset', 'data-field': 'cal.cats' }, [...ws.config.categories.map(catChip),
           cats.length ? el('button', { class: 'chip', type: 'button', text: 'All', 'data-field': 'calcat.all', on: { click: (e) => { e.stopPropagation(); store.ui.calCats = []; saveUi(); refresh(); } } }) : null]) : null,
-        shelf.length ? el('div', { class: 'cal__shelfitems' }, shelf.map(calChip)) : el('p', { class: 'small muted', text: cats.length ? 'Nothing in these categories still needs a date.' : 'Everything has a date. Drop a chip here to take its date off.' }),
+        ...shelfGroups(shelf, made, contentOf, cats),
       ]), ''),
     ]),
   ]);
@@ -584,11 +581,10 @@ function agendaView(ws, today) {
   for (const e of a.week) { if (!days.has(e.date)) days.set(e.date, []); days.get(e.date).push(e); }
   return el('div', { class: 'stack' }, [
     nextTaskCard(ws),
-    card(`Today · ${longDate(today)}`, a.today.length ? a.today.map((e) => planRow(e, false))
-      : [el('p', { class: 'muted', text: 'Nothing for today.' })]),
-    card('The week ahead', days.size ? [...days].map(([d, list]) => el('div', {}, [el('h3', { class: 'month__head', text: longDate(d) }), ...list.map((e) => planRow(e, false))]))
-      : [el('p', { class: 'muted', text: 'Nothing forecast for the next six days.' })]),
-    el('p', { class: 'small muted', text: 'Forecasts are counted forwards from today. If something is not finished, it simply moves out with everything after it - nothing piles up.' }),
+    card(`Today · ${longDate(today)}`, [lanes(ws, a.today, today, false)]),
+    card('The week ahead', days.size ? [...days].map(([d, list]) => el('div', {}, [el('h3', { class: 'month__head', text: longDate(d) }), lanes(ws, list, today, false)]))
+      : [el('p', { class: 'muted', text: 'Nothing planned for the next six days.' })]),
+    el('p', { class: 'small muted', text: 'Going out: what is released that day. To do: what to make, and for which release - each stage is planned back from its video\u2019s release day, ready the day before. A day that has passed is simply today.' }),
   ]);
 }
 
@@ -683,3 +679,50 @@ export function performance() {
   ]);
 }
 
+
+/* ------------------------------------------------------- going out, to do */
+
+const shortDay = (iso, today) => (iso === today ? 'today' : iso === addDays(today, 1) ? 'tomorrow' : new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' }));
+
+/** Two lanes: what goes out, and what to make - each stage saying which release it is for, with a tick. */
+function lanes(ws, entries, today, withDay) {
+  const going = entries.filter((e) => e.kind === 'publishing');
+  const todo = entries.filter((e) => e.kind !== 'publishing');
+  const day = (e) => (withDay ? el('span', { class: 'small muted', text: `${shortDay(e.date, today)} ` }) : null);
+  const goItem = (e) => {
+    const o = ws.records.outputs.find((x) => x.id === e.id);
+    return el('li', {}, [day(e), el('a', { href: o?.contentId ? `#/content/${o.contentId}/publish` : href(e.type, e.id), text: e.title }),
+      o ? el('span', { class: 'small muted', text: ` · ${[releaseTime(ws, o), outputLabel(ws, o)].filter(Boolean).join(' · ')}` }) : null]);
+  };
+  const todoItem = (e) => el('li', { class: 'todo-item' }, [
+    e.kind === 'step' ? button('✓', () => commitWs((w) => setStage(w, e.id, e.stageId, { done: today }, M.nowIso())), 'small ghost', { 'aria-label': `${e.step} done`, title: 'Done', 'data-field': `todo.${e.id}.${e.stageId}` }) : null,
+    day(e),
+    el('a', { href: e.kind === 'step' ? `#/content/${e.id}` : href(e.type, e.id), text: e.kind === 'step' ? e.step : e.title }),
+    e.kind === 'step' ? el('span', { class: 'small muted', text: ` · for ${shortDay(e.for, today)}: ${e.video}` }) : el('span', { class: 'small muted', text: ` · ${PLAN_KINDS[e.kind]}` }),
+  ]);
+  const lane = (title, items, empty) => el('div', { class: 'lane' }, [el('h4', { class: 'lane__head', text: `${title} (${items.length})` }),
+    items.length ? el('ul', { class: 'plain' }, items) : el('p', { class: 'small muted', text: empty })]);
+  return el('div', { class: 'lanes' }, [lane('Going out', going.map(goItem), 'Nothing goes out.'), lane('To do', todo.map(todoItem), 'Nothing to make.')]);
+}
+
+/** The shelf of releases with no date: the made ones to drop in first, then the ones still being made. */
+function shelfGroups(shelf, made, contentOf, cats) {
+  if (!shelf.length) return [el('p', { class: 'small muted', text: cats.length ? 'Nothing in these categories still needs a date.' : 'Everything has a date. Drop a chip here to take its date off.' })];
+  const ready = shelf.filter((i) => made.has(contentOf(i)));
+  const making = shelf.filter((i) => !made.has(contentOf(i)));
+  return [
+    el('h4', { class: 'lane__head', text: `Ready to drop in (${ready.length})` }),
+    ready.length ? el('div', { class: 'cal__shelfitems' }, ready.map(calChip)) : el('p', { class: 'small muted', text: 'None made and waiting yet - this is the bank to build up.' }),
+    el('h4', { class: 'lane__head', text: `Still being made (${making.length})` }),
+    making.length ? el('div', { class: 'cal__shelfitems' }, making.map(calChip)) : null,
+  ];
+}
+
+/** Made and waiting: how many days the bank covers at the weekly aim. */
+function bufferLine(ws, today, target) {
+  const perDay = target ? target / 7 : 1;
+  const b = bankOf(ws, today, perDay);
+  return el('p', { class: 'small', 'data-field': 'week.buffer', text: b.ready.length
+    ? `Made and waiting: ${b.ready.length}${b.bank.length ? ` (${b.bank.length} without a release date)` : ''} - about ${b.days} day${b.days === 1 ? '' : 's'} in hand at ${Math.round(perDay * 10) / 10} a day.`
+    : 'Made and waiting: none yet. Make a little faster than you release - 3 every 2 days against 1 a day - and the bank grows.' });
+}

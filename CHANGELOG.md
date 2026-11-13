@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.20.0
+
+- **Making it, planned back from the release:** each video has six stages - Investigate, Draft with Claude, Review and
+  make it yours, Record, Edit (image and music), Schedule - each with its day, counted back from the release so the
+  video is ready the day before. A day that has passed is simply today. Most stages tick themselves from the work
+  already done; Review you tick by hand. Move a stage to another day and it stays; Keep these days pins them all.
+- **Going out and To do, apart:** Home and This week show two lanes - what is released, and what to make, each stage
+  saying which release it is for ("Record · for Sun: Rent or buy") with a tick. The calendar days say what to make.
+- **The bank:** the calendar's side list puts the made videos (Ready to drop in) above the ones still being made, and
+  Videos shows how many days the made ones cover at your weekly aim.
+- The old per-video workflow copies no longer put dates in the plan - they kept a finished video's steps on today.
+
 ## 0.19.0
 
 - **Release times:** each platform format has its usual time to go out (Platforms → a platform, at Advanced). The
