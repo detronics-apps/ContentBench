@@ -6,7 +6,7 @@ import { el } from './dom.js';
 import * as M from '../model.js';
 import * as P from '../process.js';
 import { plannerEntries, agenda, PLAN_KINDS } from '../content.js';
-import { backlogHealth } from '../releases.js';
+import { backlogHealth, releaseQueue } from '../releases.js';
 import { captureProgress } from '../capture.js';
 import { store, ws as currentWs, commitWs } from './store.js';
 import { button, card, emptyState, badge, catDot, recordLink, href } from './forms.js';
@@ -395,10 +395,12 @@ function sectionNote(id, ws) {
     return `${plural(live('thoughts').length, 'thought')}${fresh ? ` (${fresh} new)` : ''} · ${plural(live('ideas').length, 'idea')} · ${plural(active, 'project')} under way`;
   }
   if (id === 'content') {
-    const planned = content.filter((c) => ['Concept', 'Planning', 'Scripting', ''].includes(c.status || '')).length;
-    const making = content.filter((c) => ['Capturing', 'Editing', 'Review', 'In Production'].includes(c.status)).length;
+    // the same split as the Videos page: booked ones are counted once, under booked
+    const booked = new Set(releaseQueue(ws).map((x) => x.content.id));
+    const planned = content.filter((c) => !booked.has(c.id) && ['Concept', 'Planning', 'Scripting', ''].includes(c.status || '')).length;
+    const making = content.filter((c) => !booked.has(c.id) && ['Capturing', 'Editing', 'Review', 'In Production'].includes(c.status)).length;
     const health = backlogHealth(ws, today());
-    return `${planned} being planned · ${making} being made${health.length ? ` · ${health.map((h) => `${h.platform.name}: ${h.ready} ready`).join(', ')}` : ''}`;
+    return `${booked.size} booked · ${planned} being planned · ${making} being made${health.length ? ` · ${health.map((h) => `${h.platform.name}: ${h.ready} ready`).join(', ')}` : ''}`;
   }
   if (id === 'library') return `${plural(content.length, 'video')} · ${plural(ws.workflows.length + ws.stories.length, 'template')} · ${plural(ws.platforms.length, 'platform')}`;
   if (id === 'settings') return sync.status === 'connected' ? `Saving to your folder "${sync.name || 'folder'}"` : 'Data kept in this browser - connect your folder';

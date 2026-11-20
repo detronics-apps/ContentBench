@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.20.1
+
+- **The Content block on Home counts like the Videos page:** booked, being planned and being made - a booked video is
+  counted once, under booked (it said 137 being planned when 18 of them were booked).
+
 ## 0.20.0
 
 - **Making it, planned back from the release:** each video has six stages - Investigate, Draft with Claude, Review and
