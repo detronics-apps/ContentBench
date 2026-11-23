@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.21.1
+
+- **Release rhythm agrees with the calendar:** a video moved to a day off your rhythm is listed there too, marked
+  "an extra day", instead of dropping off the list.
+- **Double-click a chip opens its video every time:** picking a chip no longer pushes the calendar down; the
+  "click a day" bar floats at the bottom.
+
 ## 0.21.0
 
 - **Undo released:** marked a video released by mistake? Undo in its Publish step (or pick its chip on the calendar)

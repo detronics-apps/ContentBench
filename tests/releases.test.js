@@ -25,6 +25,19 @@ test('the backlog fills empty slots in order; booked slots stay booked', () => {
   assert.deepEqual(R.backlogHealth(ws, '2026-01-01').map((h) => [h.platform.name, h.ready, h.short]), [['TikTok', 1, true]]);
 });
 
+test('the rhythm lists every booked release, a day off the rhythm too - so it agrees with the calendar', () => {
+  const ws = exampleWorkspace(T);
+  const tt = ws.platforms.find((p) => p.name === 'TikTok');
+  const o = ws.records.outputs.find((x) => x.platformId === tt.id && !x.publishedDate);
+  const moved = R.placeOnCalendar(ws, o.id, '2026-01-06', T, '2026-01-01'); // a Tuesday, off the Saturday rhythm
+  const plan = R.releasePlan(moved, tt.id, '2026-01-01', 28);
+  const s = plan.slots.find((x) => x.output?.id === o.id);
+  assert.equal(s.date, '2026-01-06');
+  assert.equal(s.extra, true);
+  assert.equal(plan.slots.filter((x) => !x.extra).length, 4, 'the rhythm days are all still there');
+  assert.deepEqual(plan.slots.map((x) => x.date), [...plan.slots.map((x) => x.date)].sort());
+});
+
 test('calendar chips are release dates only; a published output keeps its date', () => {
   let ws = exampleWorkspace(T);
   const o = ws.records.outputs[0];

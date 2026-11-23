@@ -30,16 +30,24 @@ export function backlog(ws, platformId) {
     .sort((a, b) => (a.created < b.created ? -1 : 1));
 }
 
-/** The next weeks of slots for one platform: what is booked, and what the backlog would fill. */
+/**
+ * The next weeks of slots for one platform: what is booked, and what the backlog would fill. Every booked release in
+ * the span is listed - one moved to a day off the rhythm too (`extra: true`), so this agrees with the calendar.
+ */
 export function releasePlan(ws, platformId, today = todayIso(), span = 28) {
   const platform = ws.platforms.find((p) => p.id === platformId);
   if (!platform) return null;
   const queue = backlog(ws, platformId);
   const waiting = [...queue];
   const booked = ws.records.outputs.filter((o) => !o.archived && o.platformId === platformId && o.scheduledDate && !released(o));
-  const slots = slotDates(platform.rhythm, today, span).map((date) => {
-    const output = booked.find((o) => o.scheduledDate === date) || null;
-    return { date, output, suggestion: output ? null : waiting.shift() || null };
+  const rhythm = slotDates(platform.rhythm, today, span);
+  const end = addDays(today, span);
+  const days = [...new Set([...rhythm, ...booked.map((o) => o.scheduledDate).filter((d) => d >= today && d < end)])].sort();
+  const slots = days.flatMap((date) => {
+    const extra = !rhythm.includes(date);
+    const here = booked.filter((o) => o.scheduledDate === date);
+    return here.length ? here.map((output) => ({ date, output, suggestion: null, extra }))
+      : [{ date, output: null, suggestion: waiting.shift() || null, extra }];
   });
   const empty = slots.filter((s) => !s.output).length;
   return { platform, slots, backlog: queue, empty, uncovered: Math.max(0, empty - queue.length) };

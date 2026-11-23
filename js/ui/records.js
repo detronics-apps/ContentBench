@@ -455,8 +455,11 @@ function calChip(item) {
     title: `${item.title} · ${item.label}${item.category ? ` · ${item.category}` : ''}${item.ready ? ' · ready' : ''}${item.done ? ' · published' : ''}`,
     on: {
       dragstart: (e) => { e.dataTransfer.setData('text/plain', JSON.stringify({ id: item.id })); e.dataTransfer.effectAllowed = 'move'; },
-      click: (e) => { e.stopPropagation(); planFilter.picked = picked ? null : { id: item.id }; refresh(); },
-      dblclick: (e) => { e.stopPropagation(); go(videoHref(item.id)); },
+      click: (e) => {
+        e.stopPropagation();
+        if (e.detail > 1) { planFilter.picked = null; go(videoHref(item.id)); return; }
+        planFilter.picked = picked ? null : { id: item.id }; refresh();
+      },
     },
   }, [el('span', { class: 'calchip__title', text: item.title }), el('span', { class: 'calchip__label', text: item.label })]);
 }
@@ -531,9 +534,7 @@ function calendarView(ws, today) {
       ]),
       el('div', { class: 'chipset' }, [showChip('', 'Every platform'), ...ws.platforms.map((p) => showChip(p.id, p.name))]),
       picked ? pickedBar(ws, picked) : null,
-      el('p', { class: 'small muted', text: picked
-        ? 'Now click a day to place it - or the shelf to take its date off.'
-        : 'Each chip is one release on one platform. Drag it to a day (or click it, then a day). Dashed days are open release slots; "ready:" marks when a video in progress can be done, counted from today. Colours are categories.' }),
+      el('p', { class: 'small muted', text: 'Each chip is one release on one platform. Drag it to a day (or click it, then a day); double-click to open its video. Dashed days are open release slots; "to do:" marks a stage of a video in progress. Colours are categories.' }),
     ]),
     el('div', { class: 'cal' }, [
       el('div', { class: 'cal__grid' }, [
@@ -560,7 +561,7 @@ function rhythmView(ws, today) {
         plan.backlog.length < (Number(p.rhythm.target) || 0) ? el('span', { class: 'text-warn', text: ` Fewer than ${p.rhythm.target} waiting - a quick 1-2 day video would top it up.` }) : null]),
       el('ul', { class: 'plain' }, plan.slots.map((s) => el('li', { class: 'slot' }, [
         el('span', { class: 'plan__date', text: longDate(s.date) }),
-        s.output ? recordLink('outputs', s.output) : s.suggestion ? el('span', {}, [el('span', { class: 'muted', text: 'next in line: ' }), recordLink('outputs', s.suggestion)])
+        s.output ? el('span', {}, [recordLink('outputs', s.output), s.extra ? el('span', { class: 'small muted', text: ' · an extra day' }) : null]) : s.suggestion ? el('span', {}, [el('span', { class: 'muted', text: 'next in line: ' }), recordLink('outputs', s.suggestion)])
           : el('span', { class: 'muted', text: 'open - nothing ready yet' }),
       ]))),
       plan.slots.some((s) => s.suggestion) ? button('Book the next in line into the open slots', () => commitWs((w) => fillSlots(w, p.id, today, 28)), 'primary', { 'data-field': `rel.fill.${p.id}` }) : null,
@@ -739,7 +740,9 @@ function videoHref(outputId) {
 function pickedBar(ws, picked) {
   const o = ws.records.outputs.find((x) => x.id === picked.id);
   if (!o) return null;
-  return el('div', { class: 'row', 'data-field': 'cal.picked' }, [
+  // floats at the bottom, so picking a chip never moves the calendar under the pointer
+  return el('div', { class: 'row cal__picked', 'data-field': 'cal.picked' }, [
+    el('span', { class: 'small', text: 'Now click a day to place it - or the shelf to take its date off.' }),
     el('a', { class: 'btn btn-small', href: videoHref(o.id), 'data-field': 'cal.open' }, ['Open the video']),
     o.publishedDate ? button('Undo released', () => { planFilter.picked = null; commitWs((w) => unmarkReleased(w, o.id)); }, 'small', { 'data-field': 'cal.unrelease', title: 'It did not go out - book it again on its day' }) : null,
   ]);
