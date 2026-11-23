@@ -140,3 +140,20 @@ export function removeLine(script = '', index) {
   raw.splice(idx[index], 1);
   return raw.join('\n');
 }
+
+/**
+ * The teleprompter's wording as a script to keep or send: each block with its time and purpose, then its lines -
+ * » read word for word, - talked around, notes as they are. Markdown, so it reads as plain text too.
+ */
+export function scriptText(title, blocks = []) {
+  const plan = prompterPlan(blocks);
+  const out = [`# ${title || 'Script'}`, '', `About ${formatSeconds(plan.total)} · » read word for word · - talk around it`, ''];
+  for (const b of plan.blocks) {
+    out.push(`## ${b.name} (${formatSeconds(b.seconds)})`);
+    if (b.purpose) out.push(`_${b.purpose}_`);
+    out.push('');
+    for (const l of b.lines) out.push(l.kind === 'read' ? `» ${l.text}` : l.kind === 'talk' ? `- ${l.text}` : l.text);
+    out.push('');
+  }
+  return out.join('\n').trim() + '\n';
+}

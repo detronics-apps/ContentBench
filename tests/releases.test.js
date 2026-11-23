@@ -88,3 +88,21 @@ test('a release goes out at its own time, else at its format\'s usual time', asy
   assert.equal(releaseTime(ws, { platformId: 'tt', formatId: 'none' }), '');
   assert.equal(releaseTime(ws, { platformId: 'gone' }), '');
 });
+
+test('Undo released puts the release back as it was - date, statuses and the number', () => {
+  let w = exampleWorkspace('2026-11-01T00:00:00.000Z');
+  const o = w.records.outputs.find((x) => !x.publishedDate);
+  w = { ...w, records: { ...w.records, outputs: w.records.outputs.map((x) => (x.id === o.id ? { ...x, scheduledDate: '2026-11-25', status: 'Scheduled' } : x)) } };
+  const before = w.records.content.find((c) => c.id === o.contentId);
+  const out = R.markReleased(w, o.id, '2026-11-23');
+  assert.equal(out.records.outputs.find((x) => x.id === o.id).publishedDate, '2026-11-23');
+  const back = R.unmarkReleased(out, o.id);
+  const ob = back.records.outputs.find((x) => x.id === o.id);
+  assert.equal(ob.publishedDate, '');
+  assert.equal(ob.scheduledDate, '2026-11-25', 'back on the day it was booked for');
+  assert.equal(ob.status, 'Scheduled');
+  const cb = back.records.content.find((c) => c.id === o.contentId);
+  assert.equal(cb.status, before.status);
+  assert.equal(cb.videoNo, before.videoNo);
+  assert.ok(R.releaseQueue(back).some((x) => x.output.id === o.id), 'it is in the line again');
+});

@@ -6,7 +6,7 @@ import * as M from '../model.js';
 import { plannerEntries, PLAN_KINDS, outputLabel, agenda, contentSchedule, seriesLabel, videoTags, passesFilter, releaseTime } from '../content.js';
 import { progress, addDays, instantiateWorkflow, instantiateStory } from '../workflow.js';
 import { projectForecast } from '../process.js';
-import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS, releaseQueue, markReleased, planAtPace } from '../releases.js';
+import { calendarItems, placeOnCalendar, releasePlan, backlogHealth, fillSlots, slotDates, WEEKDAYS, releaseQueue, markReleased, unmarkReleased, planAtPace } from '../releases.js';
 import { weekProgress, achievements, logStats, setWeeklyTarget } from '../goals.js';
 import { readiness } from '../readiness.js';
 import { makingEntries, bankOf, setStage } from '../making.js';
@@ -456,7 +456,7 @@ function calChip(item) {
     on: {
       dragstart: (e) => { e.dataTransfer.setData('text/plain', JSON.stringify({ id: item.id })); e.dataTransfer.effectAllowed = 'move'; },
       click: (e) => { e.stopPropagation(); planFilter.picked = picked ? null : { id: item.id }; refresh(); },
-      dblclick: (e) => { e.stopPropagation(); go(href('outputs', item.id)); },
+      dblclick: (e) => { e.stopPropagation(); go(videoHref(item.id)); },
     },
   }, [el('span', { class: 'calchip__title', text: item.title }), el('span', { class: 'calchip__label', text: item.label })]);
 }
@@ -530,6 +530,7 @@ function calendarView(ws, today) {
         ym !== today.slice(0, 7) ? button('Today', () => { planFilter.month = ''; refresh(); }, 'small') : null,
       ]),
       el('div', { class: 'chipset' }, [showChip('', 'Every platform'), ...ws.platforms.map((p) => showChip(p.id, p.name))]),
+      picked ? pickedBar(ws, picked) : null,
       el('p', { class: 'small muted', text: picked
         ? 'Now click a day to place it - or the shelf to take its date off.'
         : 'Each chip is one release on one platform. Drag it to a day (or click it, then a day). Dashed days are open release slots; "ready:" marks when a video in progress can be done, counted from today. Colours are categories.' }),
@@ -725,4 +726,21 @@ function bufferLine(ws, today, target) {
   return el('p', { class: 'small', 'data-field': 'week.buffer', text: b.ready.length
     ? `Made and waiting: ${b.ready.length}${b.bank.length ? ` (${b.bank.length} without a release date)` : ''} - about ${b.days} day${b.days === 1 ? '' : 's'} in hand at ${Math.round(perDay * 10) / 10} a day.`
     : 'Made and waiting: none yet. Make a little faster than you release - 3 every 2 days against 1 a day - and the bank grows.' });
+}
+
+/** A release chip belongs to a video: open the video where its work is (the parts strip shows which part). */
+function videoHref(outputId) {
+  const ws = currentWs();
+  const c = M.getRecord(ws, 'content', ws.records.outputs.find((o) => o.id === outputId)?.contentId);
+  return c ? workHref(ws, c) : href('outputs', outputId);
+}
+
+/** The chip you picked: open its video - and, if it was marked released, undo that. */
+function pickedBar(ws, picked) {
+  const o = ws.records.outputs.find((x) => x.id === picked.id);
+  if (!o) return null;
+  return el('div', { class: 'row', 'data-field': 'cal.picked' }, [
+    el('a', { class: 'btn btn-small', href: videoHref(o.id), 'data-field': 'cal.open' }, ['Open the video']),
+    o.publishedDate ? button('Undo released', () => { planFilter.picked = null; commitWs((w) => unmarkReleased(w, o.id)); }, 'small', { 'data-field': 'cal.unrelease', title: 'It did not go out - book it again on its day' }) : null,
+  ]);
 }

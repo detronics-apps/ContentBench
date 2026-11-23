@@ -91,11 +91,33 @@ export function markReleased(ws, outputId, date = todayIso(), now = nowIso()) {
   const o = getRecord(ws, 'outputs', outputId);
   if (!o || released(o)) return ws;
   const c0 = getRecord(ws, 'content', o.contentId);
+  // what Undo needs to put back: the statuses before, the date it was booked for, and whether the number came from this release
+  const undo = { outputStatus: o.status || '', scheduledDate: o.scheduledDate || '', contentStatus: c0?.status || '', videoNo: !!(c0 && !c0.videoNo) };
   if (c0 && !c0.videoNo) ws = updateRecord(ws, 'content', c0.id, { videoNo: videoNumber(ws, c0) || undefined }, now);
   const status = ws.config.statuses.outputs.includes('Published') ? 'Published' : o.status;
-  let out = updateRecord(ws, 'outputs', outputId, { publishedDate: date, scheduledDate: date, status }, now);
+  let out = updateRecord(ws, 'outputs', outputId, { publishedDate: date, scheduledDate: date, status, releaseUndo: undo }, now);
   const siblings = out.records.outputs.filter((x) => x.contentId === o.contentId && !x.archived);
   if (siblings.every(released) && ws.config.statuses.content.includes('Published')) out = updateRecord(out, 'content', o.contentId, { status: 'Published' }, now);
+  return out;
+}
+
+/**
+ * Undo Released ✓: the version is booked again on the day it was booked for, with the statuses it had - and the video
+ * loses the number the release gave it. A release marked before Undo existed goes back to Scheduled on its release day.
+ */
+export function unmarkReleased(ws, outputId, now = nowIso()) {
+  const o = getRecord(ws, 'outputs', outputId);
+  if (!o || !released(o)) return ws;
+  const u = o.releaseUndo || { outputStatus: ws.config.statuses.outputs.includes('Scheduled') ? 'Scheduled' : '', scheduledDate: o.publishedDate || o.scheduledDate, contentStatus: '', videoNo: true };
+  const outStatus = u.outputStatus === 'Published' ? (ws.config.statuses.outputs.includes('Scheduled') ? 'Scheduled' : '') : u.outputStatus;
+  let out = updateRecord(ws, 'outputs', outputId, { publishedDate: '', scheduledDate: u.scheduledDate || o.scheduledDate, status: outStatus, releaseUndo: undefined }, now);
+  const c = getRecord(out, 'content', o.contentId);
+  if (c) {
+    const patch = {};
+    if (c.status === 'Published') patch.status = u.contentStatus && u.contentStatus !== 'Published' ? u.contentStatus : (out.config.statuses.content.includes('Ready') ? 'Ready' : '');
+    if (u.videoNo) patch.videoNo = undefined;
+    if (Object.keys(patch).length) out = updateRecord(out, 'content', c.id, patch, now);
+  }
   return out;
 }
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.21.0
+
+- **Undo released:** marked a video released by mistake? Undo in its Publish step (or pick its chip on the calendar)
+  books it again on the day it was booked for, with the statuses it had, and takes back the number the release gave it.
+- **A calendar chip opens its video:** double-click a chip, or pick it and press Open the video - it opens where the
+  work is, with the parts strip showing which part it is.
+- **The script:** on the Card step, download the teleprompter wording as a script (.md) or copy it - each block with
+  its time and purpose, » read lines and - talking points.
+
 ## 0.20.1
 
 - **The Content block on Home counts like the Videos page:** booked, being planned and being made - a booked video is

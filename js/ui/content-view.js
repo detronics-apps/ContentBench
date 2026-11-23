@@ -12,8 +12,8 @@ import { createOutput, outputLabel, masterDrift, pullFromMaster, keepOutputVersi
 import { openReview } from './review.js';
 import { lessonsFor, checksDone, tickCheck } from '../lessons.js';
 import { newColourNext, lineTarget } from '../colours.js';
-import { insertLine, parseLines } from '../prompter.js';
-import { markReleased } from '../releases.js';
+import { insertLine, parseLines, scriptText } from '../prompter.js';
+import { markReleased, unmarkReleased } from '../releases.js';
 import { MAKING, makingPlan, setStage, setStageDays, keepPlan } from '../making.js';
 import * as K from '../capture.js';
 import { sync, folderReady, folderSupported, makeFolders, listFolders, downloadTree } from './folder.js';
@@ -364,7 +364,8 @@ function publishOutputs(c, ws) {
     ...outs.map((o) => el('div', { class: 'block publish-out' }, [
       el('div', { class: 'row' }, [el('strong', { text: outputLabel(ws, o) }), badge(o.status || 'no status', 'status'),
         masterDrift(o, c).length ? badge('master changed', 'warn') : null, el('span', { class: 'row__push' }),
-        o.publishedDate ? el('span', { class: 'small text-ok', text: `Out ${o.publishedDate}` })
+        o.publishedDate ? el('span', { class: 'row' }, [el('span', { class: 'small text-ok', text: `Out ${o.publishedDate}` }),
+          button('Undo', () => commitWs((w) => unmarkReleased(w, o.id)), 'small ghost', { 'data-field': `pub.${o.id}.unrelease`, title: 'It did not go out - book it again on the day it was booked for' })])
           : button('Released ✓', () => commitWs((w) => markReleased(w, o.id, M.todayIso())), 'small', { 'data-field': `pub.${o.id}.released`, title: 'It went out today - record it on this date' }),
         el('a', { class: 'small', href: href('outputs', o.id), text: 'Open the full version page' })]),
       el('div', { class: 'two' }, [
@@ -484,7 +485,7 @@ export function contentEditor(id, section = 'idea') {
       card('Built from and links', [linkEditor('content', c, ws, link('content', id), { only: ['sourceIds', 'ideaIds', 'projectIds'] }),
         el('p', { class: 'small muted', text: 'Built from: the videos an e-book sums up, or the master a short comes from - their material goes into the briefs. No project linked means standalone, which is fine.' })]),
       assistantPanel('content', c, ws)],
-    card: () => [card('', [form()]), newColourCard(c, ws), storyEditor('content', c, ws),
+    card: () => [card('', [form()]), newColourCard(c, ws), scriptCard(c), storyEditor('content', c, ws),
       more('Hook ideas, alternatives and the ending', [form('hooks')]),
       more('Research and claims to check', [form('research'), linkEditor('content', c, ws, link('content', id), { only: ['referenceIds'] }), button('New reference', addRef, 'small')], !!c.claimsToVerify),
       more('Overall look and visual notes', [form('look')]),
@@ -689,4 +690,18 @@ export function outputEditor(id) {
     assistantPanel('outputs', o, ws),
     card('', [recordActions('outputs', o, c ? `#/content/${c.id}/outputs` : '#/library')]),
   ]);
+}
+
+/** The teleprompter wording as a script: download it, or copy it to paste anywhere. */
+function scriptCard(c) {
+  const blocks = c.story?.blocks || [];
+  if (!blocks.length) return null;
+  const text = () => scriptText(c.workingTitle, M.getRecord(currentWs(), 'content', c.id)?.story?.blocks || blocks);
+  return card('', [el('div', { class: 'row' }, [
+    el('strong', { text: 'The script' }),
+    el('span', { class: 'small muted', text: 'Every block\u2019s wording as the teleprompter shows it.' }),
+    el('span', { class: 'row__push' }),
+    button('Download (.md)', () => download(new Blob([text()], { type: 'text/markdown' }), `${slug(c.workingTitle)}_script.md`), 'small', { 'data-field': 'script.download' }),
+    button('Copy', () => copyText(text(), 'Script copied'), 'small', { 'data-field': 'script.copy' }),
+  ])]);
 }

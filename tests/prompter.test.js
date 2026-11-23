@@ -77,3 +77,11 @@ test('a saved take replaces earlier takes and keeps other notes', async () => {
   assert.equal(withLatestTake(notes, 'Teleprompter take - X (3)\n0:00  A', { keepFirst: true }),
     'Mic close.\n\nTeleprompter take - X (1)\n0:00  A\n\nTeleprompter take - X (3)\n0:00  A');
 });
+
+test('the script: each block with its time, read lines and talking points as the teleprompter shows them', async () => {
+  const { scriptText } = await import('../js/prompter.js');
+  const t = scriptText('Rent or buy', [{ name: 'Hook (read)', duration: '0:06', purpose: 'Meet the viewer.', script: '» Have you ever been told renting is throwing money away?' }, { name: 'Body (talk)', duration: '0:20', script: '- The costs\nnote to self' }]);
+  assert.match(t, /^# Rent or buy/);
+  assert.match(t, /## Hook \(read\) \(0:06\)\n_Meet the viewer\._\n\n» Have you ever/);
+  assert.match(t, /- The costs\nnote to self/);
+});
